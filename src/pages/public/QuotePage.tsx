@@ -96,10 +96,10 @@ interface PaymentStatusResponse {
         order_id?: number | string | null
         order_number?: string | null
 
-        amount?: number
-        final_amount?: number
-        dp_amount?: number
-        remaining_amount?: number
+        amount?: number | null
+        final_amount?: number | null
+        dp_amount?: number | null
+        remaining_amount?: number | null
     }
 }
 
@@ -282,12 +282,21 @@ export function QuotePage() {
              * Backend dapat mengembalikan data quote
              * terbaru setelah status berubah menjadi Accepted.
              */
-            if (result.data?.quote) {
-                setQuote((current) => ({
-                    ...current,
-                    ...result.data?.quote,
-                    status: 'Accepted',
-                }))
+            const acceptedQuote = result.data?.quote
+
+            if (acceptedQuote) {
+                setQuote((current) => {
+                    if (!current) {
+                        return acceptedQuote
+                    }
+
+                    return {
+                        ...current,
+                        ...acceptedQuote,
+                        id: acceptedQuote.id || current.id,
+                        status: 'Accepted',
+                    }
+                })
             } else {
                 setQuote((current) => {
                     if (!current) return current
@@ -498,17 +507,20 @@ export function QuotePage() {
                             result.data?.amount ??
                             result.data?.final_amount ??
                             paymentData.final_amount ??
-                            quote?.proposed_price,
+                            quote?.proposed_price ??
+                            undefined,
 
                         paid_amount:
                             result.data?.dp_amount ??
                             paymentData.dp_amount ??
-                            quote?.dp_amount,
+                            quote?.dp_amount ??
+                            undefined,
 
                         remaining_amount:
                             result.data?.remaining_amount ??
                             paymentData.remaining_amount ??
-                            quote?.remaining_amount,
+                            quote?.remaining_amount ??
+                            undefined,
                     })
 
                     if (intervalId) {

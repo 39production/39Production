@@ -146,7 +146,10 @@ export function ServiceDetailPage() {
     useState(false)
 
   const [quoteSubmitted, setQuoteSubmitted] =
-    useState<{ quoteNumber: string; serviceName: string } | null>(null)
+    useState<{
+      quoteNumber: string
+      serviceName: string
+    } | null>(null)
 
   const [isSubmitting, setIsSubmitting] =
     useState(false)
@@ -239,11 +242,16 @@ export function ServiceDetailPage() {
   }
 
   const calculateDiscount = () => {
-    if (!service || !promotion || !isFixedService) {
+    if (
+      !service ||
+      !promotion ||
+      !isFixedService
+    ) {
       return 0
     }
 
-    const basePrice = Number(service.price) || 0
+    const basePrice =
+      Number(service.price) || 0
 
     if (
       promotion.discount_type ===
@@ -336,8 +344,12 @@ export function ServiceDetailPage() {
   }
 
   const getAdminWhatsAppUrl = () => {
-    const raw = String(import.meta.env.VITE_WHATSAPP_NUMBER ?? '')
-    const phone = normalizeWhatsAppNumber(raw)
+    const raw = String(
+      import.meta.env.VITE_WHATSAPP_NUMBER ?? '',
+    )
+
+    const phone =
+      normalizeWhatsAppNumber(raw)
 
     if (!phone) return ''
 
@@ -346,14 +358,20 @@ export function ServiceDetailPage() {
       '',
       'Saya baru saja mengirim request quotation melalui website.',
       '',
-      `Request Number: ${quoteSubmitted?.quoteNumber ?? '-'}`,
-      `Layanan: ${quoteSubmitted?.serviceName ?? service?.name ?? '-'}`,
+      `Request Number: ${quoteSubmitted?.quoteNumber ?? '-'
+      }`,
+      `Layanan: ${quoteSubmitted?.serviceName ??
+      service?.name ??
+      '-'
+      }`,
       `Nama: ${customerName.trim() || '-'}`,
       '',
       'Saya ingin mengonfirmasi request tersebut dan melanjutkan pembahasan scope serta harga.',
     ].join('\n')
 
-    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+    return `https://wa.me/${phone}?text=${encodeURIComponent(
+      message,
+    )}`
   }
 
   useEffect(() => {
@@ -424,7 +442,11 @@ export function ServiceDetailPage() {
 
   useEffect(() => {
     const fetchPromotion = async () => {
-      if (!id || !service || !isFixedService) {
+      if (
+        !id ||
+        !service ||
+        !isFixedService
+      ) {
         setPromotion(null)
         return
       }
@@ -480,7 +502,11 @@ export function ServiceDetailPage() {
     }
 
     void fetchPromotion()
-  }, [id, service, isFixedService])
+  }, [
+    id,
+    service,
+    isFixedService,
+  ])
 
   const resetCheckout = () => {
     setQuoteSubmitted(null)
@@ -609,7 +635,10 @@ export function ServiceDetailPage() {
         // belum ditentukan dan belum ada deal dengan admin.
         setShowCheckout(false)
         setQuoteSubmitted({
-          quoteNumber: String(quote?.quote_number ?? 'REQUEST'),
+          quoteNumber: String(
+            quote?.quote_number ??
+            'REQUEST',
+          ),
           serviceName: service.name,
         })
         return
@@ -695,6 +724,7 @@ export function ServiceDetailPage() {
     }
 
     let active = true
+
     let intervalId:
       | number
       | undefined
@@ -806,9 +836,10 @@ export function ServiceDetailPage() {
   // `service` is guaranteed to exist below the loading/error guards.
   // Keep all pricing calculations null-safe so an in-flight render can
   // never crash the component if the service state is temporarily null.
-  const discount = service && isFixedService
-    ? calculateDiscount()
-    : 0
+  const discount =
+    service && isFixedService
+      ? calculateDiscount()
+      : 0
 
   const basePrice =
     service && isFixedService
@@ -816,19 +847,26 @@ export function ServiceDetailPage() {
       : 0
 
   const finalPrice = isFixedService
-    ? Math.max(0, basePrice - discount)
+    ? Math.max(
+      0,
+      basePrice - discount,
+    )
     : 0
 
   const startingPrice =
     service && isStartingFromService
-      ? Number(service.starting_price) || 0
+      ? Number(service.starting_price) ||
+      0
       : 0
 
   const estimatedDp =
     Math.ceil(finalPrice / 2)
 
   const estimatedRemaining =
-    Math.max(0, finalPrice - estimatedDp)
+    Math.max(
+      0,
+      finalPrice - estimatedDp,
+    )
 
   if (loading) {
     return (
@@ -982,12 +1020,13 @@ export function ServiceDetailPage() {
               </div>
 
               {/* Promotion */}
-              {promotion && isFixedService && (
-                <div className="absolute right-5 top-5 flex items-center gap-2 rounded-full border border-brand-accent/30 bg-brand-accent/10 px-3 py-2 text-xs font-bold text-brand-accent backdrop-blur-md">
-                  <Tag className="h-3.5 w-3.5" />
-                  {getDiscountLabel()}
-                </div>
-              )}
+              {promotion &&
+                isFixedService && (
+                  <div className="absolute right-5 top-5 flex items-center gap-2 rounded-full border border-brand-accent/30 bg-brand-accent/10 px-3 py-2 text-xs font-bold text-brand-accent backdrop-blur-md">
+                    <Tag className="h-3.5 w-3.5" />
+                    {getDiscountLabel()}
+                  </div>
+                )}
 
               {/* Image bottom info */}
               <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/10 bg-black/40 p-4 backdrop-blur-xl">
@@ -1037,7 +1076,9 @@ export function ServiceDetailPage() {
 
                   <div className="mt-1 flex flex-wrap items-end gap-3">
                     <span className="font-display text-3xl font-black text-white sm:text-4xl">
-                      {formatPrice(finalPrice)}
+                      {formatPrice(
+                        finalPrice,
+                      )}
                     </span>
 
                     {promotion &&
@@ -1056,8 +1097,12 @@ export function ServiceDetailPage() {
                   <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">
                     Starting Price
                   </p>
+
                   <span className="mt-1 block font-display text-3xl font-black text-white sm:text-4xl">
-                    Mulai dari {formatPrice(startingPrice)}
+                    Mulai dari{' '}
+                    {formatPrice(
+                      startingPrice,
+                    )}
                   </span>
                 </div>
               ) : (
@@ -1065,6 +1110,7 @@ export function ServiceDetailPage() {
                   <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">
                     Pricing
                   </p>
+
                   <span className="mt-1 block font-display text-3xl font-black text-white sm:text-4xl">
                     Custom Quote
                   </span>
@@ -1073,41 +1119,42 @@ export function ServiceDetailPage() {
             </div>
 
             {/* Promotion */}
-            {promotion && isFixedService && (
-              <div className="mt-7 overflow-hidden rounded-2xl border border-brand-accent/20 bg-gradient-to-r from-brand-accent/10 via-brand-primary/5 to-transparent">
-                <div className="flex items-start gap-4 p-5">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10">
-                    <Tag className="h-5 w-5 text-brand-accent" />
-                  </div>
+            {promotion &&
+              isFixedService && (
+                <div className="mt-7 overflow-hidden rounded-2xl border border-brand-accent/20 bg-gradient-to-r from-brand-accent/10 via-brand-primary/5 to-transparent">
+                  <div className="flex items-start gap-4 p-5">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-accent/10">
+                      <Tag className="h-5 w-5 text-brand-accent" />
+                    </div>
 
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-wider text-brand-accent">
-                      Special Promotion
-                    </p>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold uppercase tracking-wider text-brand-accent">
+                        Special Promotion
+                      </p>
 
-                    <h2 className="mt-1 font-display text-base font-bold text-text-primary">
-                      {promotion.title}
-                    </h2>
+                      <h2 className="mt-1 font-display text-base font-bold text-text-primary">
+                        {promotion.title}
+                      </h2>
 
-                    <p className="mt-1 text-sm leading-5 text-text-muted">
-                      {
-                        promotion.description
-                      }
-                    </p>
+                      <p className="mt-1 text-sm leading-5 text-text-muted">
+                        {
+                          promotion.description
+                        }
+                      </p>
 
-                    <div className="mt-3 inline-flex items-center rounded-lg border border-dashed border-brand-accent/30 bg-bg-base/40 px-3 py-1.5">
-                      <span className="text-xs text-text-muted">
-                        Code:
-                      </span>
+                      <div className="mt-3 inline-flex items-center rounded-lg border border-dashed border-brand-accent/30 bg-bg-base/40 px-3 py-1.5">
+                        <span className="text-xs text-text-muted">
+                          Code:
+                        </span>
 
-                      <span className="ml-2 font-mono text-xs font-bold text-brand-accent">
-                        {promotion.code}
-                      </span>
+                        <span className="ml-2 font-mono text-xs font-bold text-brand-accent">
+                          {promotion.code}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Description */}
             <div className="mt-7">
@@ -1192,47 +1239,81 @@ export function ServiceDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
           <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-border-default bg-bg-surface/95 shadow-2xl backdrop-blur-2xl">
             <div className="h-1 w-full bg-gradient-to-r from-brand-primary via-purple-500 to-brand-accent" />
+
             <div className="p-7 text-center sm:p-8">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10">
                 <CheckCircle2 className="h-8 w-8 text-emerald-400" />
               </div>
-              <h2 className="mt-5 font-display text-2xl font-bold text-text-primary">Request Berhasil Dikirim</h2>
+
+              <h2 className="mt-5 font-display text-2xl font-bold text-text-primary">
+                Request Berhasil Dikirim
+              </h2>
+
               <p className="mt-3 text-sm leading-6 text-text-muted">
                 Request kamu sudah masuk ke sistem 39Production. Harga final belum ditentukan.
                 Silakan konfirmasi melalui WhatsApp agar admin dapat membahas kebutuhan project dan harga dengan kamu.
               </p>
+
               <div className="mt-5 rounded-2xl border border-border-default bg-bg-base/50 p-4 text-left">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-xs text-text-muted">Request Number</span>
-                  <span className="font-mono text-sm font-bold text-brand-primary">{quoteSubmitted.quoteNumber}</span>
+                  <span className="text-xs text-text-muted">
+                    Request Number
+                  </span>
+
+                  <span className="font-mono text-sm font-bold text-brand-primary">
+                    {quoteSubmitted.quoteNumber}
+                  </span>
                 </div>
+
                 <div className="mt-3 flex items-center justify-between gap-4">
-                  <span className="text-xs text-text-muted">Layanan</span>
-                  <span className="text-right text-sm font-semibold text-text-primary">{quoteSubmitted.serviceName}</span>
+                  <span className="text-xs text-text-muted">
+                    Layanan
+                  </span>
+
+                  <span className="text-right text-sm font-semibold text-text-primary">
+                    {quoteSubmitted.serviceName}
+                  </span>
                 </div>
               </div>
+
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 <a
-                  href={getAdminWhatsAppUrl() || '#'}
+                  href={
+                    getAdminWhatsAppUrl() || '#'
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={(event) => { if (!getAdminWhatsAppUrl()) event.preventDefault() }}
+                  onClick={(event) => {
+                    if (
+                      !getAdminWhatsAppUrl()
+                    ) {
+                      event.preventDefault()
+                    }
+                  }}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-primary to-brand-accent px-5 py-3.5 text-sm font-bold text-white transition hover:-translate-y-0.5"
                 >
                   Konfirmasi via WhatsApp
+
                   <ArrowRight className="h-4 w-4" />
                 </a>
+
                 <button
                   type="button"
-                  onClick={() => setQuoteSubmitted(null)}
+                  onClick={() =>
+                    setQuoteSubmitted(null)
+                  }
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-border-default bg-bg-base/50 px-5 py-3.5 text-sm font-semibold text-text-primary transition hover:border-brand-primary/30 hover:bg-bg-elevated"
                 >
                   Selesai
                 </button>
               </div>
+
               {!getAdminWhatsAppUrl() && (
-                <p className="mt-4 text-xs text-amber-300">Nomor WhatsApp admin belum dikonfigurasi pada environment frontend.</p>
+                <p className="mt-4 text-xs text-amber-300">
+                  Nomor WhatsApp admin belum dikonfigurasi pada environment frontend.
+                </p>
               )}
+
               <p className="mt-5 text-xs leading-5 text-text-muted">
                 Setelah admin menentukan harga final, kamu akan menerima link quotation untuk melihat detail deal, menerima quotation, dan membayar DP.
               </p>
@@ -1259,7 +1340,10 @@ export function ServiceDetailPage() {
               <div>
                 <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-brand-primary/20 bg-brand-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-primary">
                   <Briefcase className="h-3.5 w-3.5" />
-                  {needsQuote ? 'Project Request' : 'Checkout'}
+
+                  {needsQuote
+                    ? 'Project Request'
+                    : 'Checkout'}
                 </div>
 
                 <h2 className="font-display text-2xl font-bold text-text-primary">
@@ -1336,7 +1420,10 @@ export function ServiceDetailPage() {
                         </>
                       ) : isStartingFromService ? (
                         <p className="font-display text-lg font-bold text-white">
-                          Mulai dari {formatPrice(startingPrice)}
+                          Mulai dari{' '}
+                          {formatPrice(
+                            startingPrice,
+                          )}
                         </p>
                       ) : (
                         <p className="font-display text-lg font-bold text-white">
@@ -1366,9 +1453,7 @@ export function ServiceDetailPage() {
                         )
                       }
                       placeholder="Masukkan nama lengkap"
-                      disabled={
-                        isSubmitting
-                      }
+                      disabled={isSubmitting}
                       className="w-full rounded-xl border border-border-default bg-bg-base/60 px-4 py-3 text-sm text-text-primary outline-none placeholder:text-text-muted/60 transition focus:border-brand-primary/50 focus:ring-2 focus:ring-brand-primary/10 disabled:opacity-50"
                     />
                   </div>
@@ -1391,9 +1476,7 @@ export function ServiceDetailPage() {
                         )
                       }
                       placeholder="nama@email.com"
-                      disabled={
-                        isSubmitting
-                      }
+                      disabled={isSubmitting}
                       className="w-full rounded-xl border border-border-default bg-bg-base/60 px-4 py-3 text-sm text-text-primary outline-none placeholder:text-text-muted/60 transition focus:border-brand-primary/50 focus:ring-2 focus:ring-brand-primary/10 disabled:opacity-50"
                     />
                   </div>
@@ -1416,9 +1499,7 @@ export function ServiceDetailPage() {
                         )
                       }
                       placeholder="08xxxxxxxxxx"
-                      disabled={
-                        isSubmitting
-                      }
+                      disabled={isSubmitting}
                       className="w-full rounded-xl border border-border-default bg-bg-base/60 px-4 py-3 text-sm text-text-primary outline-none placeholder:text-text-muted/60 transition focus:border-brand-primary/50 focus:ring-2 focus:ring-brand-primary/10 disabled:opacity-50"
                     />
                   </div>
@@ -1429,6 +1510,7 @@ export function ServiceDetailPage() {
                         <p className="text-sm font-bold text-text-primary">
                           Detail Project
                         </p>
+
                         <p className="mt-1 text-xs leading-5 text-text-muted">
                           Data ini membantu admin menghitung scope dan memberikan penawaran harga yang sesuai.
                         </p>
@@ -1441,15 +1523,20 @@ export function ServiceDetailPage() {
                         >
                           Nama Project
                         </label>
+
                         <input
                           id="projectName"
                           type="text"
                           value={projectName}
                           onChange={(e) =>
-                            setProjectName(e.target.value)
+                            setProjectName(
+                              e.target.value,
+                            )
                           }
                           placeholder="Contoh: Website Company Profile"
-                          disabled={isSubmitting}
+                          disabled={
+                            isSubmitting
+                          }
                           className="w-full rounded-xl border border-border-default bg-bg-base/60 px-4 py-3 text-sm text-text-primary outline-none placeholder:text-text-muted/60 transition focus:border-brand-primary/50 focus:ring-2 focus:ring-brand-primary/10 disabled:opacity-50"
                         />
                       </div>
@@ -1461,15 +1548,22 @@ export function ServiceDetailPage() {
                         >
                           Deskripsi Project
                         </label>
+
                         <textarea
                           id="projectDescription"
-                          value={projectDescription}
+                          value={
+                            projectDescription
+                          }
                           onChange={(e) =>
-                            setProjectDescription(e.target.value)
+                            setProjectDescription(
+                              e.target.value,
+                            )
                           }
                           placeholder="Jelaskan kebutuhan, fitur, atau hasil yang diinginkan..."
                           rows={4}
-                          disabled={isSubmitting}
+                          disabled={
+                            isSubmitting
+                          }
                           className="w-full resize-none rounded-xl border border-border-default bg-bg-base/60 px-4 py-3 text-sm text-text-primary outline-none placeholder:text-text-muted/60 transition focus:border-brand-primary/50 focus:ring-2 focus:ring-brand-primary/10 disabled:opacity-50"
                         />
                       </div>
@@ -1482,15 +1576,20 @@ export function ServiceDetailPage() {
                           >
                             Budget
                           </label>
+
                           <input
                             id="budgetRange"
                             type="text"
                             value={budgetRange}
                             onChange={(e) =>
-                              setBudgetRange(e.target.value)
+                              setBudgetRange(
+                                e.target.value,
+                              )
                             }
                             placeholder="Contoh: Rp3–5 juta"
-                            disabled={isSubmitting}
+                            disabled={
+                              isSubmitting
+                            }
                             className="w-full rounded-xl border border-border-default bg-bg-base/60 px-4 py-3 text-sm text-text-primary outline-none placeholder:text-text-muted/60 transition focus:border-brand-primary/50 focus:ring-2 focus:ring-brand-primary/10 disabled:opacity-50"
                           />
                         </div>
@@ -1502,14 +1601,19 @@ export function ServiceDetailPage() {
                           >
                             Target Deadline
                           </label>
+
                           <input
                             id="deadline"
                             type="date"
                             value={deadline}
                             onChange={(e) =>
-                              setDeadline(e.target.value)
+                              setDeadline(
+                                e.target.value,
+                              )
                             }
-                            disabled={isSubmitting}
+                            disabled={
+                              isSubmitting
+                            }
                             className="w-full rounded-xl border border-border-default bg-bg-base/60 px-4 py-3 text-sm text-text-primary outline-none transition focus:border-brand-primary/50 focus:ring-2 focus:ring-brand-primary/10 disabled:opacity-50"
                           />
                         </div>
@@ -1522,15 +1626,20 @@ export function ServiceDetailPage() {
                         >
                           Reference URL
                         </label>
+
                         <input
                           id="referenceUrl"
                           type="url"
                           value={referenceUrl}
                           onChange={(e) =>
-                            setReferenceUrl(e.target.value)
+                            setReferenceUrl(
+                              e.target.value,
+                            )
                           }
                           placeholder="https://..."
-                          disabled={isSubmitting}
+                          disabled={
+                            isSubmitting
+                          }
                           className="w-full rounded-xl border border-border-default bg-bg-base/60 px-4 py-3 text-sm text-text-primary outline-none placeholder:text-text-muted/60 transition focus:border-brand-primary/50 focus:ring-2 focus:ring-brand-primary/10 disabled:opacity-50"
                         />
                       </div>
@@ -1542,15 +1651,22 @@ export function ServiceDetailPage() {
                         >
                           Kebutuhan Tambahan
                         </label>
+
                         <textarea
                           id="additionalRequirements"
-                          value={additionalRequirements}
+                          value={
+                            additionalRequirements
+                          }
                           onChange={(e) =>
-                            setAdditionalRequirements(e.target.value)
+                            setAdditionalRequirements(
+                              e.target.value,
+                            )
                           }
                           placeholder="Tambahkan catatan atau kebutuhan khusus (opsional)..."
                           rows={3}
-                          disabled={isSubmitting}
+                          disabled={
+                            isSubmitting
+                          }
                           className="w-full resize-none rounded-xl border border-border-default bg-bg-base/60 px-4 py-3 text-sm text-text-primary outline-none placeholder:text-text-muted/60 transition focus:border-brand-primary/50 focus:ring-2 focus:ring-brand-primary/10 disabled:opacity-50"
                         />
                       </div>
@@ -1632,11 +1748,13 @@ export function ServiceDetailPage() {
                     <p className="text-sm font-semibold text-text-primary">
                       Harga akan ditentukan melalui Quote
                     </p>
+
                     <p className="mt-1 text-xs leading-5 text-text-muted">
                       {isStartingFromService
                         ? `Layanan dimulai dari ${formatPrice(startingPrice)}. Angka ini hanya harga awal, bukan harga final.`
                         : 'Admin akan menentukan harga berdasarkan scope dan kebutuhan project.'}
-                      {' '}Kamu dan admin akan membahas detail serta harga terlebih dahulu. Setelah deal disetujui, barulah pembayaran DP dapat dilakukan.
+                      {' '}
+                      Kamu dan admin akan membahas detail serta harga terlebih dahulu. Setelah deal disetujui, barulah pembayaran DP dapat dilakukan.
                     </p>
                   </div>
                 )}
@@ -1655,6 +1773,7 @@ export function ServiceDetailPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
+
                       {needsQuote
                         ? 'Mengirim Request Quote...'
                         : 'Membuat Pembayaran...'}
@@ -1664,6 +1783,7 @@ export function ServiceDetailPage() {
                       {needsQuote
                         ? 'Kirim Request Quote'
                         : 'Pay DP 50% via DANA QRIS'}
+
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}
@@ -1776,7 +1896,7 @@ export function ServiceDetailPage() {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : createdOrder ? (
               /* =================================================
                   ORDER SUCCESS
               ================================================== */
@@ -1944,7 +2064,7 @@ export function ServiceDetailPage() {
                   Kembali ke Services
                 </Link>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       )}

@@ -1,4 +1,3 @@
-
 import {
   useEffect,
   useState,
@@ -283,8 +282,7 @@ export function ProductDetailPage() {
       ? `${promotion.discount_value}% OFF`
       : `${formatPrice(
         promotion.discount_value,
-      )
-      } OFF`
+      )} OFF`
   }
 
   const normalizeWhatsAppNumber = (
@@ -293,11 +291,11 @@ export function ProductDetailPage() {
     let number = phone.replace(/\D/g, '')
 
     if (number.startsWith('0')) {
-      number = `62${number.slice(1)} `
+      number = `62${number.slice(1)}`
     }
 
     if (number.startsWith('8')) {
-      number = `62${number} `
+      number = `62${number}`
     }
 
     return number
@@ -306,18 +304,16 @@ export function ProductDetailPage() {
   const getTrackUrl = (
     orderNumber: string,
   ) =>
-    `/ track - order ? order = ${encodeURIComponent(
+    `/track-order?order=${encodeURIComponent(
       orderNumber,
-    )
-    } `
+    )}`
 
   const getFinalPaymentUrl = (
     orderNumber: string,
   ) =>
-    `/ payment / ${encodeURIComponent(
+    `/payment/${encodeURIComponent(
       orderNumber,
-    )
-    } `
+    )}`
 
   const createWhatsAppUrl = () => {
     if (!createdOrder) {
@@ -355,8 +351,7 @@ export function ProductDetailPage() {
     const trackUrl =
       `${window.location.origin}${getTrackUrl(
         createdOrder.order_number,
-      )
-      } `
+      )} `
 
     const message = [
       'Halo 39Production, saya ingin menanyakan order.',
@@ -370,8 +365,7 @@ export function ProductDetailPage() {
       `DP 50 %: ${formatPrice(dpAmount)} `,
       `Sisa pembayaran: ${formatPrice(
         remainingAmount,
-      )
-      } `,
+      )} `,
       '',
       `Track Order: ${trackUrl} `,
     ].join('\n')
@@ -405,8 +399,7 @@ export function ProductDetailPage() {
         const response = await fetch(
           `${API_BASE_URL}/api/products/${encodeURIComponent(
             id,
-          )
-          } `,
+          )}`,
           {
             cache: 'no-store',
           },
@@ -416,7 +409,7 @@ export function ProductDetailPage() {
           throw new Error(
             response.status === 404
               ? 'Produk tidak ditemukan.'
-              : `Gagal mengambil produk(${response.status}).`,
+              : `Gagal mengambil produk (${response.status}).`,
           )
         }
 
@@ -623,7 +616,7 @@ export function ProductDetailPage() {
       Number(product.stock)
     ) {
       setFormError(
-        `Quantity melebihi stok tersedia(${product.stock}).`,
+        `Quantity melebihi stok tersedia (${product.stock}).`,
       )
 
       return
@@ -673,7 +666,7 @@ export function ProductDetailPage() {
       ) {
         throw new Error(
           result?.message ||
-          `Gagal membuat pembayaran(${response.status}).`,
+          `Gagal membuat pembayaran (${response.status}).`,
         )
       }
 
@@ -788,8 +781,7 @@ export function ProductDetailPage() {
             await fetch(
               `${API_BASE_URL}/api/payments/${encodeURIComponent(
                 paymentData.payment_reference,
-              )
-              }/status`,
+              )}/status`,
               {
                 cache:
                   'no-store',
@@ -1097,16 +1089,16 @@ export function ProductDetailPage() {
                 className={`absolute left-5 top-5 flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold backdrop-blur-md ${Number(
                   product.stock,
                 ) > 0
-                  ? 'border border-emerald-400/20 bg-emerald-400/10 text-emerald-300'
-                  : 'border border-red-400/20 bg-red-400/10 text-red-300'
+                    ? 'border border-emerald-400/20 bg-emerald-400/10 text-emerald-300'
+                    : 'border border-red-400/20 bg-red-400/10 text-red-300'
                   }`}
               >
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${Number(
                     product.stock,
                   ) > 0
-                    ? 'bg-emerald-400'
-                    : 'bg-red-400'
+                      ? 'bg-emerald-400'
+                      : 'bg-red-400'
                     }`}
                 />
 
@@ -1394,13 +1386,10 @@ export function ProductDetailPage() {
             {/* =================================================
                 CHECKOUT FORM
             ================================================== */}
-            {!createdOrder &&
-              !paymentData ? (
+            {!createdOrder && !paymentData ? (
               <form
-                onSubmit={
-                  handleCheckout
-                }
-                className="space-y-6 p-6"
+                onSubmit={handleCheckout}
+                className="space-y-6"
               >
                 <div className="rounded-2xl border border-border-default bg-bg-base/50 p-4">
                   <div className="flex items-center justify-between gap-4">
@@ -1771,11 +1760,10 @@ export function ProductDetailPage() {
                   diverifikasi oleh server.
                 </p>
               </form>
-            ) : !createdOrder &&
-              paymentData ? (
+            ) : !createdOrder && paymentData ? (
               /* =================================================
-                  QRIS PAYMENT
-              ================================================== */
+                QRIS PAYMENT
+                ================================================== */
               <div className="p-6 sm:p-8">
                 <div className="rounded-2xl border border-brand-primary/20 bg-brand-primary/5 p-4">
                   <div className="flex items-center justify-between gap-4">
@@ -1872,7 +1860,7 @@ export function ProductDetailPage() {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : createdOrder ? (
               /* =================================================
                   ORDER SUCCESS
               ================================================== */
@@ -2083,7 +2071,7 @@ export function ProductDetailPage() {
                   Kembali ke Products
                 </Link>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       )}

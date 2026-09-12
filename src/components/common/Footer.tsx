@@ -26,7 +26,7 @@ const footerLinks = {
 }
 
 export function Footer() {
-  const whatsappUrl = getWhatsAppUrl(projectInquiryMessage)
+  const whatsappUrl = getWhatsAppUrl(projectInquiryMessage())
 
   return (
     <footer className="border-t border-border-default bg-bg-base">
