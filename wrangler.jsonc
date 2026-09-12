@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "39production-api",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-06",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "39production-db",
+      "database_id": "1d15a4c3-ba68-4e27-8028-2cfe732bd44e"
+    }
+  ]
+}
