@@ -25,9 +25,20 @@ import {
 const API_BASE_URL =
   'https://39production-api.39production.workers.dev'
 
-/*
- * TYPES
- */
+type AdminTheme = 'dark' | 'light'
+
+interface ThemeTokens {
+  page: string
+  surface: string
+  elevated: string
+  input: string
+  border: string
+  textPrimary: string
+  textSecondary: string
+  textMuted: string
+  hover: string
+  placeholder: string
+}
 
 interface IdolMember {
   id: number
@@ -104,19 +115,11 @@ interface IdolGroup {
   musicVideoCount: number
 }
 
-/*
- * API RESPONSE
- */
-
 interface ApiResponse<T> {
   success: boolean
   data: T
   message?: string
 }
-
-/*
- * EMPTY FORMS
- */
 
 const emptyGroupForm = {
   name: '',
@@ -176,6 +179,72 @@ const emptyMusicVideoForm = {
   status: 'Upcoming' as 'Published' | 'Upcoming',
 }
 
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024
+const MAX_STORED_IMAGE_SIZE = 150 * 1024
+
+const ALLOWED_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+]
+
+function useAdminTheme() {
+  const readTheme = (): AdminTheme =>
+    document.documentElement.dataset.adminTheme === 'light'
+      ? 'light'
+      : 'dark'
+
+  const [theme, setTheme] = useState<AdminTheme>(readTheme)
+
+  useEffect(() => {
+    const syncTheme = () => setTheme(readTheme())
+
+    syncTheme()
+
+    const observer = new MutationObserver(syncTheme)
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-admin-theme'],
+    })
+
+    return () => observer.disconnect()
+  }, [])
+
+  return theme
+}
+
+function getThemeTokens(theme: AdminTheme): ThemeTokens {
+  if (theme === 'light') {
+    return {
+      page: 'bg-[#f7f7fa]',
+      surface: 'bg-white',
+      elevated: 'bg-neutral-50',
+      input: 'bg-white',
+      border: 'border-neutral-200',
+      textPrimary: 'text-neutral-900',
+      textSecondary: 'text-neutral-600',
+      textMuted: 'text-neutral-500',
+      hover: 'hover:bg-neutral-50',
+      placeholder: 'placeholder:text-neutral-400',
+    }
+  }
+
+  return {
+    page: 'bg-[#0b0b0f]',
+    surface: 'bg-[#15151b]',
+    elevated: 'bg-[#1b1b22]',
+    input: 'bg-[#0f0f13]',
+    border: 'border-white/[0.08]',
+    textPrimary: 'text-white',
+    textSecondary: 'text-white/70',
+    textMuted: 'text-white/45',
+    hover: 'hover:bg-white/[0.04]',
+    placeholder: 'placeholder:text-white/25',
+  }
+}
+
 /*
  * API HELPER
  */
@@ -183,6 +252,7 @@ const emptyMusicVideoForm = {
 function extractToken(value: unknown): string | null {
   if (typeof value === 'string') {
     const trimmed = value.trim()
+
     if (!trimmed) return null
 
     try {
@@ -194,7 +264,9 @@ function extractToken(value: unknown): string | null {
   }
 
   if (value && typeof value === 'object') {
-    const record = value as Record<string, unknown>
+    const record =
+      value as Record<string, unknown>
+
     const tokenKeys = [
       'token',
       'access_token',
@@ -207,13 +279,25 @@ function extractToken(value: unknown): string | null {
 
     for (const key of tokenKeys) {
       const candidate = record[key]
-      if (typeof candidate === 'string' && candidate.trim()) {
+
+      if (
+        typeof candidate === 'string' &&
+        candidate.trim()
+      ) {
         return candidate.trim()
       }
     }
 
-    for (const key of ['data', 'auth', 'session', 'user']) {
-      const candidate = extractToken(record[key])
+    for (const key of [
+      'data',
+      'auth',
+      'session',
+      'user',
+    ]) {
+      const candidate = extractToken(
+        record[key],
+      )
+
       if (candidate) return candidate
     }
   }
@@ -227,7 +311,11 @@ function getStoredAuthTokens(): string[] {
 
   const add = (value: unknown) => {
     const token = extractToken(value)
-    if (token && !seen.has(token)) {
+
+    if (
+      token &&
+      !seen.has(token)
+    ) {
       seen.add(token)
       tokens.push(token)
     }
@@ -247,7 +335,10 @@ function getStoredAuthTokens(): string[] {
     'user',
   ]
 
-  for (const storage of [window.localStorage, window.sessionStorage]) {
+  for (const storage of [
+    window.localStorage,
+    window.sessionStorage,
+  ]) {
     for (const key of preferredKeys) {
       try {
         add(storage.getItem(key))
@@ -257,10 +348,19 @@ function getStoredAuthTokens(): string[] {
     }
 
     try {
-      for (let index = 0; index < storage.length; index += 1) {
+      for (
+        let index = 0;
+        index < storage.length;
+        index += 1
+      ) {
         const key = storage.key(index)
-        if (!key || preferredKeys.includes(key)) continue
-        add(storage.getItem(key))
+
+        if (
+          key &&
+          !preferredKeys.includes(key)
+        ) {
+          add(storage.getItem(key))
+        }
       }
     } catch {
       // Ignore unavailable storage entries.
@@ -275,14 +375,17 @@ async function getAdminToken(): Promise<string | null> {
 
   for (const token of candidates) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
+      const response = await fetch(
+        `${API_BASE_URL}/api/auth/me`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+          cache: 'no-store',
         },
-        cache: 'no-store',
-      })
+      )
 
       if (response.ok) return token
     } catch {
@@ -305,16 +408,31 @@ async function apiRequest<T>(
     )
   }
 
-  const headers = new Headers(options?.headers)
-  headers.set('Authorization', `Bearer ${token}`)
-  headers.set('Accept', 'application/json')
+  const headers = new Headers(
+    options?.headers,
+  )
 
-  if (!(options?.body instanceof FormData)) {
-    headers.set('Content-Type', 'application/json')
+  headers.set(
+    'Authorization',
+    `Bearer ${token}`,
+  )
+
+  headers.set(
+    'Accept',
+    'application/json',
+  )
+
+  if (
+    !(options?.body instanceof FormData)
+  ) {
+    headers.set(
+      'Content-Type',
+      'application/json',
+    )
   } else {
-    // Do not set Content-Type manually for FormData.
-    // The browser must add the multipart boundary automatically.
-    headers.delete('Content-Type')
+    headers.delete(
+      'Content-Type',
+    )
   }
 
   const response = await fetch(
@@ -336,7 +454,10 @@ async function apiRequest<T>(
     )
   }
 
-  if (!response.ok || !result.success) {
+  if (
+    !response.ok ||
+    !result.success
+  ) {
     throw new Error(
       result.message ||
       `Request failed with status ${response.status}.`,
@@ -348,9 +469,6 @@ async function apiRequest<T>(
 
 /*
  * NORMALIZERS
- *
- * Backend menggunakan snake_case.
- * Frontend menggunakan camelCase.
  */
 
 function normalizeMember(
@@ -363,12 +481,16 @@ function normalizeMember(
         ? Number(member.group_id)
         : undefined,
     name: member.name ?? '',
-    stageName: member.stage_name ?? '',
-    position: member.position ?? '',
-    birthDate: member.birth_date ?? '',
+    stageName:
+      member.stage_name ?? '',
+    position:
+      member.position ?? '',
+    birthDate:
+      member.birth_date ?? '',
     email: member.email ?? '',
     bio: member.bio ?? '',
-    imageUrl: member.image_url ?? '',
+    imageUrl:
+      member.image_url ?? '',
     status:
       member.status === 'Inactive'
         ? 'Inactive'
@@ -392,12 +514,18 @@ function normalizeRelease(
         : release.type === 'EP'
           ? 'EP'
           : 'Single',
-    releaseDate: release.release_date ?? '',
-    description: release.description ?? '',
-    coverUrl: release.cover_url ?? '',
-    audioUrl: release.audio_url ?? '',
-    spotifyUrl: release.spotify_url ?? '',
-    youtubeUrl: release.youtube_url ?? '',
+    releaseDate:
+      release.release_date ?? '',
+    description:
+      release.description ?? '',
+    coverUrl:
+      release.cover_url ?? '',
+    audioUrl:
+      release.audio_url ?? '',
+    spotifyUrl:
+      release.spotify_url ?? '',
+    youtubeUrl:
+      release.youtube_url ?? '',
     status:
       release.status === 'Released'
         ? 'Released'
@@ -420,17 +548,22 @@ function normalizeActivity(
         ? 'Concert'
         : activity.type === 'Fan Meeting'
           ? 'Fan Meeting'
-          : activity.type === 'Schedule'
+          : activity.type ===
+            'Schedule'
             ? 'Schedule'
             : 'Event',
     date: activity.date ?? '',
-    location: activity.location ?? '',
-    description: activity.description ?? '',
-    imageUrl: activity.image_url ?? '',
+    location:
+      activity.location ?? '',
+    description:
+      activity.description ?? '',
+    imageUrl:
+      activity.image_url ?? '',
     status:
       activity.status === 'Completed'
         ? 'Completed'
-        : activity.status === 'Cancelled'
+        : activity.status ===
+          'Cancelled'
           ? 'Cancelled'
           : 'Upcoming',
   }
@@ -451,11 +584,16 @@ function normalizeMusicVideo(
         ? Number(video.release_id)
         : null,
     title: video.title ?? '',
-    description: video.description ?? '',
-    thumbnailUrl: video.thumbnail_url ?? '',
-    videoUrl: video.video_url ?? '',
-    youtubeUrl: video.youtube_url ?? '',
-    releaseDate: video.release_date ?? '',
+    description:
+      video.description ?? '',
+    thumbnailUrl:
+      video.thumbnail_url ?? '',
+    videoUrl:
+      video.video_url ?? '',
+    youtubeUrl:
+      video.youtube_url ?? '',
+    releaseDate:
+      video.release_date ?? '',
     status:
       video.status === 'Published'
         ? 'Published'
@@ -469,20 +607,34 @@ function normalizeGroup(
   return {
     id: Number(group.id),
     name: group.name ?? '',
-    description: group.description ?? '',
-    imageUrl: group.image_url ?? '',
+    description:
+      group.description ?? '',
+    imageUrl:
+      group.image_url ?? '',
     status:
       group.status === 'Hiatus'
         ? 'Hiatus'
         : 'Active',
-    members: Array.isArray(group.members)
-      ? group.members.map(normalizeMember)
+    members: Array.isArray(
+      group.members,
+    )
+      ? group.members.map(
+        normalizeMember,
+      )
       : [],
-    releases: Array.isArray(group.releases)
-      ? group.releases.map(normalizeRelease)
+    releases: Array.isArray(
+      group.releases,
+    )
+      ? group.releases.map(
+        normalizeRelease,
+      )
       : [],
-    activities: Array.isArray(group.activities)
-      ? group.activities.map(normalizeActivity)
+    activities: Array.isArray(
+      group.activities,
+    )
+      ? group.activities.map(
+        normalizeActivity,
+      )
       : [],
     musicVideos: Array.isArray(
       group.music_videos,
@@ -491,15 +643,20 @@ function normalizeGroup(
         normalizeMusicVideo,
       )
       : [],
-    memberCount: Number(group.member_count ?? 0),
-    releaseCount: Number(group.release_count ?? 0),
+    memberCount: Number(
+      group.member_count ?? 0,
+    ),
+    releaseCount: Number(
+      group.release_count ?? 0,
+    ),
     activityCount: Number(
       group.activity_count ??
       group.upcoming_event_count ??
       0,
     ),
     musicVideoCount: Number(
-      group.music_video_count ?? 0,
+      group.music_video_count ??
+      0,
     ),
   }
 }
@@ -510,8 +667,10 @@ function normalizeGroupList(
   return {
     id: Number(group.id),
     name: group.name ?? '',
-    description: group.description ?? '',
-    imageUrl: group.image_url ?? '',
+    description:
+      group.description ?? '',
+    imageUrl:
+      group.image_url ?? '',
     status:
       group.status === 'Hiatus'
         ? 'Hiatus'
@@ -532,7 +691,8 @@ function normalizeGroupList(
       0,
     ),
     musicVideoCount: Number(
-      group.music_video_count ?? 0,
+      group.music_video_count ??
+      0,
     ),
   }
 }
@@ -540,82 +700,146 @@ function normalizeGroupList(
 function formatDate(date: string) {
   if (!date) return '-'
 
-  return new Intl.DateTimeFormat('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(`${date}T00:00:00`))
+  return new Intl.DateTimeFormat(
+    'id-ID',
+    {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    },
+  ).format(
+    new Date(`${date}T00:00:00`),
+  )
 }
 
 /*
  * IMAGE UPLOAD
- *
- * Same storage strategy as Product:
- * - source file: maximum 5 MB
- * - stored image: maximum 150 KB
- * - GIF is kept only when already <= 150 KB
- * - other formats are converted to WEBP when compression is needed
  */
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024
-const MAX_STORED_IMAGE_SIZE = 150 * 1024
-const ALLOWED_IMAGE_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-]
-
-async function compressIdolImage(file: File): Promise<File> {
+async function compressIdolImage(
+  file: File,
+): Promise<File> {
   if (file.type === 'image/gif') {
-    if (file.size > MAX_STORED_IMAGE_SIZE) {
+    if (
+      file.size >
+      MAX_STORED_IMAGE_SIZE
+    ) {
       throw new Error(
         'GIF image must not exceed 150 KB. Please use JPG, PNG, or WEBP for larger images.',
       )
     }
+
     return file
   }
 
-  if (file.size <= MAX_STORED_IMAGE_SIZE) return file
+  if (
+    file.size <=
+    MAX_STORED_IMAGE_SIZE &&
+    file.type === 'image/webp'
+  ) {
+    return file
+  }
 
-  const bitmap = await createImageBitmap(file)
-  const dimensions = [1200, 1000, 800, 700, 600, 500, 400]
-  const qualities = [0.82, 0.72, 0.62, 0.52, 0.42, 0.34, 0.28]
+  const bitmap =
+    await createImageBitmap(file)
+
+  const dimensions = [
+    1200,
+    1000,
+    800,
+    700,
+    600,
+    500,
+    400,
+  ]
+
+  const qualities = [
+    0.82,
+    0.72,
+    0.62,
+    0.52,
+    0.42,
+    0.34,
+    0.28,
+  ]
 
   try {
     for (const maxDimension of dimensions) {
       const scale = Math.min(
         1,
-        maxDimension / Math.max(bitmap.width, bitmap.height),
+        maxDimension /
+        Math.max(
+          bitmap.width,
+          bitmap.height,
+        ),
       )
-      const width = Math.max(1, Math.round(bitmap.width * scale))
-      const height = Math.max(1, Math.round(bitmap.height * scale))
 
-      const canvas = document.createElement('canvas')
+      const width = Math.max(
+        1,
+        Math.round(
+          bitmap.width * scale,
+        ),
+      )
+
+      const height = Math.max(
+        1,
+        Math.round(
+          bitmap.height * scale,
+        ),
+      )
+
+      const canvas =
+        document.createElement(
+          'canvas',
+        )
+
       canvas.width = width
       canvas.height = height
 
-      const context = canvas.getContext('2d')
+      const context =
+        canvas.getContext('2d')
+
       if (!context) {
-        throw new Error('Your browser cannot process the idol image.')
+        throw new Error(
+          'Your browser cannot process the idol image.',
+        )
       }
 
       context.imageSmoothingEnabled = true
-      context.imageSmoothingQuality = 'high'
-      context.drawImage(bitmap, 0, 0, width, height)
+      context.imageSmoothingQuality =
+        'high'
+
+      context.drawImage(
+        bitmap,
+        0,
+        0,
+        width,
+        height,
+      )
 
       for (const quality of qualities) {
-        const blob = await new Promise<Blob | null>((resolve) =>
-          canvas.toBlob(resolve, 'image/webp', quality),
-        )
+        const blob =
+          await new Promise<Blob | null>(
+            (resolve) =>
+              canvas.toBlob(
+                resolve,
+                'image/webp',
+                quality,
+              ),
+          )
 
-        if (blob && blob.size <= MAX_STORED_IMAGE_SIZE) {
+        if (
+          blob &&
+          blob.size <=
+          MAX_STORED_IMAGE_SIZE
+        ) {
           return new File(
             [blob],
             `${file.name.replace(/\.[^.]+$/, '')}.webp`,
             {
               type: 'image/webp',
-              lastModified: Date.now(),
+              lastModified:
+                Date.now(),
             },
           )
         }
@@ -630,13 +854,23 @@ async function compressIdolImage(file: File): Promise<File> {
   )
 }
 
-function validateIdolImageFile(file: File) {
-  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    throw new Error('Image must be JPG, PNG, WEBP, or GIF.')
+function validateIdolImageFile(
+  file: File,
+) {
+  if (
+    !ALLOWED_IMAGE_TYPES.includes(
+      file.type,
+    )
+  ) {
+    throw new Error(
+      'Image must be JPG, PNG, WEBP, or GIF.',
+    )
   }
 
   if (file.size > MAX_IMAGE_SIZE) {
-    throw new Error('Image size must not exceed 5 MB.')
+    throw new Error(
+      'Image size must not exceed 5 MB.',
+    )
   }
 }
 
@@ -646,7 +880,9 @@ function handleIdolImageChange(
   setPreview: (preview: string) => void,
   setError: (message: string) => void,
 ) {
-  const file = event.target.files?.[0]
+  const file =
+    event.target.files?.[0]
+
   event.target.value = ''
 
   if (!file) return
@@ -654,101 +890,175 @@ function handleIdolImageChange(
   try {
     validateIdolImageFile(file)
   } catch (error) {
-    setError(error instanceof Error ? error.message : 'Invalid image file.')
+    setError(
+      error instanceof Error
+        ? error.message
+        : 'Invalid image file.',
+    )
     return
   }
 
   setFile(file)
-  setPreview(URL.createObjectURL(file))
+  setPreview(
+    URL.createObjectURL(file),
+  )
 }
-
 
 /*
  * PAGE
  */
 
 export function AdminIdolPage() {
+  const theme = useAdminTheme()
+  const c = getThemeTokens(theme)
+
   const [groups, setGroups] =
     useState<IdolGroup[]>([])
 
-  const [selectedGroupId, setSelectedGroupId] =
-    useState<number | null>(null)
+  const [
+    selectedGroupId,
+    setSelectedGroupId,
+  ] = useState<number | null>(null)
 
-  const [search, setSearch] = useState('')
+  const [search, setSearch] =
+    useState('')
 
-  const [isGroupModalOpen, setIsGroupModalOpen] =
-    useState(false)
+  const [
+    isGroupModalOpen,
+    setIsGroupModalOpen,
+  ] = useState(false)
 
-  const [isMemberModalOpen, setIsMemberModalOpen] =
-    useState(false)
+  const [
+    isMemberModalOpen,
+    setIsMemberModalOpen,
+  ] = useState(false)
 
-  const [isReleaseModalOpen, setIsReleaseModalOpen] =
-    useState(false)
+  const [
+    isReleaseModalOpen,
+    setIsReleaseModalOpen,
+  ] = useState(false)
 
-  const [isActivityModalOpen, setIsActivityModalOpen] =
-    useState(false)
+  const [
+    isActivityModalOpen,
+    setIsActivityModalOpen,
+  ] = useState(false)
 
   const [
     isMusicVideoModalOpen,
     setIsMusicVideoModalOpen,
   ] = useState(false)
 
-  const [editingGroup, setEditingGroup] =
-    useState<IdolGroup | null>(null)
+  const [
+    editingGroup,
+    setEditingGroup,
+  ] = useState<IdolGroup | null>(null)
 
-  const [editingMember, setEditingMember] =
-    useState<IdolMember | null>(null)
+  const [
+    editingMember,
+    setEditingMember,
+  ] = useState<IdolMember | null>(null)
 
-  const [editingRelease, setEditingRelease] =
-    useState<IdolRelease | null>(null)
+  const [
+    editingRelease,
+    setEditingRelease,
+  ] = useState<IdolRelease | null>(null)
 
-  const [editingActivity, setEditingActivity] =
-    useState<IdolActivity | null>(null)
+  const [
+    editingActivity,
+    setEditingActivity,
+  ] = useState<IdolActivity | null>(
+    null,
+  )
 
-  const [editingMusicVideo, setEditingMusicVideo] =
-    useState<IdolMusicVideo | null>(null)
+  const [
+    editingMusicVideo,
+    setEditingMusicVideo,
+  ] =
+    useState<IdolMusicVideo | null>(
+      null,
+    )
 
   const [groupForm, setGroupForm] =
-    useState(emptyGroupForm)
+    useState({
+      ...emptyGroupForm,
+    })
 
   const [memberForm, setMemberForm] =
-    useState(emptyMemberForm)
+    useState({
+      ...emptyMemberForm,
+    })
 
   const [releaseForm, setReleaseForm] =
-    useState(emptyReleaseForm)
+    useState({
+      ...emptyReleaseForm,
+    })
 
-  const [activityForm, setActivityForm] =
-    useState(emptyActivityForm)
+  const [
+    activityForm,
+    setActivityForm,
+  ] = useState({
+    ...emptyActivityForm,
+  })
 
-  const [musicVideoForm, setMusicVideoForm] =
-    useState(emptyMusicVideoForm)
+  const [
+    musicVideoForm,
+    setMusicVideoForm,
+  ] = useState({
+    ...emptyMusicVideoForm,
+  })
 
-  const [groupImageFile, setGroupImageFile] =
-    useState<File | null>(null)
-  const [groupImagePreview, setGroupImagePreview] =
+  const [
+    groupImageFile,
+    setGroupImageFile,
+  ] = useState<File | null>(null)
+
+  const [
+    groupImagePreview,
+    setGroupImagePreview,
+  ] = useState('')
+
+  const [
+    memberImageFile,
+    setMemberImageFile,
+  ] = useState<File | null>(null)
+
+  const [
+    memberImagePreview,
+    setMemberImagePreview,
+  ] = useState('')
+
+  const [
+    releaseImageFile,
+    setReleaseImageFile,
+  ] = useState<File | null>(null)
+
+  const [
+    releaseImagePreview,
+    setReleaseImagePreview,
+  ] = useState('')
+
+  const [
+    activityImageFile,
+    setActivityImageFile,
+  ] = useState<File | null>(null)
+
+  const [
+    activityImagePreview,
+    setActivityImagePreview,
+  ] = useState('')
+
+  const [
+    musicVideoImageFile,
+    setMusicVideoImageFile,
+  ] = useState<File | null>(null)
+
+  const [
+    musicVideoImagePreview,
+    setMusicVideoImagePreview,
+  ] = useState('')
+
+  const [error, setError] =
     useState('')
-
-  const [memberImageFile, setMemberImageFile] =
-    useState<File | null>(null)
-  const [memberImagePreview, setMemberImagePreview] =
-    useState('')
-
-  const [releaseImageFile, setReleaseImageFile] =
-    useState<File | null>(null)
-  const [releaseImagePreview, setReleaseImagePreview] =
-    useState('')
-
-  const [activityImageFile, setActivityImageFile] =
-    useState<File | null>(null)
-  const [activityImagePreview, setActivityImagePreview] =
-    useState('')
-
-  const [musicVideoImageFile, setMusicVideoImageFile] =
-    useState<File | null>(null)
-  const [musicVideoImagePreview, setMusicVideoImagePreview] =
-    useState('')
-
-  const [error, setError] = useState('')
 
   const [loading, setLoading] =
     useState(true)
@@ -767,13 +1077,15 @@ export function AdminIdolPage() {
       setLoading(true)
       setError('')
 
-      const data = await apiRequest<any[]>(
-        '/api/idol/groups',
-      )
+      const data = await apiRequest<
+        any[]
+      >('/api/idol/groups')
 
       setGroups(
         Array.isArray(data)
-          ? data.map(normalizeGroupList)
+          ? data.map(
+            normalizeGroupList,
+          )
           : [],
       )
 
@@ -794,19 +1106,16 @@ export function AdminIdolPage() {
     }
   }
 
-  /*
-   * LOAD GROUP DETAIL
-   */
-
   async function loadGroupDetail(
     groupId: number,
   ) {
     try {
       setError('')
 
-      const data = await apiRequest<any>(
-        `/api/idol/groups/${groupId}`,
-      )
+      const data =
+        await apiRequest<any>(
+          `/api/idol/groups/${groupId}`,
+        )
 
       const normalized =
         normalizeGroup(data)
@@ -832,18 +1141,25 @@ export function AdminIdolPage() {
   }, [])
 
   useEffect(() => {
-    if (selectedGroupId !== null) {
-      loadGroupDetail(selectedGroupId)
+    if (
+      selectedGroupId !== null
+    ) {
+      loadGroupDetail(
+        selectedGroupId,
+      )
     }
   }, [selectedGroupId])
 
-  const selectedGroup = groups.find(
-    (group) => group.id === selectedGroupId,
-  )
+  const selectedGroup =
+    groups.find(
+      (group) =>
+        group.id ===
+        selectedGroupId,
+    )
 
   const filteredGroups = useMemo(() => {
     const searchValue =
-      search.toLowerCase()
+      search.toLowerCase().trim()
 
     return groups.filter((group) =>
       group.name
@@ -852,21 +1168,20 @@ export function AdminIdolPage() {
     )
   }, [groups, search])
 
-  const totalMembers = groups.reduce(
-    (total, group) =>
-      total + group.members.length,
-    0,
-  )
+  const totalMembers =
+    groups.reduce(
+      (total, group) =>
+        total + group.memberCount,
+      0,
+    )
 
-  const upcomingEvents = groups.reduce(
-    (total, group) =>
-      total +
-      group.activities.filter(
-        (activity) =>
-          activity.status === 'Upcoming',
-      ).length,
-    0,
-  )
+  const upcomingEvents =
+    groups.reduce(
+      (total, group) =>
+        total +
+        group.activityCount,
+      0,
+    )
 
   /*
    * GROUP
@@ -874,9 +1189,11 @@ export function AdminIdolPage() {
 
   function openAddGroupModal() {
     setEditingGroup(null)
+
     setGroupForm({
       ...emptyGroupForm,
     })
+
     setGroupImageFile(null)
     setGroupImagePreview('')
     setError('')
@@ -890,12 +1207,16 @@ export function AdminIdolPage() {
 
     setGroupForm({
       name: group.name,
-      description: group.description,
+      description:
+        group.description,
       imageUrl: group.imageUrl,
       status: group.status,
     })
+
     setGroupImageFile(null)
-    setGroupImagePreview(group.imageUrl || '')
+    setGroupImagePreview(
+      group.imageUrl || '',
+    )
 
     setError('')
     setIsGroupModalOpen(true)
@@ -904,9 +1225,11 @@ export function AdminIdolPage() {
   function closeGroupModal() {
     setIsGroupModalOpen(false)
     setEditingGroup(null)
+
     setGroupForm({
       ...emptyGroupForm,
     })
+
     setGroupImageFile(null)
     setGroupImagePreview('')
     setError('')
@@ -921,46 +1244,83 @@ export function AdminIdolPage() {
 
     setError('')
 
-    const name = groupForm.name.trim()
-    const description = groupForm.description.trim()
+    const name =
+      groupForm.name.trim()
+
+    const description =
+      groupForm.description.trim()
 
     if (!name) {
-      setError('Group name is required.')
+      setError(
+        'Group name is required.',
+      )
       return
     }
 
-    const duplicateName = groups.some(
-      (group) =>
-        group.name.toLowerCase() === name.toLowerCase() &&
-        group.id !== editingGroup?.id,
-    )
+    const duplicateName =
+      groups.some(
+        (group) =>
+          group.name
+            .toLowerCase() ===
+          name.toLowerCase() &&
+          group.id !==
+          editingGroup?.id,
+      )
 
     if (duplicateName) {
-      setError('A group with this name already exists.')
+      setError(
+        'A group with this name already exists.',
+      )
       return
     }
 
     try {
       setSubmitting(true)
 
-      const formData = new FormData()
-      formData.append('name', name)
-      formData.append('description', description)
-      formData.append('status', groupForm.status)
+      const formData =
+        new FormData()
+
+      formData.append(
+        'name',
+        name,
+      )
+
+      formData.append(
+        'description',
+        description,
+      )
+
+      formData.append(
+        'status',
+        groupForm.status,
+      )
 
       if (groupImageFile) {
-        const compressedImage = await compressIdolImage(groupImageFile)
-        formData.append('image', compressedImage)
+        const compressedImage =
+          await compressIdolImage(
+            groupImageFile,
+          )
+
+        formData.append(
+          'image',
+          compressedImage,
+        )
       }
 
-      const endpoint = editingGroup
-        ? `/api/idol/groups/${editingGroup.id}`
-        : '/api/idol/groups'
+      const endpoint =
+        editingGroup
+          ? `/api/idol/groups/${editingGroup.id}`
+          : '/api/idol/groups'
 
-      await apiRequest(endpoint, {
-        method: editingGroup ? 'PUT' : 'POST',
-        body: formData,
-      })
+      await apiRequest(
+        endpoint,
+        {
+          method: editingGroup
+            ? 'PUT'
+            : 'POST',
+          body: formData,
+        },
+      )
 
       closeGroupModal()
       await loadGroups()
@@ -975,19 +1335,20 @@ export function AdminIdolPage() {
     }
   }
 
-
   async function handleDeleteGroup(
     id: number,
   ) {
-    const group = groups.find(
-      (item) => item.id === id,
-    )
+    const group =
+      groups.find(
+        (item) => item.id === id,
+      )
 
     if (!group) return
 
-    const confirmed = window.confirm(
-      `Delete group "${group.name}" and all of its members, releases, activities, and music videos?`,
-    )
+    const confirmed =
+      window.confirm(
+        `Delete group "${group.name}" and all of its members, releases, activities, and music videos?`,
+      )
 
     if (!confirmed) return
 
@@ -1001,7 +1362,9 @@ export function AdminIdolPage() {
         },
       )
 
-      if (selectedGroupId === id) {
+      if (
+        selectedGroupId === id
+      ) {
         setSelectedGroupId(null)
       }
 
@@ -1023,9 +1386,11 @@ export function AdminIdolPage() {
     if (!selectedGroup) return
 
     setEditingMember(null)
+
     setMemberForm({
       ...emptyMemberForm,
     })
+
     setMemberImageFile(null)
     setMemberImagePreview('')
     setError('')
@@ -1039,16 +1404,23 @@ export function AdminIdolPage() {
 
     setMemberForm({
       name: member.name,
-      stageName: member.stageName,
-      position: member.position,
-      birthDate: member.birthDate,
+      stageName:
+        member.stageName,
+      position:
+        member.position,
+      birthDate:
+        member.birthDate,
       email: member.email,
       bio: member.bio,
-      imageUrl: member.imageUrl,
+      imageUrl:
+        member.imageUrl,
       status: member.status,
     })
+
     setMemberImageFile(null)
-    setMemberImagePreview(member.imageUrl || '')
+    setMemberImagePreview(
+      member.imageUrl || '',
+    )
 
     setError('')
     setIsMemberModalOpen(true)
@@ -1057,9 +1429,11 @@ export function AdminIdolPage() {
   function closeMemberModal() {
     setIsMemberModalOpen(false)
     setEditingMember(null)
+
     setMemberForm({
       ...emptyMemberForm,
     })
+
     setMemberImageFile(null)
     setMemberImagePreview('')
     setError('')
@@ -1075,51 +1449,84 @@ export function AdminIdolPage() {
     setError('')
 
     if (!selectedGroup) {
-      setError('Please select a group first.')
+      setError(
+        'Please select a group first.',
+      )
       return
     }
 
-    const name = memberForm.name.trim()
-    const stageName = memberForm.stageName.trim()
-    const position = memberForm.position.trim()
-    const email = memberForm.email.trim().toLowerCase()
-    const bio = memberForm.bio.trim()
+    const name =
+      memberForm.name.trim()
+
+    const stageName =
+      memberForm.stageName.trim()
+
+    const position =
+      memberForm.position.trim()
+
+    const email =
+      memberForm.email
+        .trim()
+        .toLowerCase()
+
+    const bio =
+      memberForm.bio.trim()
 
     if (!name) {
-      setError('Member name is required.')
+      setError(
+        'Member name is required.',
+      )
       return
     }
 
     if (!stageName) {
-      setError('Stage name is required.')
+      setError(
+        'Stage name is required.',
+      )
       return
     }
 
     if (!position) {
-      setError('Position is required.')
+      setError(
+        'Position is required.',
+      )
       return
     }
 
     if (!memberForm.birthDate) {
-      setError('Birth date is required.')
+      setError(
+        'Birth date is required.',
+      )
       return
     }
 
     if (!email) {
-      setError('Email is required.')
+      setError(
+        'Email is required.',
+      )
       return
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError('Please enter a valid email.')
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        email,
+      )
+    ) {
+      setError(
+        'Please enter a valid email.',
+      )
       return
     }
 
-    const duplicateStageName = selectedGroup.members.some(
-      (member) =>
-        member.stageName.toLowerCase() === stageName.toLowerCase() &&
-        member.id !== editingMember?.id,
-    )
+    const duplicateStageName =
+      selectedGroup.members.some(
+        (member) =>
+          member.stageName
+            .toLowerCase() ===
+          stageName.toLowerCase() &&
+          member.id !==
+          editingMember?.id,
+      )
 
     if (duplicateStageName) {
       setError(
@@ -1131,31 +1538,77 @@ export function AdminIdolPage() {
     try {
       setSubmitting(true)
 
-      const formData = new FormData()
-      formData.append('name', name)
-      formData.append('stage_name', stageName)
-      formData.append('position', position)
-      formData.append('birth_date', memberForm.birthDate)
-      formData.append('email', email)
-      formData.append('bio', bio)
-      formData.append('status', memberForm.status)
+      const formData =
+        new FormData()
+
+      formData.append(
+        'name',
+        name,
+      )
+
+      formData.append(
+        'stage_name',
+        stageName,
+      )
+
+      formData.append(
+        'position',
+        position,
+      )
+
+      formData.append(
+        'birth_date',
+        memberForm.birthDate,
+      )
+
+      formData.append(
+        'email',
+        email,
+      )
+
+      formData.append(
+        'bio',
+        bio,
+      )
+
+      formData.append(
+        'status',
+        memberForm.status,
+      )
 
       if (memberImageFile) {
-        const compressedImage = await compressIdolImage(memberImageFile)
-        formData.append('image', compressedImage)
+        const compressedImage =
+          await compressIdolImage(
+            memberImageFile,
+          )
+
+        formData.append(
+          'image',
+          compressedImage,
+        )
       }
 
-      const endpoint = editingMember
-        ? `/api/idol/members/${editingMember.id}`
-        : `/api/idol/groups/${selectedGroup.id}/members`
+      const endpoint =
+        editingMember
+          ? `/api/idol/members/${editingMember.id}`
+          : `/api/idol/groups/${selectedGroup.id}/members`
 
-      await apiRequest(endpoint, {
-        method: editingMember ? 'PUT' : 'POST',
-        body: formData,
-      })
+      await apiRequest(
+        endpoint,
+        {
+          method: editingMember
+            ? 'PUT'
+            : 'POST',
+          body: formData,
+        },
+      )
 
       closeMemberModal()
-      await loadGroupDetail(selectedGroup.id)
+
+      await loadGroupDetail(
+        selectedGroup.id,
+      )
+
       await loadGroups()
     } catch (err) {
       setError(
@@ -1167,7 +1620,6 @@ export function AdminIdolPage() {
       setSubmitting(false)
     }
   }
-
 
   async function handleDeleteMember(
     id: number,
@@ -1181,9 +1633,10 @@ export function AdminIdolPage() {
 
     if (!member) return
 
-    const confirmed = window.confirm(
-      `Delete member "${member.stageName}"?`,
-    )
+    const confirmed =
+      window.confirm(
+        `Delete member "${member.stageName}"?`,
+      )
 
     if (!confirmed) return
 
@@ -1200,6 +1653,7 @@ export function AdminIdolPage() {
       await loadGroupDetail(
         selectedGroup.id,
       )
+
       await loadGroups()
     } catch (err) {
       setError(
@@ -1218,9 +1672,11 @@ export function AdminIdolPage() {
     if (!selectedGroup) return
 
     setEditingRelease(null)
+
     setReleaseForm({
       ...emptyReleaseForm,
     })
+
     setReleaseImageFile(null)
     setReleaseImagePreview('')
     setError('')
@@ -1235,16 +1691,25 @@ export function AdminIdolPage() {
     setReleaseForm({
       title: release.title,
       type: release.type,
-      releaseDate: release.releaseDate,
-      description: release.description,
-      coverUrl: release.coverUrl,
-      audioUrl: release.audioUrl,
-      spotifyUrl: release.spotifyUrl,
-      youtubeUrl: release.youtubeUrl,
+      releaseDate:
+        release.releaseDate,
+      description:
+        release.description,
+      coverUrl:
+        release.coverUrl,
+      audioUrl:
+        release.audioUrl,
+      spotifyUrl:
+        release.spotifyUrl,
+      youtubeUrl:
+        release.youtubeUrl,
       status: release.status,
     })
+
     setReleaseImageFile(null)
-    setReleaseImagePreview(release.coverUrl || '')
+    setReleaseImagePreview(
+      release.coverUrl || '',
+    )
 
     setError('')
     setIsReleaseModalOpen(true)
@@ -1253,9 +1718,11 @@ export function AdminIdolPage() {
   function closeReleaseModal() {
     setIsReleaseModalOpen(false)
     setEditingRelease(null)
+
     setReleaseForm({
       ...emptyReleaseForm,
     })
+
     setReleaseImageFile(null)
     setReleaseImagePreview('')
     setError('')
@@ -1271,60 +1738,127 @@ export function AdminIdolPage() {
     setError('')
 
     if (!selectedGroup) {
-      setError('Please select a group first.')
+      setError(
+        'Please select a group first.',
+      )
       return
     }
 
-    const title = releaseForm.title.trim()
-    const description = releaseForm.description.trim()
-    const audioUrl = releaseForm.audioUrl.trim()
-    const spotifyUrl = releaseForm.spotifyUrl.trim()
-    const youtubeUrl = releaseForm.youtubeUrl.trim()
+    const title =
+      releaseForm.title.trim()
+
+    const description =
+      releaseForm.description.trim()
+
+    const audioUrl =
+      releaseForm.audioUrl.trim()
+
+    const spotifyUrl =
+      releaseForm.spotifyUrl.trim()
+
+    const youtubeUrl =
+      releaseForm.youtubeUrl.trim()
 
     if (!title) {
-      setError('Release title is required.')
+      setError(
+        'Release title is required.',
+      )
       return
     }
 
     if (!releaseForm.releaseDate) {
-      setError('Release date is required.')
+      setError(
+        'Release date is required.',
+      )
       return
     }
 
     if (!description) {
-      setError('Release description is required.')
+      setError(
+        'Release description is required.',
+      )
       return
     }
 
     try {
       setSubmitting(true)
 
-      const formData = new FormData()
-      formData.append('title', title)
-      formData.append('type', releaseForm.type)
-      formData.append('release_date', releaseForm.releaseDate)
-      formData.append('description', description)
-      formData.append('audio_url', audioUrl)
-      formData.append('spotify_url', spotifyUrl)
-      formData.append('youtube_url', youtubeUrl)
-      formData.append('status', releaseForm.status)
+      const formData =
+        new FormData()
+
+      formData.append(
+        'title',
+        title,
+      )
+
+      formData.append(
+        'type',
+        releaseForm.type,
+      )
+
+      formData.append(
+        'release_date',
+        releaseForm.releaseDate,
+      )
+
+      formData.append(
+        'description',
+        description,
+      )
+
+      formData.append(
+        'audio_url',
+        audioUrl,
+      )
+
+      formData.append(
+        'spotify_url',
+        spotifyUrl,
+      )
+
+      formData.append(
+        'youtube_url',
+        youtubeUrl,
+      )
+
+      formData.append(
+        'status',
+        releaseForm.status,
+      )
 
       if (releaseImageFile) {
-        const compressedImage = await compressIdolImage(releaseImageFile)
-        formData.append('image', compressedImage)
+        const compressedImage =
+          await compressIdolImage(
+            releaseImageFile,
+          )
+
+        formData.append(
+          'image',
+          compressedImage,
+        )
       }
 
-      const endpoint = editingRelease
-        ? `/api/idol/releases/${editingRelease.id}`
-        : `/api/idol/groups/${selectedGroup.id}/releases`
+      const endpoint =
+        editingRelease
+          ? `/api/idol/releases/${editingRelease.id}`
+          : `/api/idol/groups/${selectedGroup.id}/releases`
 
-      await apiRequest(endpoint, {
-        method: editingRelease ? 'PUT' : 'POST',
-        body: formData,
-      })
+      await apiRequest(
+        endpoint,
+        {
+          method: editingRelease
+            ? 'PUT'
+            : 'POST',
+          body: formData,
+        },
+      )
 
       closeReleaseModal()
-      await loadGroupDetail(selectedGroup.id)
+
+      await loadGroupDetail(
+        selectedGroup.id,
+      )
+
       await loadGroups()
     } catch (err) {
       setError(
@@ -1336,7 +1870,6 @@ export function AdminIdolPage() {
       setSubmitting(false)
     }
   }
-
 
   async function handleDeleteRelease(
     id: number,
@@ -1350,9 +1883,10 @@ export function AdminIdolPage() {
 
     if (!release) return
 
-    const confirmed = window.confirm(
-      `Delete release "${release.title}"?`,
-    )
+    const confirmed =
+      window.confirm(
+        `Delete release "${release.title}"?`,
+      )
 
     if (!confirmed) return
 
@@ -1369,6 +1903,7 @@ export function AdminIdolPage() {
       await loadGroupDetail(
         selectedGroup.id,
       )
+
       await loadGroups()
     } catch (err) {
       setError(
@@ -1387,9 +1922,11 @@ export function AdminIdolPage() {
     if (!selectedGroup) return
 
     setEditingActivity(null)
+
     setActivityForm({
       ...emptyActivityForm,
     })
+
     setActivityImageFile(null)
     setActivityImagePreview('')
     setError('')
@@ -1405,13 +1942,19 @@ export function AdminIdolPage() {
       title: activity.title,
       type: activity.type,
       date: activity.date,
-      location: activity.location,
-      description: activity.description,
-      imageUrl: activity.imageUrl,
+      location:
+        activity.location,
+      description:
+        activity.description,
+      imageUrl:
+        activity.imageUrl,
       status: activity.status,
     })
+
     setActivityImageFile(null)
-    setActivityImagePreview(activity.imageUrl || '')
+    setActivityImagePreview(
+      activity.imageUrl || '',
+    )
 
     setError('')
     setIsActivityModalOpen(true)
@@ -1420,9 +1963,11 @@ export function AdminIdolPage() {
   function closeActivityModal() {
     setIsActivityModalOpen(false)
     setEditingActivity(null)
+
     setActivityForm({
       ...emptyActivityForm,
     })
+
     setActivityImageFile(null)
     setActivityImagePreview('')
     setError('')
@@ -1438,61 +1983,118 @@ export function AdminIdolPage() {
     setError('')
 
     if (!selectedGroup) {
-      setError('Please select a group first.')
+      setError(
+        'Please select a group first.',
+      )
       return
     }
 
-    const title = activityForm.title.trim()
-    const location = activityForm.location.trim()
-    const description = activityForm.description.trim()
+    const title =
+      activityForm.title.trim()
+
+    const location =
+      activityForm.location.trim()
+
+    const description =
+      activityForm.description.trim()
 
     if (!title) {
-      setError('Activity title is required.')
+      setError(
+        'Activity title is required.',
+      )
       return
     }
 
     if (!activityForm.date) {
-      setError('Activity date is required.')
+      setError(
+        'Activity date is required.',
+      )
       return
     }
 
     if (!location) {
-      setError('Location is required.')
+      setError(
+        'Location is required.',
+      )
       return
     }
 
     if (!description) {
-      setError('Activity description is required.')
+      setError(
+        'Activity description is required.',
+      )
       return
     }
 
     try {
       setSubmitting(true)
 
-      const formData = new FormData()
-      formData.append('title', title)
-      formData.append('type', activityForm.type)
-      formData.append('date', activityForm.date)
-      formData.append('location', location)
-      formData.append('description', description)
-      formData.append('status', activityForm.status)
+      const formData =
+        new FormData()
+
+      formData.append(
+        'title',
+        title,
+      )
+
+      formData.append(
+        'type',
+        activityForm.type,
+      )
+
+      formData.append(
+        'date',
+        activityForm.date,
+      )
+
+      formData.append(
+        'location',
+        location,
+      )
+
+      formData.append(
+        'description',
+        description,
+      )
+
+      formData.append(
+        'status',
+        activityForm.status,
+      )
 
       if (activityImageFile) {
-        const compressedImage = await compressIdolImage(activityImageFile)
-        formData.append('image', compressedImage)
+        const compressedImage =
+          await compressIdolImage(
+            activityImageFile,
+          )
+
+        formData.append(
+          'image',
+          compressedImage,
+        )
       }
 
-      const endpoint = editingActivity
-        ? `/api/idol/activities/${editingActivity.id}`
-        : `/api/idol/groups/${selectedGroup.id}/activities`
+      const endpoint =
+        editingActivity
+          ? `/api/idol/activities/${editingActivity.id}`
+          : `/api/idol/groups/${selectedGroup.id}/activities`
 
-      await apiRequest(endpoint, {
-        method: editingActivity ? 'PUT' : 'POST',
-        body: formData,
-      })
+      await apiRequest(
+        endpoint,
+        {
+          method: editingActivity
+            ? 'PUT'
+            : 'POST',
+          body: formData,
+        },
+      )
 
       closeActivityModal()
-      await loadGroupDetail(selectedGroup.id)
+
+      await loadGroupDetail(
+        selectedGroup.id,
+      )
+
       await loadGroups()
     } catch (err) {
       setError(
@@ -1504,7 +2106,6 @@ export function AdminIdolPage() {
       setSubmitting(false)
     }
   }
-
 
   async function handleDeleteActivity(
     id: number,
@@ -1518,9 +2119,10 @@ export function AdminIdolPage() {
 
     if (!activity) return
 
-    const confirmed = window.confirm(
-      `Delete activity "${activity.title}"?`,
-    )
+    const confirmed =
+      window.confirm(
+        `Delete activity "${activity.title}"?`,
+      )
 
     if (!confirmed) return
 
@@ -1537,6 +2139,7 @@ export function AdminIdolPage() {
       await loadGroupDetail(
         selectedGroup.id,
       )
+
       await loadGroups()
     } catch (err) {
       setError(
@@ -1559,6 +2162,7 @@ export function AdminIdolPage() {
     setMusicVideoForm({
       ...emptyMusicVideoForm,
     })
+
     setMusicVideoImageFile(null)
     setMusicVideoImagePreview('')
 
@@ -1573,11 +2177,16 @@ export function AdminIdolPage() {
 
     setMusicVideoForm({
       title: video.title,
-      description: video.description,
-      thumbnailUrl: video.thumbnailUrl,
-      videoUrl: video.videoUrl,
-      youtubeUrl: video.youtubeUrl,
-      releaseDate: video.releaseDate,
+      description:
+        video.description,
+      thumbnailUrl:
+        video.thumbnailUrl,
+      videoUrl:
+        video.videoUrl,
+      youtubeUrl:
+        video.youtubeUrl,
+      releaseDate:
+        video.releaseDate,
       releaseId:
         video.releaseId !== null &&
           video.releaseId !== undefined
@@ -1585,8 +2194,11 @@ export function AdminIdolPage() {
           : '',
       status: video.status,
     })
+
     setMusicVideoImageFile(null)
-    setMusicVideoImagePreview(video.thumbnailUrl || '')
+    setMusicVideoImagePreview(
+      video.thumbnailUrl || '',
+    )
 
     setError('')
     setIsMusicVideoModalOpen(true)
@@ -1595,9 +2207,11 @@ export function AdminIdolPage() {
   function closeMusicVideoModal() {
     setIsMusicVideoModalOpen(false)
     setEditingMusicVideo(null)
+
     setMusicVideoForm({
       ...emptyMusicVideoForm,
     })
+
     setMusicVideoImageFile(null)
     setMusicVideoImagePreview('')
     setError('')
@@ -1613,64 +2227,130 @@ export function AdminIdolPage() {
     setError('')
 
     if (!selectedGroup) {
-      setError('Please select a group first.')
+      setError(
+        'Please select a group first.',
+      )
       return
     }
 
-    const title = musicVideoForm.title.trim()
-    const description = musicVideoForm.description.trim()
-    const videoUrl = musicVideoForm.videoUrl.trim()
-    const youtubeUrl = musicVideoForm.youtubeUrl.trim()
+    const title =
+      musicVideoForm.title.trim()
+
+    const description =
+      musicVideoForm.description.trim()
+
+    const videoUrl =
+      musicVideoForm.videoUrl.trim()
+
+    const youtubeUrl =
+      musicVideoForm.youtubeUrl.trim()
 
     if (!title) {
-      setError('Music video title is required.')
+      setError(
+        'Music video title is required.',
+      )
       return
     }
 
     if (!description) {
-      setError('Music video description is required.')
+      setError(
+        'Music video description is required.',
+      )
       return
     }
 
     if (!videoUrl && !youtubeUrl) {
-      setError('Please enter a video URL or YouTube URL.')
+      setError(
+        'Please enter a video URL or YouTube URL.',
+      )
       return
     }
 
     try {
       setSubmitting(true)
 
-      const formData = new FormData()
-      formData.append('group_id', String(selectedGroup.id))
+      const formData =
+        new FormData()
+
+      formData.append(
+        'group_id',
+        String(selectedGroup.id),
+      )
+
       formData.append(
         'release_id',
         musicVideoForm.releaseId
-          ? String(Number(musicVideoForm.releaseId))
+          ? String(
+            Number(
+              musicVideoForm.releaseId,
+            ),
+          )
           : '',
       )
-      formData.append('title', title)
-      formData.append('description', description)
-      formData.append('video_url', videoUrl)
-      formData.append('youtube_url', youtubeUrl)
-      formData.append('release_date', musicVideoForm.releaseDate)
-      formData.append('status', musicVideoForm.status)
+
+      formData.append(
+        'title',
+        title,
+      )
+
+      formData.append(
+        'description',
+        description,
+      )
+
+      formData.append(
+        'video_url',
+        videoUrl,
+      )
+
+      formData.append(
+        'youtube_url',
+        youtubeUrl,
+      )
+
+      formData.append(
+        'release_date',
+        musicVideoForm.releaseDate,
+      )
+
+      formData.append(
+        'status',
+        musicVideoForm.status,
+      )
 
       if (musicVideoImageFile) {
-        const compressedImage = await compressIdolImage(musicVideoImageFile)
-        formData.append('image', compressedImage)
+        const compressedImage =
+          await compressIdolImage(
+            musicVideoImageFile,
+          )
+
+        formData.append(
+          'image',
+          compressedImage,
+        )
       }
 
-      const endpoint = editingMusicVideo
-        ? `/api/idol/music-videos/${editingMusicVideo.id}`
-        : '/api/idol/music-videos'
+      const endpoint =
+        editingMusicVideo
+          ? `/api/idol/music-videos/${editingMusicVideo.id}`
+          : '/api/idol/music-videos'
 
-      await apiRequest(endpoint, {
-        method: editingMusicVideo ? 'PUT' : 'POST',
-        body: formData,
-      })
+      await apiRequest(
+        endpoint,
+        {
+          method:
+            editingMusicVideo
+              ? 'PUT'
+              : 'POST',
+          body: formData,
+        },
+      )
 
       closeMusicVideoModal()
-      await loadGroupDetail(selectedGroup.id)
+
+      await loadGroupDetail(
+        selectedGroup.id,
+      )
     } catch (err) {
       setError(
         err instanceof Error
@@ -1681,7 +2361,6 @@ export function AdminIdolPage() {
       setSubmitting(false)
     }
   }
-
 
   async function handleDeleteMusicVideo(
     id: number,
@@ -1695,9 +2374,10 @@ export function AdminIdolPage() {
 
     if (!video) return
 
-    const confirmed = window.confirm(
-      `Delete music video "${video.title}"?`,
-    )
+    const confirmed =
+      window.confirm(
+        `Delete music video "${video.title}"?`,
+      )
 
     if (!confirmed) return
 
@@ -1734,7 +2414,9 @@ export function AdminIdolPage() {
     setSearch('')
     setError('')
 
-    await loadGroupDetail(groupId)
+    await loadGroupDetail(
+      groupId,
+    )
   }
 
   function backToGroups() {
@@ -1743,39 +2425,50 @@ export function AdminIdolPage() {
     setError('')
   }
 
+  const showGlobalError =
+    error &&
+    !isGroupModalOpen &&
+    !isMemberModalOpen &&
+    !isReleaseModalOpen &&
+    !isActivityModalOpen &&
+    !isMusicVideoModalOpen
+
   /*
    * RENDER
    */
 
   return (
-    <div className="space-y-8">
-      {/* PAGE HEADER */}
-
+    <div
+      className={`min-h-full space-y-8 ${c.page}`}
+    >
       <div>
-        <p className="text-sm text-text-muted">
+        <p
+          className={`text-sm ${c.textMuted}`}
+        >
           Admin Panel
         </p>
 
-        <h1 className="mt-1 font-display text-3xl font-bold text-text-primary">
+        <h1
+          className={`mt-1 text-3xl font-bold ${c.textPrimary}`}
+        >
           Idol Production
         </h1>
 
-        <p className="mt-2 text-sm text-text-secondary">
-          Manage idol groups, members, releases,
-          music videos, and activities.
+        <p
+          className={`mt-2 text-sm ${c.textSecondary}`}
+        >
+          Manage idol groups, members,
+          releases, music videos, and
+          activities.
         </p>
       </div>
 
-      {error &&
-        !isGroupModalOpen &&
-        !isMemberModalOpen &&
-        !isReleaseModalOpen &&
-        !isActivityModalOpen &&
-        !isMusicVideoModalOpen && (
-          <ErrorMessage message={error} />
-        )}
-
-      {/* STATISTICS */}
+      {showGlobalError && (
+        <ErrorMessage
+          message={error}
+          theme={theme}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Stat
@@ -1783,7 +2476,10 @@ export function AdminIdolPage() {
             <Music className="h-5 w-5" />
           }
           label="Groups"
-          value={String(groups.length)}
+          value={String(
+            groups.length,
+          )}
+          theme={theme}
         />
 
         <Stat
@@ -1791,7 +2487,10 @@ export function AdminIdolPage() {
             <Users className="h-5 w-5" />
           }
           label="Members"
-          value={String(totalMembers)}
+          value={String(
+            totalMembers,
+          )}
+          theme={theme}
         />
 
         <Stat
@@ -1799,1054 +2498,1097 @@ export function AdminIdolPage() {
             <CalendarDays className="h-5 w-5" />
           }
           label="Upcoming Events"
-          value={String(upcomingEvents)}
+          value={String(
+            upcomingEvents,
+          )}
+          theme={theme}
         />
       </div>
 
-      {/* LOADING */}
-
       {loading && (
-        <div className="rounded-xl border border-border-default bg-bg-surface px-6 py-16 text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-brand-primary border-t-transparent" />
+        <div
+          className={`rounded-xl border ${c.border} ${c.surface} px-6 py-16 text-center`}
+        >
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
 
-          <p className="mt-4 text-sm text-text-muted">
-            Loading idol production data...
+          <p
+            className={`mt-4 text-sm ${c.textMuted}`}
+          >
+            Loading idol production
+            data...
           </p>
         </div>
       )}
 
-      {/* GROUP LIST */}
+      {!loading &&
+        !selectedGroup && (
+          <>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2
+                  className={`text-xl font-bold ${c.textPrimary}`}
+                >
+                  Idol Groups
+                </h2>
 
-      {!loading && !selectedGroup && (
-        <>
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="font-display text-xl font-bold text-text-primary">
-                Idol Groups
-              </h2>
+                <p
+                  className={`mt-1 text-sm ${c.textMuted}`}
+                >
+                  Select a group to manage its
+                  production data.
+                </p>
+              </div>
 
-              <p className="mt-1 text-sm text-text-muted">
-                Select a group to manage its
-                production data.
-              </p>
+              <button
+                type="button"
+                onClick={
+                  openAddGroupModal
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"
+              >
+                <Plus className="h-4 w-4" />
+                Add Group
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={openAddGroupModal}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-secondary"
-            >
-              <Plus className="h-4 w-4" />
-              Add Group
-            </button>
-          </div>
+            <div className="relative">
+              <Search
+                className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${c.textMuted}`}
+              />
 
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+              <input
+                type="text"
+                value={search}
+                onChange={(event) =>
+                  setSearch(
+                    event.target.value,
+                  )
+                }
+                placeholder="Search groups..."
+                className={`w-full rounded-lg border ${c.border} ${c.surface} ${c.textPrimary} ${c.placeholder} py-3 pl-10 pr-4 text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10`}
+              />
+            </div>
 
-            <input
-              type="text"
-              value={search}
-              onChange={(event) =>
-                setSearch(
-                  event.target.value,
-                )
-              }
-              placeholder="Search groups..."
-              className="w-full rounded-lg border border-border-default bg-bg-surface py-3 pl-10 pr-4 text-sm text-text-primary outline-none transition focus:border-brand-primary"
-            />
-          </div>
-
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {filteredGroups.map(
-              (group) => (
-                <div
-                  key={group.id}
-                  className="overflow-hidden rounded-xl border border-border-default bg-bg-surface"
-                >
-                  {group.imageUrl ? (
-                    <div className="h-40 overflow-hidden bg-bg-base">
-                      <img
-                        src={group.imageUrl}
-                        alt={group.name}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex h-40 items-center justify-center bg-bg-base">
-                      <Music className="h-10 w-10 text-brand-primary" />
-                    </div>
-                  )}
-
-                  <div className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="rounded-xl bg-brand-primary/10 p-3 text-brand-primary">
-                        <Music className="h-6 w-6" />
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {filteredGroups.map(
+                (group) => (
+                  <div
+                    key={group.id}
+                    className={`overflow-hidden rounded-xl border ${c.border} ${c.surface}`}
+                  >
+                    {group.imageUrl ? (
+                      <div className="h-40 overflow-hidden bg-neutral-100 dark:bg-black">
+                        <img
+                          src={
+                            group.imageUrl
+                          }
+                          alt={group.name}
+                          className="h-full w-full object-cover"
+                        />
                       </div>
-
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs ${group.status ===
-                          'Active'
-                          ? 'bg-green-400/10 text-green-400'
-                          : 'bg-yellow-400/10 text-yellow-400'
-                          }`}
+                    ) : (
+                      <div
+                        className={`flex h-40 items-center justify-center ${c.input}`}
                       >
-                        {group.status}
-                      </span>
-                    </div>
-
-                    <h2 className="mt-5 text-xl font-bold text-text-primary">
-                      {group.name}
-                    </h2>
-
-                    {group.description && (
-                      <p className="mt-2 line-clamp-2 text-sm text-text-muted">
-                        {group.description}
-                      </p>
+                        <Music className="h-10 w-10 text-violet-500" />
+                      </div>
                     )}
 
-                    <div className="mt-5 space-y-3 text-sm text-text-secondary">
-                      <div className="flex justify-between">
-                        <span>
-                          Members
-                        </span>
+                    <div className="p-6">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="rounded-xl bg-violet-500/10 p-3 text-violet-500">
+                          <Music className="h-6 w-6" />
+                        </div>
 
-                        <span>
-                          {group.memberCount}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between">
-                        <span>
-                          Releases
-                        </span>
-
-                        <span>
-                          {group.releaseCount}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between">
-                        <span>
-                          Activities
-                        </span>
-
-                        <span>
-                          {group.activityCount}
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-medium ${group.status ===
+                              'Active'
+                              ? theme ===
+                                'light'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-emerald-500/10 text-emerald-400'
+                              : theme ===
+                                'light'
+                                ? 'bg-amber-50 text-amber-700'
+                                : 'bg-amber-500/10 text-amber-400'
+                            }`}
+                        >
+                          {group.status}
                         </span>
                       </div>
-                    </div>
 
-                    <div className="mt-6 grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          openEditGroupModal(
-                            group,
-                          )
-                        }
-                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-border-default py-2.5 text-sm text-text-secondary transition-colors hover:bg-bg-base hover:text-text-primary"
+                      <h2
+                        className={`mt-5 text-xl font-bold ${c.textPrimary}`}
                       >
-                        <Edit className="h-4 w-4" />
-                        Edit
-                      </button>
+                        {group.name}
+                      </h2>
+
+                      {group.description && (
+                        <p
+                          className={`mt-2 line-clamp-2 text-sm ${c.textMuted}`}
+                        >
+                          {
+                            group.description
+                          }
+                        </p>
+                      )}
+
+                      <div
+                        className={`mt-5 space-y-3 text-sm ${c.textSecondary}`}
+                      >
+                        <div className="flex justify-between">
+                          <span>
+                            Members
+                          </span>
+
+                          <span>
+                            {
+                              group.memberCount
+                            }
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span>
+                            Releases
+                          </span>
+
+                          <span>
+                            {
+                              group.releaseCount
+                            }
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span>
+                            Activities
+                          </span>
+
+                          <span>
+                            {
+                              group.activityCount
+                            }
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openEditGroupModal(
+                              group,
+                            )
+                          }
+                          className={`inline-flex items-center justify-center gap-2 rounded-lg border ${c.border} py-2.5 text-sm ${c.textSecondary} ${c.hover} transition`}
+                        >
+                          <Edit className="h-4 w-4" />
+                          Edit
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openGroup(
+                              group.id,
+                            )
+                          }
+                          className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 py-2.5 text-sm font-medium text-white transition hover:bg-violet-700"
+                        >
+                          <Users className="h-4 w-4" />
+                          Manage
+                        </button>
+                      </div>
 
                       <button
                         type="button"
                         onClick={() =>
-                          openGroup(
+                          handleDeleteGroup(
                             group.id,
                           )
                         }
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-secondary"
+                        className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs text-red-500 transition hover:bg-red-500/10"
                       >
-                        <Users className="h-4 w-4" />
-                        Manage
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete Group
                       </button>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleDeleteGroup(
-                          group.id,
-                        )
-                      }
-                      className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs text-red-400 transition-colors hover:bg-red-400/10"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Delete Group
-                    </button>
                   </div>
-                </div>
-              ),
-            )}
-
-            {filteredGroups.length ===
-              0 && (
-                <div className="rounded-xl border border-border-default bg-bg-surface px-6 py-16 text-center md:col-span-2 lg:col-span-3">
-                  <Music className="mx-auto h-10 w-10 text-text-muted" />
-
-                  <p className="mt-4 text-sm text-text-muted">
-                    No idol groups found.
-                  </p>
-                </div>
+                ),
               )}
-          </div>
-        </>
-      )}
 
-      {/* GROUP DETAIL */}
-
-      {!loading && selectedGroup && (
-        <>
-          {/* DETAIL HEADER */}
-
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                type="button"
-                onClick={backToGroups}
-                className="rounded-lg border border-border-default p-2.5 text-text-muted transition-colors hover:bg-bg-surface hover:text-text-primary"
-                title="Back to groups"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-
-              <div>
-                <p className="text-sm text-text-muted">
-                  Idol Group
-                </p>
-
-                <h2 className="font-display text-2xl font-bold text-text-primary">
-                  {selectedGroup.name}
-                </h2>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  openEditGroupModal(
-                    selectedGroup,
-                  )
-                }
-                className="inline-flex items-center gap-2 rounded-lg border border-border-default px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-bg-surface hover:text-text-primary"
-              >
-                <Edit className="h-4 w-4" />
-                Edit Group
-              </button>
-
-              <button
-                type="button"
-                onClick={openAddMemberModal}
-                className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-secondary"
-              >
-                <Plus className="h-4 w-4" />
-                Add Member
-              </button>
-            </div>
-          </div>
-
-          {/* GROUP IMAGE / DESCRIPTION */}
-
-          {(selectedGroup.imageUrl ||
-            selectedGroup.description) && (
-              <div className="overflow-hidden rounded-xl border border-border-default bg-bg-surface">
-                {selectedGroup.imageUrl && (
-                  <div className="h-56 overflow-hidden bg-bg-base">
-                    <img
-                      src={
-                        selectedGroup.imageUrl
-                      }
-                      alt={
-                        selectedGroup.name
-                      }
-                      className="h-full w-full object-cover"
+              {filteredGroups.length ===
+                0 && (
+                  <div
+                    className={`rounded-xl border ${c.border} ${c.surface} px-6 py-16 text-center md:col-span-2 lg:col-span-3`}
+                  >
+                    <Music
+                      className={`mx-auto h-10 w-10 ${c.textMuted}`}
                     />
-                  </div>
-                )}
 
-                {selectedGroup.description && (
-                  <div className="p-6">
-                    <p className="text-sm leading-7 text-text-secondary">
-                      {
-                        selectedGroup.description
-                      }
+                    <p
+                      className={`mt-4 text-sm ${c.textMuted}`}
+                    >
+                      No idol groups
+                      found.
                     </p>
                   </div>
                 )}
+            </div>
+          </>
+        )}
+
+      {!loading &&
+        selectedGroup && (
+          <>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={
+                    backToGroups
+                  }
+                  className={`rounded-lg border ${c.border} p-2.5 ${c.textMuted} ${c.hover} transition`}
+                  title="Back to groups"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+
+                <div>
+                  <p
+                    className={`text-sm ${c.textMuted}`}
+                  >
+                    Idol Group
+                  </p>
+
+                  <h2
+                    className={`text-2xl font-bold ${c.textPrimary}`}
+                  >
+                    {
+                      selectedGroup.name
+                    }
+                  </h2>
+                </div>
               </div>
-            )}
 
-          {/* GROUP SUMMARY */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    openEditGroupModal(
+                      selectedGroup,
+                    )
+                  }
+                  className={`inline-flex items-center gap-2 rounded-lg border ${c.border} px-4 py-2.5 text-sm ${c.textSecondary} ${c.hover} transition`}
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit Group
+                </button>
 
-          <div className="grid gap-4 md:grid-cols-5">
-            <DetailCard
-              label="Status"
-              value={
-                selectedGroup.status
+                <button
+                  type="button"
+                  onClick={
+                    openAddMemberModal
+                  }
+                  className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Member
+                </button>
+              </div>
+            </div>
+
+            {(selectedGroup.imageUrl ||
+              selectedGroup.description) && (
+                <div
+                  className={`overflow-hidden rounded-xl border ${c.border} ${c.surface}`}
+                >
+                  {selectedGroup.imageUrl && (
+                    <div className="h-56 overflow-hidden">
+                      <img
+                        src={
+                          selectedGroup.imageUrl
+                        }
+                        alt={
+                          selectedGroup.name
+                        }
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  )}
+
+                  {selectedGroup.description && (
+                    <div className="p-6">
+                      <p
+                        className={`text-sm leading-7 ${c.textSecondary}`}
+                      >
+                        {
+                          selectedGroup.description
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            <div className="grid gap-4 md:grid-cols-5">
+              <DetailCard
+                label="Status"
+                value={
+                  selectedGroup.status
+                }
+                theme={theme}
+              />
+
+              <DetailCard
+                label="Members"
+                value={String(
+                  selectedGroup
+                    .members
+                    .length,
+                )}
+                theme={theme}
+              />
+
+              <DetailCard
+                label="Releases"
+                value={String(
+                  selectedGroup
+                    .releases
+                    .length,
+                )}
+                theme={theme}
+              />
+
+              <DetailCard
+                label="Music Videos"
+                value={String(
+                  selectedGroup
+                    .musicVideos
+                    .length,
+                )}
+                theme={theme}
+              />
+
+              <DetailCard
+                label="Activities"
+                value={String(
+                  selectedGroup
+                    .activities
+                    .length,
+                )}
+                theme={theme}
+              />
+            </div>
+
+            {/* MEMBERS */}
+
+            <DataSection
+              title="Group Members"
+              description={`Manage members of ${selectedGroup.name}.`}
+              actionLabel="Add Member"
+              onAction={
+                openAddMemberModal
               }
-            />
+              theme={theme}
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead>
+                    <tr
+                      className={`border-b ${c.border} ${c.elevated}`}
+                    >
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Member
+                      </th>
 
-            <DetailCard
-              label="Members"
-              value={String(
-                selectedGroup.members
-                  .length,
-              )}
-            />
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Position
+                      </th>
 
-            <DetailCard
-              label="Releases"
-              value={String(
-                selectedGroup.releases
-                  .length,
-              )}
-            />
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Birth Date
+                      </th>
 
-            <DetailCard
-              label="Music Videos"
-              value={String(
-                selectedGroup
-                  .musicVideos
-                  .length,
-              )}
-            />
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Email
+                      </th>
 
-            <DetailCard
-              label="Activities"
-              value={String(
-                selectedGroup.activities
-                  .length,
-              )}
-            />
-          </div>
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Status
+                      </th>
 
-          {/* MEMBERS */}
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
 
-          <div className="overflow-hidden rounded-xl border border-border-default bg-bg-surface">
-            <div className="flex flex-col gap-4 border-b border-border-default px-6 py-5 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h3 className="font-display text-xl font-bold text-text-primary">
-                  Group Members
-                </h3>
+                  <tbody>
+                    {selectedGroup.members.map(
+                      (member) => (
+                        <tr
+                          key={member.id}
+                          className={`border-b ${c.border} last:border-0 ${c.hover} transition`}
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              {member.imageUrl ? (
+                                <img
+                                  src={
+                                    member.imageUrl
+                                  }
+                                  alt={
+                                    member.stageName
+                                  }
+                                  className="h-11 w-11 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="rounded-full bg-violet-500/10 p-2.5 text-violet-500">
+                                  <User className="h-5 w-5" />
+                                </div>
+                              )}
 
-                <p className="mt-1 text-sm text-text-muted">
-                  Manage members of{' '}
-                  {
-                    selectedGroup.name
-                  }
-                  .
-                </p>
-              </div>
+                              <div>
+                                <p
+                                  className={`font-medium ${c.textPrimary}`}
+                                >
+                                  {
+                                    member.stageName
+                                  }
+                                </p>
 
-              <button
-                type="button"
-                onClick={openAddMemberModal}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-secondary"
-              >
-                <Plus className="h-4 w-4" />
-                Add Member
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="border-b border-border-default bg-bg-base">
-                  <tr>
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Member
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Position
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Birth Date
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Email
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Status
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {selectedGroup.members.map(
-                    (member) => (
-                      <tr
-                        key={member.id}
-                        className="border-b border-border-default last:border-0"
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            {member.imageUrl ? (
-                              <img
-                                src={
-                                  member.imageUrl
-                                }
-                                alt={
-                                  member.stageName
-                                }
-                                className="h-11 w-11 rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="rounded-full bg-brand-primary/10 p-2.5 text-brand-primary">
-                                <User className="h-5 w-5" />
+                                <p
+                                  className={`text-xs ${c.textMuted}`}
+                                >
+                                  {
+                                    member.name
+                                  }
+                                </p>
                               </div>
-                            )}
-
-                            <div>
-                              <p className="font-medium text-text-primary">
-                                {
-                                  member.stageName
-                                }
-                              </p>
-
-                              <p className="text-xs text-text-muted">
-                                {
-                                  member.name
-                                }
-                              </p>
                             </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        <td className="px-6 py-4 text-text-secondary">
-                          {
-                            member.position
-                          }
-                        </td>
-
-                        <td className="px-6 py-4 text-text-secondary">
-                          {formatDate(
-                            member.birthDate,
-                          )}
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-text-secondary">
-                            <Mail className="h-4 w-4" />
-                            {member.email}
-                          </div>
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <StatusBadge
-                            status={
-                              member.status
-                            }
-                          />
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openEditMemberModal(
-                                  member,
-                                )
-                              }
-                              className="rounded-lg border border-border-default p-2 text-text-muted hover:text-text-primary"
-                              title="Edit member"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleDeleteMember(
-                                  member.id,
-                                )
-                              }
-                              className="rounded-lg border border-border-default p-2 text-red-400 hover:bg-red-400/10"
-                              title="Delete member"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ),
-                  )}
-
-                  {selectedGroup.members
-                    .length === 0 && (
-                      <EmptyTableRow
-                        colSpan={6}
-                        message="This group has no members yet."
-                      />
-                    )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* RELEASES */}
-
-          <div className="overflow-hidden rounded-xl border border-border-default bg-bg-surface">
-            <div className="flex flex-col gap-4 border-b border-border-default px-6 py-5 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h3 className="font-display text-xl font-bold text-text-primary">
-                  Releases
-                </h3>
-
-                <p className="mt-1 text-sm text-text-muted">
-                  Manage releases from{' '}
-                  {
-                    selectedGroup.name
-                  }
-                  .
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={openAddReleaseModal}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-secondary"
-              >
-                <Plus className="h-4 w-4" />
-                Add Release
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1000px] text-left text-sm">
-                <thead className="border-b border-border-default bg-bg-base">
-                  <tr>
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Release
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Type
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Release Date
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Media
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Status
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {selectedGroup.releases.map(
-                    (release) => (
-                      <tr
-                        key={release.id}
-                        className="border-b border-border-default last:border-0"
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            {release.coverUrl ? (
-                              <img
-                                src={
-                                  release.coverUrl
-                                }
-                                alt={
-                                  release.title
-                                }
-                                className="h-12 w-12 rounded-lg object-cover"
-                              />
-                            ) : (
-                              <div className="rounded-lg bg-brand-primary/10 p-3 text-brand-primary">
-                                <Music className="h-5 w-5" />
-                              </div>
-                            )}
-
-                            <div>
-                              <p className="font-medium text-text-primary">
-                                {
-                                  release.title
-                                }
-                              </p>
-
-                              <p className="mt-1 max-w-md text-xs text-text-muted">
-                                {
-                                  release.description
-                                }
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <span className="rounded-full bg-bg-base px-3 py-1 text-xs text-text-secondary">
+                          <td
+                            className={`px-6 py-4 ${c.textSecondary}`}
+                          >
                             {
-                              release.type
+                              member.position
                             }
-                          </span>
-                        </td>
+                          </td>
 
-                        <td className="px-6 py-4 text-text-secondary">
-                          {formatDate(
-                            release.releaseDate,
-                          )}
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <div className="flex gap-2">
-                            {release.audioUrl && (
-                              <span
-                                title="Audio URL available"
-                                className="rounded-lg bg-brand-primary/10 p-2 text-brand-primary"
-                              >
-                                <Play className="h-4 w-4" />
-                              </span>
+                          <td
+                            className={`px-6 py-4 ${c.textSecondary}`}
+                          >
+                            {formatDate(
+                              member.birthDate,
                             )}
+                          </td>
 
-                            {release.spotifyUrl && (
-                              <span
-                                title="Spotify URL available"
-                                className="rounded-lg bg-green-400/10 p-2 text-green-400"
-                              >
-                                <LinkIcon className="h-4 w-4" />
-                              </span>
-                            )}
-
-                            {release.youtubeUrl && (
-                              <span
-                                title="YouTube URL available"
-                                className="rounded-lg bg-red-400/10 p-2 text-red-400"
-                              >
-                                <Play className="h-4 w-4" />
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <ReleaseStatusBadge
-                            status={
-                              release.status
-                            }
-                          />
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openEditReleaseModal(
-                                  release,
-                                )
-                              }
-                              className="rounded-lg border border-border-default p-2 text-text-muted hover:text-text-primary"
-                              title="Edit release"
+                          <td className="px-6 py-4">
+                            <div
+                              className={`flex items-center gap-2 ${c.textSecondary}`}
                             >
-                              <Edit className="h-4 w-4" />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleDeleteRelease(
-                                  release.id,
-                                )
+                              <Mail className="h-4 w-4" />
+                              {
+                                member.email
                               }
-                              className="rounded-lg border border-border-default p-2 text-red-400 hover:bg-red-400/10"
-                              title="Delete release"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ),
-                  )}
-
-                  {selectedGroup.releases
-                    .length === 0 && (
-                      <EmptyTableRow
-                        colSpan={6}
-                        message="This group has no releases yet."
-                      />
-                    )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* MUSIC VIDEOS */}
-
-          <div className="overflow-hidden rounded-xl border border-border-default bg-bg-surface">
-            <div className="flex flex-col gap-4 border-b border-border-default px-6 py-5 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h3 className="font-display text-xl font-bold text-text-primary">
-                  Music Videos
-                </h3>
-
-                <p className="mt-1 text-sm text-text-muted">
-                  Manage music videos for{' '}
-                  {
-                    selectedGroup.name
-                  }
-                  .
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={
-                  openAddMusicVideoModal
-                }
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-secondary"
-              >
-                <Plus className="h-4 w-4" />
-                Add Music Video
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1000px] text-left text-sm">
-                <thead className="border-b border-border-default bg-bg-base">
-                  <tr>
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Video
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Release Date
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Media
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Status
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {selectedGroup.musicVideos.map(
-                    (video) => (
-                      <tr
-                        key={video.id}
-                        className="border-b border-border-default last:border-0"
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            {video.thumbnailUrl ? (
-                              <img
-                                src={
-                                  video.thumbnailUrl
-                                }
-                                alt={
-                                  video.title
-                                }
-                                className="h-14 w-24 rounded-lg object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-14 w-24 items-center justify-center rounded-lg bg-bg-base text-brand-primary">
-                                <Play className="h-5 w-5" />
-                              </div>
-                            )}
-
-                            <div>
-                              <p className="font-medium text-text-primary">
-                                {
-                                  video.title
-                                }
-                              </p>
-
-                              <p className="mt-1 max-w-md text-xs text-text-muted">
-                                {
-                                  video.description
-                                }
-                              </p>
                             </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        <td className="px-6 py-4 text-text-secondary">
-                          {formatDate(
-                            video.releaseDate,
-                          )}
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <div className="flex gap-2">
-                            {video.videoUrl && (
-                              <span
-                                className="rounded-lg bg-brand-primary/10 p-2 text-brand-primary"
-                                title="Direct video URL"
-                              >
-                                <Play className="h-4 w-4" />
-                              </span>
-                            )}
-
-                            {video.youtubeUrl && (
-                              <span
-                                className="rounded-lg bg-red-400/10 p-2 text-red-400"
-                                title="YouTube URL"
-                              >
-                                <LinkIcon className="h-4 w-4" />
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <MusicVideoStatusBadge
-                            status={
-                              video.status
-                            }
-                          />
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openEditMusicVideoModal(
-                                  video,
-                                )
+                          <td className="px-6 py-4">
+                            <StatusBadge
+                              status={
+                                member.status
                               }
-                              className="rounded-lg border border-border-default p-2 text-text-muted hover:text-text-primary"
-                              title="Edit music video"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleDeleteMusicVideo(
-                                  video.id,
-                                )
+                              theme={
+                                theme
                               }
-                              className="rounded-lg border border-border-default p-2 text-red-400 hover:bg-red-400/10"
-                              title="Delete music video"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ),
-                  )}
+                            />
+                          </td>
 
-                  {selectedGroup
-                    .musicVideos.length ===
-                    0 && (
-                      <EmptyTableRow
-                        colSpan={5}
-                        message="This group has no music videos yet."
-                      />
-                    )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* ACTIVITIES */}
-
-          <div className="overflow-hidden rounded-xl border border-border-default bg-bg-surface">
-            <div className="flex flex-col gap-4 border-b border-border-default px-6 py-5 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h3 className="font-display text-xl font-bold text-text-primary">
-                  Activities
-                </h3>
-
-                <p className="mt-1 text-sm text-text-muted">
-                  Manage events and activities
-                  for{' '}
-                  {
-                    selectedGroup.name
-                  }
-                  .
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={
-                  openAddActivityModal
-                }
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-secondary"
-              >
-                <Plus className="h-4 w-4" />
-                Add Activity
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1000px] text-left text-sm">
-                <thead className="border-b border-border-default bg-bg-base">
-                  <tr>
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Activity
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Type
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Date
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Location
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Status
-                    </th>
-
-                    <th className="px-6 py-4 font-semibold text-text-primary">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {selectedGroup.activities.map(
-                    (activity) => (
-                      <tr
-                        key={activity.id}
-                        className="border-b border-border-default last:border-0"
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            {activity.imageUrl ? (
-                              <img
-                                src={
-                                  activity.imageUrl
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2">
+                              <IconButton
+                                title="Edit member"
+                                onClick={() =>
+                                  openEditMemberModal(
+                                    member,
+                                  )
                                 }
-                                alt={
-                                  activity.title
+                                theme={
+                                  theme
                                 }
-                                className="h-12 w-12 rounded-lg object-cover"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </IconButton>
+
+                              <DeleteButton
+                                title="Delete member"
+                                onClick={() =>
+                                  handleDeleteMember(
+                                    member.id,
+                                  )
+                                }
                               />
-                            ) : (
-                              <div className="rounded-lg bg-brand-primary/10 p-3 text-brand-primary">
-                                <CalendarDays className="h-5 w-5" />
-                              </div>
-                            )}
-
-                            <div>
-                              <p className="font-medium text-text-primary">
-                                {
-                                  activity.title
-                                }
-                              </p>
-
-                              <p className="mt-1 max-w-md text-xs text-text-muted">
-                                {
-                                  activity.description
-                                }
-                              </p>
                             </div>
-                          </div>
-                        </td>
+                          </td>
+                        </tr>
+                      ),
+                    )}
 
-                        <td className="px-6 py-4">
-                          <span className="rounded-full bg-bg-base px-3 py-1 text-xs text-text-secondary">
+                    {selectedGroup
+                      .members
+                      .length ===
+                      0 && (
+                        <EmptyTableRow
+                          colSpan={6}
+                          message="This group has no members yet."
+                          theme={theme}
+                        />
+                      )}
+                  </tbody>
+                </table>
+              </div>
+            </DataSection>
+
+            {/* RELEASES */}
+
+            <DataSection
+              title="Releases"
+              description={`Manage releases from ${selectedGroup.name}.`}
+              actionLabel="Add Release"
+              onAction={
+                openAddReleaseModal
+              }
+              theme={theme}
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1000px] text-left text-sm">
+                  <thead>
+                    <tr
+                      className={`border-b ${c.border} ${c.elevated}`}
+                    >
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Release
+                      </th>
+
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Type
+                      </th>
+
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Release Date
+                      </th>
+
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Media
+                      </th>
+
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Status
+                      </th>
+
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {selectedGroup.releases.map(
+                      (release) => (
+                        <tr
+                          key={release.id}
+                          className={`border-b ${c.border} last:border-0 ${c.hover} transition`}
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              {release.coverUrl ? (
+                                <img
+                                  src={
+                                    release.coverUrl
+                                  }
+                                  alt={
+                                    release.title
+                                  }
+                                  className="h-12 w-12 rounded-lg object-cover"
+                                />
+                              ) : (
+                                <div className="rounded-lg bg-violet-500/10 p-3 text-violet-500">
+                                  <Music className="h-5 w-5" />
+                                </div>
+                              )}
+
+                              <div>
+                                <p
+                                  className={`font-medium ${c.textPrimary}`}
+                                >
+                                  {
+                                    release.title
+                                  }
+                                </p>
+
+                                <p
+                                  className={`mt-1 max-w-md text-xs ${c.textMuted}`}
+                                >
+                                  {
+                                    release.description
+                                  }
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <span
+                              className={`rounded-full ${c.elevated} px-3 py-1 text-xs ${c.textSecondary}`}
+                            >
+                              {
+                                release.type
+                              }
+                            </span>
+                          </td>
+
+                          <td
+                            className={`px-6 py-4 ${c.textSecondary}`}
+                          >
+                            {formatDate(
+                              release.releaseDate,
+                            )}
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2">
+                              {release.audioUrl && (
+                                <span
+                                  title="Audio URL available"
+                                  className="rounded-lg bg-violet-500/10 p-2 text-violet-500"
+                                >
+                                  <Play className="h-4 w-4" />
+                                </span>
+                              )}
+
+                              {release.spotifyUrl && (
+                                <span
+                                  title="Spotify URL available"
+                                  className="rounded-lg bg-emerald-500/10 p-2 text-emerald-500"
+                                >
+                                  <LinkIcon className="h-4 w-4" />
+                                </span>
+                              )}
+
+                              {release.youtubeUrl && (
+                                <span
+                                  title="YouTube URL available"
+                                  className="rounded-lg bg-red-500/10 p-2 text-red-500"
+                                >
+                                  <Play className="h-4 w-4" />
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <ReleaseStatusBadge
+                              status={
+                                release.status
+                              }
+                              theme={
+                                theme
+                              }
+                            />
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2">
+                              <IconButton
+                                title="Edit release"
+                                onClick={() =>
+                                  openEditReleaseModal(
+                                    release,
+                                  )
+                                }
+                                theme={
+                                  theme
+                                }
+                              >
+                                <Edit className="h-4 w-4" />
+                              </IconButton>
+
+                              <DeleteButton
+                                title="Delete release"
+                                onClick={() =>
+                                  handleDeleteRelease(
+                                    release.id,
+                                  )
+                                }
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      ),
+                    )}
+
+                    {selectedGroup
+                      .releases
+                      .length ===
+                      0 && (
+                        <EmptyTableRow
+                          colSpan={6}
+                          message="This group has no releases yet."
+                          theme={theme}
+                        />
+                      )}
+                  </tbody>
+                </table>
+              </div>
+            </DataSection>
+
+            {/* MUSIC VIDEOS */}
+
+            <DataSection
+              title="Music Videos"
+              description={`Manage music videos for ${selectedGroup.name}.`}
+              actionLabel="Add Music Video"
+              onAction={
+                openAddMusicVideoModal
+              }
+              theme={theme}
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1000px] text-left text-sm">
+                  <thead>
+                    <tr
+                      className={`border-b ${c.border} ${c.elevated}`}
+                    >
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Video
+                      </th>
+
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Release Date
+                      </th>
+
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Media
+                      </th>
+
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Status
+                      </th>
+
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {selectedGroup.musicVideos.map(
+                      (video) => (
+                        <tr
+                          key={video.id}
+                          className={`border-b ${c.border} last:border-0 ${c.hover} transition`}
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              {video.thumbnailUrl ? (
+                                <img
+                                  src={
+                                    video.thumbnailUrl
+                                  }
+                                  alt={
+                                    video.title
+                                  }
+                                  className="h-14 w-24 rounded-lg object-cover"
+                                />
+                              ) : (
+                                <div
+                                  className={`flex h-14 w-24 items-center justify-center rounded-lg ${c.input} text-violet-500`}
+                                >
+                                  <Play className="h-5 w-5" />
+                                </div>
+                              )}
+
+                              <div>
+                                <p
+                                  className={`font-medium ${c.textPrimary}`}
+                                >
+                                  {
+                                    video.title
+                                  }
+                                </p>
+
+                                <p
+                                  className={`mt-1 max-w-md text-xs ${c.textMuted}`}
+                                >
+                                  {
+                                    video.description
+                                  }
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td
+                            className={`px-6 py-4 ${c.textSecondary}`}
+                          >
+                            {formatDate(
+                              video.releaseDate,
+                            )}
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2">
+                              {video.videoUrl && (
+                                <span
+                                  className="rounded-lg bg-violet-500/10 p-2 text-violet-500"
+                                  title="Direct video URL"
+                                >
+                                  <Play className="h-4 w-4" />
+                                </span>
+                              )}
+
+                              {video.youtubeUrl && (
+                                <span
+                                  className="rounded-lg bg-red-500/10 p-2 text-red-500"
+                                  title="YouTube URL"
+                                >
+                                  <LinkIcon className="h-4 w-4" />
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <MusicVideoStatusBadge
+                              status={
+                                video.status
+                              }
+                              theme={
+                                theme
+                              }
+                            />
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2">
+                              <IconButton
+                                title="Edit music video"
+                                onClick={() =>
+                                  openEditMusicVideoModal(
+                                    video,
+                                  )
+                                }
+                                theme={
+                                  theme
+                                }
+                              >
+                                <Edit className="h-4 w-4" />
+                              </IconButton>
+
+                              <DeleteButton
+                                title="Delete music video"
+                                onClick={() =>
+                                  handleDeleteMusicVideo(
+                                    video.id,
+                                  )
+                                }
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      ),
+                    )}
+
+                    {selectedGroup
+                      .musicVideos
+                      .length ===
+                      0 && (
+                        <EmptyTableRow
+                          colSpan={5}
+                          message="This group has no music videos yet."
+                          theme={theme}
+                        />
+                      )}
+                  </tbody>
+                </table>
+              </div>
+            </DataSection>
+
+            {/* ACTIVITIES */}
+
+            <DataSection
+              title="Activities"
+              description={`Manage events and activities for ${selectedGroup.name}.`}
+              actionLabel="Add Activity"
+              onAction={
+                openAddActivityModal
+              }
+              theme={theme}
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1000px] text-left text-sm">
+                  <thead>
+                    <tr
+                      className={`border-b ${c.border} ${c.elevated}`}
+                    >
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Activity
+                      </th>
+
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Type
+                      </th>
+
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Date
+                      </th>
+
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Location
+                      </th>
+
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Status
+                      </th>
+
+                      <th className={`px-6 py-4 font-semibold ${c.textPrimary}`}>
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {selectedGroup.activities.map(
+                      (activity) => (
+                        <tr
+                          key={activity.id}
+                          className={`border-b ${c.border} last:border-0 ${c.hover} transition`}
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              {activity.imageUrl ? (
+                                <img
+                                  src={
+                                    activity.imageUrl
+                                  }
+                                  alt={
+                                    activity.title
+                                  }
+                                  className="h-12 w-12 rounded-lg object-cover"
+                                />
+                              ) : (
+                                <div className="rounded-lg bg-violet-500/10 p-3 text-violet-500">
+                                  <CalendarDays className="h-5 w-5" />
+                                </div>
+                              )}
+
+                              <div>
+                                <p
+                                  className={`font-medium ${c.textPrimary}`}
+                                >
+                                  {
+                                    activity.title
+                                  }
+                                </p>
+
+                                <p
+                                  className={`mt-1 max-w-md text-xs ${c.textMuted}`}
+                                >
+                                  {
+                                    activity.description
+                                  }
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="px-6 py-4">
+                            <span
+                              className={`rounded-full ${c.elevated} px-3 py-1 text-xs ${c.textSecondary}`}
+                            >
+                              {
+                                activity.type
+                              }
+                            </span>
+                          </td>
+
+                          <td
+                            className={`px-6 py-4 ${c.textSecondary}`}
+                          >
+                            {formatDate(
+                              activity.date,
+                            )}
+                          </td>
+
+                          <td
+                            className={`px-6 py-4 ${c.textSecondary}`}
+                          >
                             {
-                              activity.type
+                              activity.location
                             }
-                          </span>
-                        </td>
+                          </td>
 
-                        <td className="px-6 py-4 text-text-secondary">
-                          {formatDate(
-                            activity.date,
-                          )}
-                        </td>
-
-                        <td className="px-6 py-4 text-text-secondary">
-                          {
-                            activity.location
-                          }
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <ActivityStatusBadge
-                            status={
-                              activity.status
-                            }
-                          />
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openEditActivityModal(
-                                  activity,
-                                )
+                          <td className="px-6 py-4">
+                            <ActivityStatusBadge
+                              status={
+                                activity.status
                               }
-                              className="rounded-lg border border-border-default p-2 text-text-muted hover:text-text-primary"
-                              title="Edit activity"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleDeleteActivity(
-                                  activity.id,
-                                )
+                              theme={
+                                theme
                               }
-                              className="rounded-lg border border-border-default p-2 text-red-400 hover:bg-red-400/10"
-                              title="Delete activity"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ),
-                  )}
+                            />
+                          </td>
 
-                  {selectedGroup.activities
-                    .length === 0 && (
-                      <EmptyTableRow
-                        colSpan={6}
-                        message="This group has no activities yet."
-                      />
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2">
+                              <IconButton
+                                title="Edit activity"
+                                onClick={() =>
+                                  openEditActivityModal(
+                                    activity,
+                                  )
+                                }
+                                theme={
+                                  theme
+                                }
+                              >
+                                <Edit className="h-4 w-4" />
+                              </IconButton>
+
+                              <DeleteButton
+                                title="Delete activity"
+                                onClick={() =>
+                                  handleDeleteActivity(
+                                    activity.id,
+                                  )
+                                }
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      ),
                     )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
+
+                    {selectedGroup
+                      .activities
+                      .length ===
+                      0 && (
+                        <EmptyTableRow
+                          colSpan={6}
+                          message="This group has no activities yet."
+                          theme={theme}
+                        />
+                      )}
+                  </tbody>
+                </table>
+              </div>
+            </DataSection>
+          </>
+        )}
 
       {/* GROUP MODAL */}
 
@@ -2858,22 +3600,30 @@ export function AdminIdolPage() {
               : 'Add Group'
           }
           description="Manage idol group information."
-          onClose={closeGroupModal}
+          onClose={
+            closeGroupModal
+          }
+          theme={theme}
         >
           <form
-            onSubmit={handleGroupSubmit}
+            onSubmit={
+              handleGroupSubmit
+            }
           >
             <div className="space-y-5 px-6 py-6">
               {error && (
                 <ErrorMessage
                   message={error}
+                  theme={theme}
                 />
               )}
 
               <FormField
                 id="group-name"
                 label="Group Name"
-                value={groupForm.name}
+                value={
+                  groupForm.name
+                }
                 placeholder="e.g. LUMINA"
                 onChange={(value) =>
                   setGroupForm(
@@ -2883,12 +3633,13 @@ export function AdminIdolPage() {
                     }),
                   )
                 }
+                theme={theme}
               />
 
               <div>
                 <label
                   htmlFor="group-description"
-                  className="mb-2 block text-sm font-medium text-text-primary"
+                  className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                 >
                   Description
                 </label>
@@ -2910,14 +3661,18 @@ export function AdminIdolPage() {
                     )
                   }
                   placeholder="Describe the idol group..."
-                  className={`${inputClass} resize-none`}
+                  className={`${getInputClass(
+                    theme,
+                  )} resize-none`}
                 />
               </div>
 
               <ImageUploadField
                 id="group-image"
                 label="Group Image"
-                preview={groupImagePreview}
+                preview={
+                  groupImagePreview
+                }
                 onChange={(event) =>
                   handleIdolImageChange(
                     event,
@@ -2926,12 +3681,13 @@ export function AdminIdolPage() {
                     setError,
                   )
                 }
+                theme={theme}
               />
 
               <div>
                 <label
                   htmlFor="group-status"
-                  className="mb-2 block text-sm font-medium text-text-primary"
+                  className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                 >
                   Status
                 </label>
@@ -2953,7 +3709,9 @@ export function AdminIdolPage() {
                       }),
                     )
                   }
-                  className={inputClass}
+                  className={getInputClass(
+                    theme,
+                  )}
                 >
                   <option value="Active">
                     Active
@@ -2967,7 +3725,9 @@ export function AdminIdolPage() {
             </div>
 
             <ModalFooter
-              onCancel={closeGroupModal}
+              onCancel={
+                closeGroupModal
+              }
               submitLabel={
                 submitting
                   ? 'Saving...'
@@ -2975,6 +3735,7 @@ export function AdminIdolPage() {
                     ? 'Save Changes'
                     : 'Create Group'
               }
+              theme={theme}
             />
           </form>
         </Modal>
@@ -2991,8 +3752,11 @@ export function AdminIdolPage() {
                 : 'Add Member'
             }
             description={`Manage member information for ${selectedGroup.name}.`}
-            onClose={closeMemberModal}
+            onClose={
+              closeMemberModal
+            }
             wide
+            theme={theme}
           >
             <form
               onSubmit={
@@ -3003,6 +3767,7 @@ export function AdminIdolPage() {
                 {error && (
                   <ErrorMessage
                     message={error}
+                    theme={theme}
                   />
                 )}
 
@@ -3022,6 +3787,7 @@ export function AdminIdolPage() {
                         }),
                       )
                     }
+                    theme={theme}
                   />
 
                   <FormField
@@ -3040,6 +3806,7 @@ export function AdminIdolPage() {
                         }),
                       )
                     }
+                    theme={theme}
                   />
                 </div>
 
@@ -3058,13 +3825,14 @@ export function AdminIdolPage() {
                       }),
                     )
                   }
+                  theme={theme}
                 />
 
                 <div className="grid gap-5 md:grid-cols-2">
                   <div>
                     <label
                       htmlFor="member-birth-date"
-                      className="mb-2 block text-sm font-medium text-text-primary"
+                      className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                     >
                       Birth Date
                     </label>
@@ -3075,7 +3843,9 @@ export function AdminIdolPage() {
                       value={
                         memberForm.birthDate
                       }
-                      onChange={(event) =>
+                      onChange={(
+                        event,
+                      ) =>
                         setMemberForm(
                           (current) => ({
                             ...current,
@@ -3086,16 +3856,16 @@ export function AdminIdolPage() {
                           }),
                         )
                       }
-                      className={
-                        inputClass
-                      }
+                      className={getInputClass(
+                        theme,
+                      )}
                     />
                   </div>
 
                   <div>
                     <label
                       htmlFor="member-status"
-                      className="mb-2 block text-sm font-medium text-text-primary"
+                      className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                     >
                       Status
                     </label>
@@ -3105,22 +3875,23 @@ export function AdminIdolPage() {
                       value={
                         memberForm.status
                       }
-                      onChange={(event) =>
+                      onChange={(
+                        event,
+                      ) =>
                         setMemberForm(
                           (current) => ({
                             ...current,
                             status:
-                              event
-                                .target
+                              event.target
                                 .value as
                               | 'Active'
                               | 'Inactive',
                           }),
                         )
                       }
-                      className={
-                        inputClass
-                      }
+                      className={getInputClass(
+                        theme,
+                      )}
                     >
                       <option value="Active">
                         Active
@@ -3149,12 +3920,15 @@ export function AdminIdolPage() {
                       }),
                     )
                   }
+                  theme={theme}
                 />
 
                 <ImageUploadField
                   id="member-image"
                   label="Member Image"
-                  preview={memberImagePreview}
+                  preview={
+                    memberImagePreview
+                  }
                   rounded
                   onChange={(event) =>
                     handleIdolImageChange(
@@ -3164,12 +3938,13 @@ export function AdminIdolPage() {
                       setError,
                     )
                   }
+                  theme={theme}
                 />
 
                 <div>
                   <label
                     htmlFor="member-bio"
-                    className="mb-2 block text-sm font-medium text-text-primary"
+                    className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                   >
                     Bio
                   </label>
@@ -3191,7 +3966,9 @@ export function AdminIdolPage() {
                       )
                     }
                     placeholder="Write member biography..."
-                    className={`${inputClass} resize-none`}
+                    className={`${getInputClass(
+                      theme,
+                    )} resize-none`}
                   />
                 </div>
               </div>
@@ -3207,6 +3984,7 @@ export function AdminIdolPage() {
                       ? 'Save Changes'
                       : 'Create Member'
                 }
+                theme={theme}
               />
             </form>
           </Modal>
@@ -3227,6 +4005,7 @@ export function AdminIdolPage() {
               closeReleaseModal
             }
             wide
+            theme={theme}
           >
             <form
               onSubmit={
@@ -3237,6 +4016,7 @@ export function AdminIdolPage() {
                 {error && (
                   <ErrorMessage
                     message={error}
+                    theme={theme}
                   />
                 )}
 
@@ -3255,13 +4035,14 @@ export function AdminIdolPage() {
                       }),
                     )
                   }
+                  theme={theme}
                 />
 
                 <div className="grid gap-5 md:grid-cols-2">
                   <div>
                     <label
                       htmlFor="release-type"
-                      className="mb-2 block text-sm font-medium text-text-primary"
+                      className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                     >
                       Release Type
                     </label>
@@ -3271,7 +4052,9 @@ export function AdminIdolPage() {
                       value={
                         releaseForm.type
                       }
-                      onChange={(event) =>
+                      onChange={(
+                        event,
+                      ) =>
                         setReleaseForm(
                           (current) => ({
                             ...current,
@@ -3285,9 +4068,9 @@ export function AdminIdolPage() {
                           }),
                         )
                       }
-                      className={
-                        inputClass
-                      }
+                      className={getInputClass(
+                        theme,
+                      )}
                     >
                       <option value="Single">
                         Single
@@ -3306,7 +4089,7 @@ export function AdminIdolPage() {
                   <div>
                     <label
                       htmlFor="release-date"
-                      className="mb-2 block text-sm font-medium text-text-primary"
+                      className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                     >
                       Release Date
                     </label>
@@ -3317,7 +4100,9 @@ export function AdminIdolPage() {
                       value={
                         releaseForm.releaseDate
                       }
-                      onChange={(event) =>
+                      onChange={(
+                        event,
+                      ) =>
                         setReleaseForm(
                           (current) => ({
                             ...current,
@@ -3328,9 +4113,9 @@ export function AdminIdolPage() {
                           }),
                         )
                       }
-                      className={
-                        inputClass
-                      }
+                      className={getInputClass(
+                        theme,
+                      )}
                     />
                   </div>
                 </div>
@@ -3338,7 +4123,7 @@ export function AdminIdolPage() {
                 <div>
                   <label
                     htmlFor="release-description"
-                    className="mb-2 block text-sm font-medium text-text-primary"
+                    className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                   >
                     Description
                   </label>
@@ -3349,25 +4134,32 @@ export function AdminIdolPage() {
                     value={
                       releaseForm.description
                     }
-                    onChange={(event) =>
+                    onChange={(
+                      event,
+                    ) =>
                       setReleaseForm(
                         (current) => ({
                           ...current,
                           description:
-                            event.target
+                            event
+                              .target
                               .value,
                         }),
                       )
                     }
                     placeholder="Describe this release..."
-                    className={`${inputClass} resize-none`}
+                    className={`${getInputClass(
+                      theme,
+                    )} resize-none`}
                   />
                 </div>
 
                 <ImageUploadField
                   id="release-cover-image"
                   label="Cover Image"
-                  preview={releaseImagePreview}
+                  preview={
+                    releaseImagePreview
+                  }
                   onChange={(event) =>
                     handleIdolImageChange(
                       event,
@@ -3376,6 +4168,7 @@ export function AdminIdolPage() {
                       setError,
                     )
                   }
+                  theme={theme}
                 />
 
                 <FormField
@@ -3393,6 +4186,7 @@ export function AdminIdolPage() {
                       }),
                     )
                   }
+                  theme={theme}
                 />
 
                 <div className="grid gap-5 md:grid-cols-2">
@@ -3412,6 +4206,7 @@ export function AdminIdolPage() {
                         }),
                       )
                     }
+                    theme={theme}
                   />
 
                   <FormField
@@ -3430,13 +4225,14 @@ export function AdminIdolPage() {
                         }),
                       )
                     }
+                    theme={theme}
                   />
                 </div>
 
                 <div>
                   <label
                     htmlFor="release-status"
-                    className="mb-2 block text-sm font-medium text-text-primary"
+                    className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                   >
                     Status
                   </label>
@@ -3451,17 +4247,16 @@ export function AdminIdolPage() {
                         (current) => ({
                           ...current,
                           status:
-                            event
-                              .target
+                            event.target
                               .value as
                             | 'Released'
                             | 'Upcoming',
                         }),
                       )
                     }
-                    className={
-                      inputClass
-                    }
+                    className={getInputClass(
+                      theme,
+                    )}
                   >
                     <option value="Released">
                       Released
@@ -3485,6 +4280,7 @@ export function AdminIdolPage() {
                       ? 'Save Changes'
                       : 'Create Release'
                 }
+                theme={theme}
               />
             </form>
           </Modal>
@@ -3505,6 +4301,7 @@ export function AdminIdolPage() {
               closeMusicVideoModal
             }
             wide
+            theme={theme}
           >
             <form
               onSubmit={
@@ -3515,6 +4312,7 @@ export function AdminIdolPage() {
                 {error && (
                   <ErrorMessage
                     message={error}
+                    theme={theme}
                   />
                 )}
 
@@ -3533,12 +4331,13 @@ export function AdminIdolPage() {
                       }),
                     )
                   }
+                  theme={theme}
                 />
 
                 <div>
                   <label
                     htmlFor="music-video-description"
-                    className="mb-2 block text-sm font-medium text-text-primary"
+                    className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                   >
                     Description
                   </label>
@@ -3560,14 +4359,18 @@ export function AdminIdolPage() {
                       )
                     }
                     placeholder="Describe this music video..."
-                    className={`${inputClass} resize-none`}
+                    className={`${getInputClass(
+                      theme,
+                    )} resize-none`}
                   />
                 </div>
 
                 <ImageUploadField
                   id="music-video-thumbnail-image"
                   label="Thumbnail Image"
-                  preview={musicVideoImagePreview}
+                  preview={
+                    musicVideoImagePreview
+                  }
                   onChange={(event) =>
                     handleIdolImageChange(
                       event,
@@ -3576,6 +4379,7 @@ export function AdminIdolPage() {
                       setError,
                     )
                   }
+                  theme={theme}
                 />
 
                 <div className="grid gap-5 md:grid-cols-2">
@@ -3595,6 +4399,7 @@ export function AdminIdolPage() {
                         }),
                       )
                     }
+                    theme={theme}
                   />
 
                   <FormField
@@ -3613,6 +4418,7 @@ export function AdminIdolPage() {
                         }),
                       )
                     }
+                    theme={theme}
                   />
                 </div>
 
@@ -3620,7 +4426,7 @@ export function AdminIdolPage() {
                   <div>
                     <label
                       htmlFor="music-video-release"
-                      className="mb-2 block text-sm font-medium text-text-primary"
+                      className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                     >
                       Related Release
                     </label>
@@ -3630,7 +4436,9 @@ export function AdminIdolPage() {
                       value={
                         musicVideoForm.releaseId
                       }
-                      onChange={(event) =>
+                      onChange={(
+                        event,
+                      ) =>
                         setMusicVideoForm(
                           (current) => ({
                             ...current,
@@ -3641,9 +4449,9 @@ export function AdminIdolPage() {
                           }),
                         )
                       }
-                      className={
-                        inputClass
-                      }
+                      className={getInputClass(
+                        theme,
+                      )}
                     >
                       <option value="">
                         No Release
@@ -3671,7 +4479,7 @@ export function AdminIdolPage() {
                   <div>
                     <label
                       htmlFor="music-video-date"
-                      className="mb-2 block text-sm font-medium text-text-primary"
+                      className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                     >
                       Release Date
                     </label>
@@ -3682,7 +4490,9 @@ export function AdminIdolPage() {
                       value={
                         musicVideoForm.releaseDate
                       }
-                      onChange={(event) =>
+                      onChange={(
+                        event,
+                      ) =>
                         setMusicVideoForm(
                           (current) => ({
                             ...current,
@@ -3693,9 +4503,9 @@ export function AdminIdolPage() {
                           }),
                         )
                       }
-                      className={
-                        inputClass
-                      }
+                      className={getInputClass(
+                        theme,
+                      )}
                     />
                   </div>
                 </div>
@@ -3703,7 +4513,7 @@ export function AdminIdolPage() {
                 <div>
                   <label
                     htmlFor="music-video-status"
-                    className="mb-2 block text-sm font-medium text-text-primary"
+                    className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                   >
                     Status
                   </label>
@@ -3718,17 +4528,16 @@ export function AdminIdolPage() {
                         (current) => ({
                           ...current,
                           status:
-                            event
-                              .target
+                            event.target
                               .value as
                             | 'Published'
                             | 'Upcoming',
                         }),
                       )
                     }
-                    className={
-                      inputClass
-                    }
+                    className={getInputClass(
+                      theme,
+                    )}
                   >
                     <option value="Published">
                       Published
@@ -3752,6 +4561,7 @@ export function AdminIdolPage() {
                       ? 'Save Changes'
                       : 'Create Music Video'
                 }
+                theme={theme}
               />
             </form>
           </Modal>
@@ -3772,6 +4582,7 @@ export function AdminIdolPage() {
               closeActivityModal
             }
             wide
+            theme={theme}
           >
             <form
               onSubmit={
@@ -3782,6 +4593,7 @@ export function AdminIdolPage() {
                 {error && (
                   <ErrorMessage
                     message={error}
+                    theme={theme}
                   />
                 )}
 
@@ -3800,13 +4612,14 @@ export function AdminIdolPage() {
                       }),
                     )
                   }
+                  theme={theme}
                 />
 
                 <div className="grid gap-5 md:grid-cols-2">
                   <div>
                     <label
                       htmlFor="activity-type"
-                      className="mb-2 block text-sm font-medium text-text-primary"
+                      className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                     >
                       Activity Type
                     </label>
@@ -3816,7 +4629,9 @@ export function AdminIdolPage() {
                       value={
                         activityForm.type
                       }
-                      onChange={(event) =>
+                      onChange={(
+                        event,
+                      ) =>
                         setActivityForm(
                           (current) => ({
                             ...current,
@@ -3831,9 +4646,9 @@ export function AdminIdolPage() {
                           }),
                         )
                       }
-                      className={
-                        inputClass
-                      }
+                      className={getInputClass(
+                        theme,
+                      )}
                     >
                       <option value="Concert">
                         Concert
@@ -3856,7 +4671,7 @@ export function AdminIdolPage() {
                   <div>
                     <label
                       htmlFor="activity-date"
-                      className="mb-2 block text-sm font-medium text-text-primary"
+                      className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                     >
                       Date
                     </label>
@@ -3867,7 +4682,9 @@ export function AdminIdolPage() {
                       value={
                         activityForm.date
                       }
-                      onChange={(event) =>
+                      onChange={(
+                        event,
+                      ) =>
                         setActivityForm(
                           (current) => ({
                             ...current,
@@ -3877,9 +4694,9 @@ export function AdminIdolPage() {
                           }),
                         )
                       }
-                      className={
-                        inputClass
-                      }
+                      className={getInputClass(
+                        theme,
+                      )}
                     />
                   </div>
                 </div>
@@ -3899,12 +4716,13 @@ export function AdminIdolPage() {
                       }),
                     )
                   }
+                  theme={theme}
                 />
 
                 <div>
                   <label
                     htmlFor="activity-description"
-                    className="mb-2 block text-sm font-medium text-text-primary"
+                    className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                   >
                     Description
                   </label>
@@ -3926,14 +4744,18 @@ export function AdminIdolPage() {
                       )
                     }
                     placeholder="Describe this activity..."
-                    className={`${inputClass} resize-none`}
+                    className={`${getInputClass(
+                      theme,
+                    )} resize-none`}
                   />
                 </div>
 
                 <ImageUploadField
                   id="activity-image"
                   label="Activity Image"
-                  preview={activityImagePreview}
+                  preview={
+                    activityImagePreview
+                  }
                   onChange={(event) =>
                     handleIdolImageChange(
                       event,
@@ -3942,12 +4764,13 @@ export function AdminIdolPage() {
                       setError,
                     )
                   }
+                  theme={theme}
                 />
 
                 <div>
                   <label
                     htmlFor="activity-status"
-                    className="mb-2 block text-sm font-medium text-text-primary"
+                    className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
                   >
                     Status
                   </label>
@@ -3962,8 +4785,7 @@ export function AdminIdolPage() {
                         (current) => ({
                           ...current,
                           status:
-                            event
-                              .target
+                            event.target
                               .value as
                             | 'Upcoming'
                             | 'Completed'
@@ -3971,9 +4793,9 @@ export function AdminIdolPage() {
                         }),
                       )
                     }
-                    className={
-                      inputClass
-                    }
+                    className={getInputClass(
+                      theme,
+                    )}
                   >
                     <option value="Upcoming">
                       Upcoming
@@ -4001,6 +4823,7 @@ export function AdminIdolPage() {
                       ? 'Save Changes'
                       : 'Create Activity'
                 }
+                theme={theme}
               />
             </form>
           </Modal>
@@ -4013,8 +4836,66 @@ export function AdminIdolPage() {
  * REUSABLE COMPONENTS
  */
 
-const inputClass =
-  'w-full rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary'
+function getInputClass(
+  theme: AdminTheme,
+) {
+  const c = getThemeTokens(theme)
+
+  return `w-full rounded-lg border ${c.border} ${c.input} ${c.textPrimary} ${c.placeholder} px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10`
+}
+
+function DataSection({
+  title,
+  description,
+  actionLabel,
+  onAction,
+  children,
+  theme,
+}: {
+  title: string
+  description: string
+  actionLabel: string
+  onAction: () => void
+  children: React.ReactNode
+  theme: AdminTheme
+}) {
+  const c = getThemeTokens(theme)
+
+  return (
+    <div
+      className={`overflow-hidden rounded-xl border ${c.border} ${c.surface}`}
+    >
+      <div
+        className={`flex flex-col gap-4 border-b ${c.border} px-6 py-5 md:flex-row md:items-center md:justify-between`}
+      >
+        <div>
+          <h3
+            className={`text-xl font-bold ${c.textPrimary}`}
+          >
+            {title}
+          </h3>
+
+          <p
+            className={`mt-1 text-sm ${c.textMuted}`}
+          >
+            {description}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onAction}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"
+        >
+          <Plus className="h-4 w-4" />
+          {actionLabel}
+        </button>
+      </div>
+
+      {children}
+    </div>
+  )
+}
 
 function ImageUploadField({
   id,
@@ -4022,36 +4903,50 @@ function ImageUploadField({
   preview,
   onChange,
   rounded = false,
+  theme,
 }: {
   id: string
   label: string
   preview: string
-  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void
+  onChange: (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => void
   rounded?: boolean
+  theme: AdminTheme
 }) {
+  const c = getThemeTokens(theme)
+
   return (
     <div>
       <label
         htmlFor={id}
-        className="mb-2 block text-sm font-medium text-text-primary"
+        className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
       >
         {label}
       </label>
 
       <label
         htmlFor={id}
-        className="group block cursor-pointer overflow-hidden rounded-xl border border-dashed border-border-default bg-bg-base transition hover:border-brand-primary"
+        className={`group block cursor-pointer overflow-hidden rounded-xl border border-dashed ${c.border} ${c.input} transition hover:border-violet-500`}
       >
         {preview ? (
-          <div className="relative h-44 overflow-hidden">
+          <div
+            className={`relative h-44 overflow-hidden ${rounded
+                ? 'flex items-center justify-center'
+                : ''
+              }`}
+          >
             <img
               src={preview}
               alt={label}
-              className={`h-full w-full object-cover ${rounded ? 'rounded-full' : ''
+              className={`h-full w-full object-cover ${rounded
+                  ? 'h-36 w-36 rounded-full'
+                  : ''
                 }`}
             />
+
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition group-hover:opacity-100">
-              <span className="inline-flex items-center gap-2 rounded-lg bg-bg-surface px-3 py-2 text-sm font-medium text-text-primary">
+              <span className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-neutral-900">
                 <Upload className="h-4 w-4" />
                 Change image
               </span>
@@ -4059,15 +4954,26 @@ function ImageUploadField({
           </div>
         ) : (
           <div className="flex h-44 flex-col items-center justify-center px-6 text-center">
-            <ImagePlus className="h-8 w-8 text-brand-primary" />
-            <p className="mt-3 text-sm font-medium text-text-primary">
+            <ImagePlus className="h-8 w-8 text-violet-500" />
+
+            <p
+              className={`mt-3 text-sm font-medium ${c.textPrimary}`}
+            >
               Upload image
             </p>
-            <p className="mt-1 text-xs text-text-muted">
-              JPG, PNG, WEBP, or GIF. Maximum 5 MB.
+
+            <p
+              className={`mt-1 text-xs ${c.textMuted}`}
+            >
+              JPG, PNG, WEBP, or GIF.
+              Maximum 5 MB.
             </p>
-            <p className="mt-1 text-xs text-text-muted">
-              Stored automatically up to 150 KB.
+
+            <p
+              className={`mt-1 text-xs ${c.textMuted}`}
+            >
+              Stored automatically up to
+              150 KB.
             </p>
           </div>
         )}
@@ -4091,6 +4997,7 @@ function FormField({
   placeholder,
   type = 'text',
   onChange,
+  theme,
 }: {
   id: string
   label: string
@@ -4098,12 +5005,14 @@ function FormField({
   placeholder?: string
   type?: string
   onChange: (value: string) => void
+  theme: AdminTheme
 }) {
   return (
     <div>
       <label
         htmlFor={id}
-        className="mb-2 block text-sm font-medium text-text-primary"
+        className={`mb-2 block text-sm font-medium ${getThemeTokens(theme).textPrimary
+          }`}
       >
         {label}
       </label>
@@ -4118,7 +5027,9 @@ function FormField({
             event.target.value,
           )
         }
-        className={inputClass}
+        className={getInputClass(
+          theme,
+        )}
       />
     </div>
   )
@@ -4130,28 +5041,38 @@ function Modal({
   onClose,
   children,
   wide = false,
+  theme,
 }: {
   title: string
   description: string
   onClose: () => void
   children: React.ReactNode
   wide?: boolean
+  theme: AdminTheme
 }) {
+  const c = getThemeTokens(theme)
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
       <div
-        className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl border border-border-default bg-bg-surface shadow-2xl ${wide
-          ? 'max-w-2xl'
-          : 'max-w-lg'
+        className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl border ${c.border} ${c.surface} shadow-2xl ${wide
+            ? 'max-w-2xl'
+            : 'max-w-lg'
           }`}
       >
-        <div className="flex items-center justify-between border-b border-border-default px-6 py-5">
+        <div
+          className={`flex items-center justify-between border-b ${c.border} px-6 py-5`}
+        >
           <div>
-            <h2 className="font-display text-xl font-bold text-text-primary">
+            <h2
+              className={`text-xl font-bold ${c.textPrimary}`}
+            >
               {title}
             </h2>
 
-            <p className="mt-1 text-sm text-text-muted">
+            <p
+              className={`mt-1 text-sm ${c.textMuted}`}
+            >
               {description}
             </p>
           </div>
@@ -4159,7 +5080,7 @@ function Modal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-text-muted transition-colors hover:bg-bg-base hover:text-text-primary"
+            className={`rounded-lg p-2 ${c.textMuted} ${c.hover} transition`}
             aria-label="Close modal"
           >
             <X className="h-5 w-5" />
@@ -4175,26 +5096,31 @@ function Modal({
 function ModalFooter({
   onCancel,
   submitLabel,
+  theme,
 }: {
   onCancel: () => void
   submitLabel: string
+  theme: AdminTheme
 }) {
+  const c = getThemeTokens(theme)
+
   return (
-    <div className="flex justify-end gap-3 border-t border-border-default px-6 py-5">
+    <div
+      className={`flex justify-end gap-3 border-t ${c.border} px-6 py-5`}
+    >
       <button
         type="button"
         onClick={onCancel}
-        className="rounded-lg border border-border-default px-5 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-base hover:text-text-primary"
+        className={`rounded-lg border ${c.border} px-5 py-2.5 text-sm font-medium ${c.textSecondary} ${c.hover} transition`}
       >
         Cancel
       </button>
 
       <button
         type="submit"
-        className="rounded-lg bg-brand-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-secondary disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={
-          submitLabel ===
-          'Saving...'
+          submitLabel === 'Saving...'
         }
       >
         {submitLabel}
@@ -4205,11 +5131,13 @@ function ModalFooter({
 
 function ErrorMessage({
   message,
+  theme,
 }: {
   message: string
+  theme: AdminTheme
 }) {
   return (
-    <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+    <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
       {message}
     </div>
   )
@@ -4218,15 +5146,19 @@ function ErrorMessage({
 function EmptyTableRow({
   colSpan,
   message,
+  theme,
 }: {
   colSpan: number
   message: string
+  theme: AdminTheme
 }) {
+  const c = getThemeTokens(theme)
+
   return (
     <tr>
       <td
         colSpan={colSpan}
-        className="px-6 py-16 text-center text-sm text-text-muted"
+        className={`px-6 py-16 text-center text-sm ${c.textMuted}`}
       >
         {message}
       </td>
@@ -4238,22 +5170,32 @@ function Stat({
   icon,
   label,
   value,
+  theme,
 }: {
   icon: React.ReactNode
   label: string
   value: string
+  theme: AdminTheme
 }) {
+  const c = getThemeTokens(theme)
+
   return (
-    <div className="rounded-xl border border-border-default bg-bg-surface p-5">
-      <div className="mb-3 text-brand-primary">
+    <div
+      className={`rounded-xl border ${c.border} ${c.surface} p-5 transition hover:-translate-y-0.5`}
+    >
+      <div className="mb-3 rounded-lg bg-violet-500/10 p-2 w-fit text-violet-500">
         {icon}
       </div>
 
-      <p className="text-sm text-text-muted">
+      <p
+        className={`text-sm ${c.textMuted}`}
+      >
         {label}
       </p>
 
-      <p className="mt-1 text-2xl font-bold text-text-primary">
+      <p
+        className={`mt-1 text-2xl font-bold ${c.textPrimary}`}
+      >
         {value}
       </p>
     </div>
@@ -4263,33 +5205,93 @@ function Stat({
 function DetailCard({
   label,
   value,
+  theme,
 }: {
   label: string
   value: string
+  theme: AdminTheme
 }) {
+  const c = getThemeTokens(theme)
+
   return (
-    <div className="rounded-xl border border-border-default bg-bg-surface p-5">
-      <p className="text-sm text-text-muted">
+    <div
+      className={`rounded-xl border ${c.border} ${c.surface} p-5`}
+    >
+      <p
+        className={`text-sm ${c.textMuted}`}
+      >
         {label}
       </p>
 
-      <p className="mt-1 text-xl font-bold text-text-primary">
+      <p
+        className={`mt-1 text-xl font-bold ${c.textPrimary}`}
+      >
         {value}
       </p>
     </div>
   )
 }
 
+function IconButton({
+  title,
+  onClick,
+  children,
+  theme,
+}: {
+  title: string
+  onClick: () => void
+  children: React.ReactNode
+  theme: AdminTheme
+}) {
+  const c = getThemeTokens(theme)
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg border ${c.border} p-2 ${c.textMuted} ${c.hover} transition hover:text-violet-500`}
+      title={title}
+    >
+      {children}
+    </button>
+  )
+}
+
+function DeleteButton({
+  title,
+  onClick,
+}: {
+  title: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-lg border border-red-500/20 p-2 text-red-500 transition hover:bg-red-500/10"
+      title={title}
+    >
+      <Trash2 className="h-4 w-4" />
+    </button>
+  )
+}
+
 function StatusBadge({
   status,
+  theme,
 }: {
   status: 'Active' | 'Inactive'
+  theme: AdminTheme
 }) {
   return (
     <span
-      className={`rounded-full px-3 py-1 text-xs font-medium ${status === 'Active'
-        ? 'bg-green-400/10 text-green-400'
-        : 'bg-yellow-400/10 text-yellow-400'
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${status === 'Active'
+          ? theme === 'light'
+            ? 'bg-emerald-50 text-emerald-700'
+            : 'bg-emerald-500/10 text-emerald-400'
+          : theme === 'light'
+            ? 'bg-amber-50 text-amber-700'
+            : 'bg-amber-500/10 text-amber-400'
         }`}
     >
       {status}
@@ -4299,14 +5301,20 @@ function StatusBadge({
 
 function ReleaseStatusBadge({
   status,
+  theme,
 }: {
   status: 'Released' | 'Upcoming'
+  theme: AdminTheme
 }) {
   return (
     <span
-      className={`rounded-full px-3 py-1 text-xs font-medium ${status === 'Released'
-        ? 'bg-green-400/10 text-green-400'
-        : 'bg-blue-400/10 text-blue-400'
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${status === 'Released'
+          ? theme === 'light'
+            ? 'bg-emerald-50 text-emerald-700'
+            : 'bg-emerald-500/10 text-emerald-400'
+          : theme === 'light'
+            ? 'bg-blue-50 text-blue-700'
+            : 'bg-blue-500/10 text-blue-400'
         }`}
     >
       {status}
@@ -4316,14 +5324,20 @@ function ReleaseStatusBadge({
 
 function MusicVideoStatusBadge({
   status,
+  theme,
 }: {
   status: 'Published' | 'Upcoming'
+  theme: AdminTheme
 }) {
   return (
     <span
-      className={`rounded-full px-3 py-1 text-xs font-medium ${status === 'Published'
-        ? 'bg-green-400/10 text-green-400'
-        : 'bg-blue-400/10 text-blue-400'
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${status === 'Published'
+          ? theme === 'light'
+            ? 'bg-emerald-50 text-emerald-700'
+            : 'bg-emerald-500/10 text-emerald-400'
+          : theme === 'light'
+            ? 'bg-blue-50 text-blue-700'
+            : 'bg-blue-500/10 text-blue-400'
         }`}
     >
       {status}
@@ -4333,22 +5347,30 @@ function MusicVideoStatusBadge({
 
 function ActivityStatusBadge({
   status,
+  theme,
 }: {
   status:
   | 'Upcoming'
   | 'Completed'
   | 'Cancelled'
+  theme: AdminTheme
 }) {
   const className =
     status === 'Upcoming'
-      ? 'bg-blue-400/10 text-blue-400'
+      ? theme === 'light'
+        ? 'bg-blue-50 text-blue-700'
+        : 'bg-blue-500/10 text-blue-400'
       : status === 'Completed'
-        ? 'bg-green-400/10 text-green-400'
-        : 'bg-red-400/10 text-red-400'
+        ? theme === 'light'
+          ? 'bg-emerald-50 text-emerald-700'
+          : 'bg-emerald-500/10 text-emerald-400'
+        : theme === 'light'
+          ? 'bg-red-50 text-red-700'
+          : 'bg-red-500/10 text-red-400'
 
   return (
     <span
-      className={`rounded-full px-3 py-1 text-xs font-medium ${className}`}
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${className}`}
     >
       {status}
     </span>

@@ -10,7 +10,7 @@ import {
   X,
 } from 'lucide-react'
 import {
-  FormEvent,
+  type FormEvent,
   useEffect,
   useState,
 } from 'react'
@@ -35,30 +35,109 @@ interface SiteSettings {
   updated_at?: string
 }
 
+type AdminTheme = 'dark' | 'light'
+
+interface ThemeTokens {
+  page: string
+  surface: string
+  elevated: string
+  input: string
+  border: string
+  textPrimary: string
+  textSecondary: string
+  textMuted: string
+  hover: string
+  placeholder: string
+}
+
+function useAdminTheme() {
+  const readTheme = (): AdminTheme =>
+    document.documentElement.dataset.adminTheme ===
+      'light'
+      ? 'light'
+      : 'dark'
+
+  const [theme, setTheme] =
+    useState<AdminTheme>(readTheme)
+
+  useEffect(() => {
+    const syncTheme = () => {
+      setTheme(readTheme())
+    }
+
+    syncTheme()
+
+    const observer =
+      new MutationObserver(syncTheme)
+
+    observer.observe(
+      document.documentElement,
+      {
+        attributes: true,
+        attributeFilter: ['data-admin-theme'],
+      },
+    )
+
+    return () =>
+      observer.disconnect()
+  }, [])
+
+  return theme
+}
+
+function getThemeTokens(
+  theme: AdminTheme,
+): ThemeTokens {
+  if (theme === 'light') {
+    return {
+      page: 'bg-[#f7f7fa]',
+      surface: 'bg-white',
+      elevated: 'bg-neutral-50',
+      input: 'bg-white',
+      border: 'border-neutral-200',
+      textPrimary: 'text-neutral-900',
+      textSecondary: 'text-neutral-600',
+      textMuted: 'text-neutral-500',
+      hover: 'hover:bg-neutral-50',
+      placeholder:
+        'placeholder:text-neutral-400',
+    }
+  }
+
+  return {
+    page: 'bg-[#0b0b0f]',
+    surface: 'bg-[#15151b]',
+    elevated: 'bg-[#1b1b22]',
+    input: 'bg-[#0f0f13]',
+    border: 'border-white/[0.08]',
+    textPrimary: 'text-white',
+    textSecondary: 'text-white/70',
+    textMuted: 'text-white/45',
+    hover: 'hover:bg-white/[0.04]',
+    placeholder:
+      'placeholder:text-white/30',
+  }
+}
+
 export function AdminSettingsPage() {
   const navigate = useNavigate()
+  const theme = useAdminTheme()
+  const tokens = getThemeTokens(theme)
 
   const [user, setUser] =
     useState<AuthUser | null>(null)
 
-  const [name, setName] =
-    useState('')
-
-  const [email, setEmail] =
-    useState('')
-
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
   const [siteName, setSiteName] =
     useState('')
-
   const [notifications, setNotifications] =
     useState(true)
 
   const [loading, setLoading] =
     useState(true)
-
   const [saving, setSaving] =
     useState(false)
-
   const [loggingOut, setLoggingOut] =
     useState(false)
 
@@ -89,9 +168,31 @@ export function AdminSettingsPage() {
 
   const [message, setMessage] =
     useState('')
-
   const [error, setError] =
     useState('')
+
+  const inputClass = [
+    'w-full rounded-lg border px-4 py-3 text-sm outline-none transition',
+    tokens.border,
+    tokens.input,
+    tokens.textPrimary,
+    tokens.placeholder,
+    'focus:border-violet-500',
+    'disabled:cursor-not-allowed',
+    'disabled:opacity-60',
+  ].join(' ')
+
+  const sectionClass = [
+    'rounded-xl border p-6',
+    tokens.border,
+    tokens.surface,
+  ].join(' ')
+
+  const smallPanelClass = [
+    'rounded-lg border',
+    tokens.border,
+    tokens.elevated,
+  ].join(' ')
 
   useEffect(() => {
     let mounted = true
@@ -348,8 +449,13 @@ export function AdminSettingsPage() {
     setIsPasswordModalOpen(true)
   }
 
-  function closePasswordModal() {
-    if (changingPassword) {
+  function closePasswordModal(
+    force = false,
+  ) {
+    if (
+      changingPassword &&
+      !force
+    ) {
       return
     }
 
@@ -417,11 +523,7 @@ export function AdminSettingsPage() {
         newPassword,
       )
 
-      setIsPasswordModalOpen(false)
-
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
+      closePasswordModal(true)
 
       navigate('/login', {
         replace: true,
@@ -461,8 +563,18 @@ export function AdminSettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="flex items-center gap-2 text-sm text-text-muted">
+      <div
+        className={[
+          'flex min-h-[400px] items-center justify-center',
+          tokens.page,
+        ].join(' ')}
+      >
+        <div
+          className={[
+            'flex items-center gap-2 text-sm',
+            tokens.textMuted,
+          ].join(' ')}
+        >
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading settings...
         </div>
@@ -471,32 +583,54 @@ export function AdminSettingsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div
+      className={[
+        'min-h-full space-y-8',
+        tokens.page,
+      ].join(' ')}
+    >
       {/* HEADER */}
       <div>
-        <p className="text-sm text-text-muted">
-          Admin Panel
+        <p
+          className={[
+            'text-sm',
+            tokens.textMuted,
+          ].join(' ')}
+        >
+          System Configuration
         </p>
 
-        <h1 className="mt-1 font-display text-3xl font-bold text-text-primary">
+        <h1
+          className={[
+            'mt-1 font-display text-3xl font-bold',
+            tokens.textPrimary,
+          ].join(' ')}
+        >
           Settings
         </h1>
 
-        <p className="mt-2 text-sm text-text-secondary">
-          Manage your account and website configuration.
+        <p
+          className={[
+            'mt-2 text-sm',
+            tokens.textSecondary,
+          ].join(' ')}
+        >
+          Manage your administrator account,
+          website configuration, notifications,
+          and security.
         </p>
       </div>
 
       {/* FEEDBACK */}
       {message && (
-        <div className="rounded-lg border border-green-400/20 bg-green-400/10 px-4 py-3 text-sm text-green-400">
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-500">
           {message}
         </div>
       )}
 
       {error &&
         !isPasswordModalOpen && (
-          <div className="rounded-lg border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-400">
+          <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
             {error}
           </div>
         )}
@@ -507,13 +641,14 @@ export function AdminSettingsPage() {
       >
         <div className="grid gap-6 lg:grid-cols-2">
           {/* ADMIN PROFILE */}
-          <section className="rounded-xl border border-border-default bg-bg-surface p-6">
+          <section className={sectionClass}>
             <SectionHeader
               icon={
                 <User className="h-5 w-5" />
               }
               title="Admin Profile"
               description="Update your account information."
+              theme={theme}
             />
 
             <div className="space-y-5">
@@ -523,6 +658,7 @@ export function AdminSettingsPage() {
                 onChange={setName}
                 placeholder="Admin name"
                 disabled={saving}
+                theme={theme}
               />
 
               <Field
@@ -532,30 +668,43 @@ export function AdminSettingsPage() {
                 type="email"
                 placeholder="admin@example.com"
                 disabled={saving}
+                theme={theme}
               />
 
               {user && (
-                <div className="rounded-lg border border-border-default bg-bg-base px-4 py-3">
-                  <p className="text-xs text-text-muted">
-                    Account status
-                  </p>
+                <div className={smallPanelClass}>
+                  <div className="px-4 py-3">
+                    <p
+                      className={[
+                        'text-xs',
+                        tokens.textMuted,
+                      ].join(' ')}
+                    >
+                      Account Status
+                    </p>
 
-                  <p className="mt-1 text-sm font-medium text-green-400">
-                    {user.status}
-                  </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+
+                      <p className="text-sm font-medium text-emerald-500">
+                        {user.status}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
           </section>
 
           {/* WEBSITE */}
-          <section className="rounded-xl border border-border-default bg-bg-surface p-6">
+          <section className={sectionClass}>
             <SectionHeader
               icon={
                 <Globe className="h-5 w-5" />
               }
               title="Website"
               description="General website configuration."
+              theme={theme}
             />
 
             <div className="space-y-5">
@@ -565,25 +714,48 @@ export function AdminSettingsPage() {
                 onChange={setSiteName}
                 placeholder="Website name"
                 disabled={saving}
+                theme={theme}
               />
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-text-primary">
+                <label
+                  className={[
+                    'mb-2 block text-sm font-medium',
+                    tokens.textPrimary,
+                  ].join(' ')}
+                >
                   Website Status
                 </label>
 
-                <div className="flex items-center justify-between rounded-lg border border-border-default bg-bg-base px-4 py-3">
+                <div
+                  className={[
+                    'flex items-center justify-between rounded-lg border px-4 py-3',
+                    tokens.border,
+                    tokens.elevated,
+                  ].join(' ')}
+                >
                   <div>
-                    <p className="text-sm font-medium text-text-primary">
+                    <p
+                      className={[
+                        'text-sm font-medium',
+                        tokens.textPrimary,
+                      ].join(' ')}
+                    >
                       Website Online
                     </p>
 
-                    <p className="mt-1 text-xs text-text-muted">
-                      Your public website is currently accessible.
+                    <p
+                      className={[
+                        'mt-1 text-xs',
+                        tokens.textMuted,
+                      ].join(' ')}
+                    >
+                      Your public website is
+                      currently accessible.
                     </p>
                   </div>
 
-                  <span className="rounded-full bg-green-400/10 px-3 py-1 text-xs font-medium text-green-400">
+                  <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-500">
                     Online
                   </span>
                 </div>
@@ -592,24 +764,45 @@ export function AdminSettingsPage() {
           </section>
 
           {/* NOTIFICATIONS */}
-          <section className="rounded-xl border border-border-default bg-bg-surface p-6">
+          <section className={sectionClass}>
             <SectionHeader
               icon={
                 <Bell className="h-5 w-5" />
               }
               title="Notifications"
               description="Control admin notifications."
+              theme={theme}
             />
 
             <div className="space-y-3">
-              <label className="flex cursor-pointer items-center justify-between rounded-lg border border-border-default bg-bg-base p-4 transition-colors hover:border-brand-primary">
+              <label
+                className={[
+                  'flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-colors',
+                  tokens.border,
+                  tokens.elevated,
+                  theme === 'light'
+                    ? 'hover:border-violet-300'
+                    : 'hover:border-violet-500/40',
+                ].join(' ')}
+              >
                 <div>
-                  <p className="text-sm font-medium text-text-primary">
+                  <p
+                    className={[
+                      'text-sm font-medium',
+                      tokens.textPrimary,
+                    ].join(' ')}
+                  >
                     Email Notifications
                   </p>
 
-                  <p className="mt-1 text-xs text-text-muted">
-                    Receive notifications for new orders.
+                  <p
+                    className={[
+                      'mt-1 text-xs',
+                      tokens.textMuted,
+                    ].join(' ')}
+                  >
+                    Receive notifications for
+                    new orders.
                   </p>
                 </div>
 
@@ -622,80 +815,156 @@ export function AdminSettingsPage() {
                     )
                   }
                   disabled={saving}
-                  className="h-4 w-4 accent-brand-primary"
+                  className="h-4 w-4 accent-violet-600"
                 />
               </label>
 
-              <div className="rounded-lg border border-border-default px-4 py-3">
-                <p className="text-sm font-medium text-text-primary">
-                  Notification Status
-                </p>
+              <div
+                className={[
+                  'rounded-lg border px-4 py-3',
+                  tokens.border,
+                  tokens.elevated,
+                ].join(' ')}
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p
+                      className={[
+                        'text-sm font-medium',
+                        tokens.textPrimary,
+                      ].join(' ')}
+                    >
+                      Notification Status
+                    </p>
 
-                <p className="mt-1 text-xs text-text-muted">
-                  {notifications
-                    ? 'New order notifications are enabled.'
-                    : 'New order notifications are disabled.'}
-                </p>
+                    <p
+                      className={[
+                        'mt-1 text-xs',
+                        tokens.textMuted,
+                      ].join(' ')}
+                    >
+                      {notifications
+                        ? 'New order notifications are enabled.'
+                        : 'New order notifications are disabled.'}
+                    </p>
+                  </div>
+
+                  <span
+                    className={[
+                      'shrink-0 rounded-full px-3 py-1 text-xs font-medium',
+                      notifications
+                        ? 'bg-emerald-500/10 text-emerald-500'
+                        : theme === 'light'
+                          ? 'bg-neutral-100 text-neutral-500'
+                          : 'bg-white/5 text-white/45',
+                    ].join(' ')}
+                  >
+                    {notifications
+                      ? 'Enabled'
+                      : 'Disabled'}
+                  </span>
+                </div>
               </div>
             </div>
           </section>
 
           {/* SECURITY */}
-          <section className="rounded-xl border border-border-default bg-bg-surface p-6">
+          <section className={sectionClass}>
             <SectionHeader
               icon={
                 <Shield className="h-5 w-5" />
               }
               title="Security"
               description="Manage account security."
+              theme={theme}
             />
 
             <div className="space-y-4">
-              <div className="rounded-lg border border-border-default bg-bg-base p-4">
-                <p className="text-sm font-medium text-text-primary">
-                  Account Security
-                </p>
+              <div
+                className={[
+                  'rounded-lg border p-4',
+                  tokens.border,
+                  tokens.elevated,
+                ].join(' ')}
+              >
+                <div className="flex gap-3">
+                  <div className="mt-0.5 rounded-lg bg-violet-500/10 p-2 text-violet-500">
+                    <Shield className="h-4 w-4" />
+                  </div>
 
-                <p className="mt-1 text-xs leading-5 text-text-muted">
-                  Your password is securely hashed and never stored as plain text.
-                </p>
+                  <div>
+                    <p
+                      className={[
+                        'text-sm font-medium',
+                        tokens.textPrimary,
+                      ].join(' ')}
+                    >
+                      Account Security
+                    </p>
+
+                    <p
+                      className={[
+                        'mt-1 text-xs leading-5',
+                        tokens.textMuted,
+                      ].join(' ')}
+                    >
+                      Your password is securely
+                      hashed and never stored as
+                      plain text.
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <button
-                type="button"
-                onClick={openPasswordModal}
-                className="inline-flex items-center gap-2 rounded-lg border border-border-default px-4 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-bg-base"
-              >
-                <Lock className="h-4 w-4" />
-                Change Password
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={
+                    openPasswordModal
+                  }
+                  className={[
+                    'inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors',
+                    tokens.border,
+                    tokens.textPrimary,
+                    tokens.hover,
+                  ].join(' ')}
+                >
+                  <Lock className="h-4 w-4" />
+                  Change Password
+                </button>
 
-              <button
-                type="button"
-                onClick={handleLogout}
-                disabled={loggingOut}
-                className="inline-flex items-center gap-2 rounded-lg border border-red-400/20 px-4 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loggingOut ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <LogOut className="h-4 w-4" />
-                )}
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="inline-flex items-center gap-2 rounded-lg border border-red-500/20 px-4 py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loggingOut ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <LogOut className="h-4 w-4" />
+                  )}
 
-                {loggingOut
-                  ? 'Signing Out...'
-                  : 'Sign Out'}
-              </button>
+                  {loggingOut
+                    ? 'Signing Out...'
+                    : 'Sign Out'}
+                </button>
+              </div>
             </div>
           </section>
         </div>
 
         {/* SAVE */}
-        <div className="flex justify-end">
+        <div
+          className={[
+            'flex justify-end border-t pt-6',
+            tokens.border,
+          ].join(' ')}
+        >
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-secondary disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -712,28 +981,53 @@ export function AdminSettingsPage() {
 
       {/* CHANGE PASSWORD MODAL */}
       {isPasswordModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-border-default bg-bg-surface shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border-default px-6 py-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-[2px]">
+          <div
+            className={[
+              'w-full max-w-lg overflow-hidden rounded-2xl border shadow-2xl',
+              tokens.border,
+              tokens.surface,
+            ].join(' ')}
+          >
+            {/* MODAL HEADER */}
+            <div
+              className={[
+                'flex items-center justify-between border-b px-6 py-5',
+                tokens.border,
+              ].join(' ')}
+            >
               <div>
-                <h2 className="font-display text-xl font-bold text-text-primary">
+                <h2
+                  className={[
+                    'font-display text-xl font-bold',
+                    tokens.textPrimary,
+                  ].join(' ')}
+                >
                   Change Password
                 </h2>
 
-                <p className="mt-1 text-sm text-text-muted">
-                  Update your administrator password.
+                <p
+                  className={[
+                    'mt-1 text-sm',
+                    tokens.textMuted,
+                  ].join(' ')}
+                >
+                  Update your administrator
+                  password.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={
-                  closePasswordModal
+                onClick={() =>
+                  closePasswordModal()
                 }
-                disabled={
-                  changingPassword
-                }
-                className="rounded-lg p-2 text-text-muted transition-colors hover:bg-bg-base hover:text-text-primary disabled:opacity-50"
+                disabled={changingPassword}
+                className={[
+                  'rounded-lg p-2 transition-colors disabled:opacity-50',
+                  tokens.textMuted,
+                  tokens.hover,
+                ].join(' ')}
                 aria-label="Close modal"
               >
                 <X className="h-5 w-5" />
@@ -747,7 +1041,7 @@ export function AdminSettingsPage() {
             >
               <div className="space-y-5 px-6 py-6">
                 {error && (
-                  <div className="rounded-lg border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-400">
+                  <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
                     {error}
                   </div>
                 )}
@@ -763,6 +1057,7 @@ export function AdminSettingsPage() {
                   disabled={
                     changingPassword
                   }
+                  theme={theme}
                 />
 
                 <Field
@@ -776,6 +1071,7 @@ export function AdminSettingsPage() {
                   disabled={
                     changingPassword
                   }
+                  theme={theme}
                 />
 
                 <Field
@@ -791,19 +1087,30 @@ export function AdminSettingsPage() {
                   disabled={
                     changingPassword
                   }
+                  theme={theme}
                 />
               </div>
 
-              <div className="flex justify-end gap-3 border-t border-border-default px-6 py-5">
+              <div
+                className={[
+                  'flex justify-end gap-3 border-t px-6 py-5',
+                  tokens.border,
+                ].join(' ')}
+              >
                 <button
                   type="button"
-                  onClick={
-                    closePasswordModal
+                  onClick={() =>
+                    closePasswordModal()
                   }
                   disabled={
                     changingPassword
                   }
-                  className="rounded-lg border border-border-default px-5 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-base hover:text-text-primary disabled:opacity-50"
+                  className={[
+                    'rounded-lg border px-5 py-2.5 text-sm font-medium transition-colors disabled:opacity-50',
+                    tokens.border,
+                    tokens.textSecondary,
+                    tokens.hover,
+                  ].join(' ')}
                 >
                   Cancel
                 </button>
@@ -813,7 +1120,7 @@ export function AdminSettingsPage() {
                   disabled={
                     changingPassword
                   }
-                  className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-secondary disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {changingPassword && (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -836,23 +1143,38 @@ function SectionHeader({
   icon,
   title,
   description,
+  theme,
 }: {
   icon: React.ReactNode
   title: string
   description: string
+  theme: AdminTheme
 }) {
+  const tokens =
+    getThemeTokens(theme)
+
   return (
     <div className="mb-6 flex items-center gap-3">
-      <div className="rounded-lg bg-brand-primary/10 p-2 text-brand-primary">
+      <div className="rounded-lg bg-violet-500/10 p-2 text-violet-500">
         {icon}
       </div>
 
       <div>
-        <h2 className="font-semibold text-text-primary">
+        <h2
+          className={[
+            'font-semibold',
+            tokens.textPrimary,
+          ].join(' ')}
+        >
           {title}
         </h2>
 
-        <p className="text-xs text-text-muted">
+        <p
+          className={[
+            'text-xs',
+            tokens.textMuted,
+          ].join(' ')}
+        >
           {description}
         </p>
       </div>
@@ -867,6 +1189,7 @@ function Field({
   type = 'text',
   placeholder,
   disabled = false,
+  theme,
 }: {
   label: string
   value: string
@@ -874,10 +1197,30 @@ function Field({
   type?: string
   placeholder?: string
   disabled?: boolean
+  theme: AdminTheme
 }) {
+  const tokens =
+    getThemeTokens(theme)
+
+  const inputClass = [
+    'w-full rounded-lg border px-4 py-3 text-sm outline-none transition',
+    tokens.border,
+    tokens.input,
+    tokens.textPrimary,
+    tokens.placeholder,
+    'focus:border-violet-500',
+    'disabled:cursor-not-allowed',
+    'disabled:opacity-60',
+  ].join(' ')
+
   return (
     <div>
-      <label className="mb-2 block text-sm font-medium text-text-primary">
+      <label
+        className={[
+          'mb-2 block text-sm font-medium',
+          tokens.textPrimary,
+        ].join(' ')}
+      >
         {label}
       </label>
 
@@ -891,7 +1234,7 @@ function Field({
             event.target.value,
           )
         }
-        className="w-full rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none transition focus:border-brand-primary disabled:cursor-not-allowed disabled:opacity-60"
+        className={inputClass}
       />
     </div>
   )

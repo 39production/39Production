@@ -1,4 +1,8 @@
-import { useEffect, useState } from 'react'
+import {
+    useEffect,
+    useState,
+} from 'react'
+
 import {
     ArrowRight,
     Briefcase,
@@ -9,6 +13,7 @@ import {
     TrendingUp,
     Users,
 } from 'lucide-react'
+
 import { useNavigate } from 'react-router-dom'
 import { authenticatedFetch } from '@/lib/auth'
 
@@ -54,16 +59,155 @@ interface ApiResponse<T> {
     message?: string
 }
 
+type ThemeMode = 'dark' | 'light'
+
+/*
+ * ============================================================
+ * THEME HOOK
+ * ============================================================
+ */
+
+function useAdminTheme(): ThemeMode {
+    const [
+        theme,
+        setTheme,
+    ] = useState<ThemeMode>(() => {
+        if (
+            typeof window ===
+            'undefined'
+        ) {
+            return 'dark'
+        }
+
+        const stored =
+            window.localStorage.getItem(
+                '39production_admin_theme',
+            )
+
+        return stored === 'light'
+            ? 'light'
+            : 'dark'
+    })
+
+    useEffect(() => {
+        const syncTheme = () => {
+            const nextTheme =
+                document.documentElement
+                    .dataset.adminTheme
+
+            if (
+                nextTheme === 'light' ||
+                nextTheme === 'dark'
+            ) {
+                setTheme(nextTheme)
+                return
+            }
+
+            const stored =
+                window.localStorage.getItem(
+                    '39production_admin_theme',
+                )
+
+            setTheme(
+                stored === 'light'
+                    ? 'light'
+                    : 'dark',
+            )
+        }
+
+        syncTheme()
+
+        const observer =
+            new MutationObserver(
+                syncTheme,
+            )
+
+        observer.observe(
+            document.documentElement,
+            {
+                attributes: true,
+                attributeFilter: [
+                    'data-admin-theme',
+                ],
+            },
+        )
+
+        const handleStorage =
+            () => {
+                syncTheme()
+            }
+
+        window.addEventListener(
+            'storage',
+            handleStorage,
+        )
+
+        return () => {
+            observer.disconnect()
+
+            window.removeEventListener(
+                'storage',
+                handleStorage,
+            )
+        }
+    }, [])
+
+    return theme
+}
+
+/*
+ * ============================================================
+ * DASHBOARD
+ * ============================================================
+ */
+
 export function AdminDashboardPage() {
-    const navigate = useNavigate()
+    const navigate =
+        useNavigate()
 
-    const [orders, setOrders] = useState<Order[]>([])
-    const [services, setServices] = useState<Service[]>([])
-    const [products, setProducts] = useState<Product[]>([])
-    const [portfolio, setPortfolio] = useState<Portfolio[]>([])
+    const theme =
+        useAdminTheme()
 
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const isDark =
+        theme === 'dark'
+
+    const [
+        orders,
+        setOrders,
+    ] = useState<Order[]>([])
+
+    const [
+        services,
+        setServices,
+    ] = useState<Service[]>([])
+
+    const [
+        products,
+        setProducts,
+    ] = useState<Product[]>([])
+
+    const [
+        portfolio,
+        setPortfolio,
+    ] = useState<Portfolio[]>([])
+
+    const [
+        loading,
+        setLoading,
+    ] = useState(true)
+
+    const [
+        error,
+        setError,
+    ] = useState<
+        string | null
+    >(null)
+
+    /*
+     * ==========================================================
+     * FETCH DASHBOARD DATA
+     * ==========================================================
+     */
 
     useEffect(() => {
         let mounted = true
@@ -108,25 +252,33 @@ export function AdminDashboardPage() {
                     ),
                 ])
 
-                if (!ordersResponse.ok) {
+                if (
+                    !ordersResponse.ok
+                ) {
                     throw new Error(
                         `Failed to fetch orders (${ordersResponse.status}).`,
                     )
                 }
 
-                if (!servicesResponse.ok) {
+                if (
+                    !servicesResponse.ok
+                ) {
                     throw new Error(
                         `Failed to fetch services (${servicesResponse.status}).`,
                     )
                 }
 
-                if (!productsResponse.ok) {
+                if (
+                    !productsResponse.ok
+                ) {
                     throw new Error(
                         `Failed to fetch products (${productsResponse.status}).`,
                     )
                 }
 
-                if (!portfolioResponse.ok) {
+                if (
+                    !portfolioResponse.ok
+                ) {
                     throw new Error(
                         `Failed to fetch portfolio (${portfolioResponse.status}).`,
                     )
@@ -152,28 +304,36 @@ export function AdminDashboardPage() {
                         Portfolio[]
                     >
 
-                if (!ordersResult.success) {
+                if (
+                    !ordersResult.success
+                ) {
                     throw new Error(
                         ordersResult.message ||
                         'Failed to fetch orders.',
                     )
                 }
 
-                if (!servicesResult.success) {
+                if (
+                    !servicesResult.success
+                ) {
                     throw new Error(
                         servicesResult.message ||
                         'Failed to fetch services.',
                     )
                 }
 
-                if (!productsResult.success) {
+                if (
+                    !productsResult.success
+                ) {
                     throw new Error(
                         productsResult.message ||
                         'Failed to fetch products.',
                     )
                 }
 
-                if (!portfolioResult.success) {
+                if (
+                    !portfolioResult.success
+                ) {
                     throw new Error(
                         portfolioResult.message ||
                         'Failed to fetch portfolio.',
@@ -185,25 +345,33 @@ export function AdminDashboardPage() {
                 }
 
                 setOrders(
-                    Array.isArray(ordersResult.data)
+                    Array.isArray(
+                        ordersResult.data,
+                    )
                         ? ordersResult.data
                         : [],
                 )
 
                 setServices(
-                    Array.isArray(servicesResult.data)
+                    Array.isArray(
+                        servicesResult.data,
+                    )
                         ? servicesResult.data
                         : [],
                 )
 
                 setProducts(
-                    Array.isArray(productsResult.data)
+                    Array.isArray(
+                        productsResult.data,
+                    )
                         ? productsResult.data
                         : [],
                 )
 
                 setPortfolio(
-                    Array.isArray(portfolioResult.data)
+                    Array.isArray(
+                        portfolioResult.data,
+                    )
                         ? portfolioResult.data
                         : [],
                 )
@@ -236,28 +404,59 @@ export function AdminDashboardPage() {
         }
     }, [])
 
-    const totalOrders = orders.length
-    const totalServices = services.length
-    const totalProducts = products.length
-    const totalPortfolio = portfolio.length
+    /*
+     * ==========================================================
+     * STATISTICS
+     * ==========================================================
+     */
 
-    const pendingOrders = orders.filter(
-        (order) =>
-            order.status.toLowerCase() === 'pending',
-    ).length
+    const totalOrders =
+        orders.length
 
-    const completedOrders = orders.filter(
-        (order) =>
-            order.status.toLowerCase() === 'completed',
-    ).length
+    const totalServices =
+        services.length
 
-    const totalRevenue = orders.reduce(
-        (total, order) =>
-            total + Number(order.total_price || 0),
-        0,
-    )
+    const totalProducts =
+        products.length
 
-    const formatCurrency = (value: number) => {
+    const totalPortfolio =
+        portfolio.length
+
+    const pendingOrders =
+        orders.filter(
+            (order) =>
+                order.status
+                    .toLowerCase() ===
+                'pending',
+        ).length
+
+    const completedOrders =
+        orders.filter(
+            (order) =>
+                order.status
+                    .toLowerCase() ===
+                'completed',
+        ).length
+
+    const totalRevenue =
+        orders.reduce(
+            (total, order) =>
+                total +
+                Number(
+                    order.total_price || 0,
+                ),
+            0,
+        )
+
+    /*
+     * ==========================================================
+     * FORMATTERS
+     * ==========================================================
+     */
+
+    const formatCurrency = (
+        value: number,
+    ) => {
         return new Intl.NumberFormat(
             'id-ID',
             {
@@ -268,10 +467,17 @@ export function AdminDashboardPage() {
         ).format(value)
     }
 
-    const formatDate = (value: string) => {
-        const date = new Date(value)
+    const formatDate = (
+        value: string,
+    ) => {
+        const date =
+            new Date(value)
 
-        if (Number.isNaN(date.getTime())) {
+        if (
+            Number.isNaN(
+                date.getTime(),
+            )
+        ) {
             return '-'
         }
 
@@ -285,41 +491,164 @@ export function AdminDashboardPage() {
         ).format(date)
     }
 
+    /*
+     * ==========================================================
+     * THEME TOKENS
+     * ==========================================================
+     */
+
+    const pageText = isDark
+        ? 'text-white'
+        : 'text-neutral-950'
+
+    const secondaryText =
+        isDark
+            ? 'text-white/55'
+            : 'text-neutral-600'
+
+    const mutedText = isDark
+        ? 'text-white/30'
+        : 'text-neutral-400'
+
+    const cardBg = isDark
+        ? 'bg-[#15151b]'
+        : 'bg-white'
+
+    const cardBorder =
+        isDark
+            ? 'border-white/[0.08]'
+            : 'border-neutral-200'
+
+    const divider =
+        isDark
+            ? 'border-white/[0.06]'
+            : 'border-neutral-100'
+
+    /*
+     * ==========================================================
+     * LOADING
+     * ==========================================================
+     */
+
     if (loading) {
         return (
-            <div className="flex min-h-[60vh] items-center justify-center">
-                <div className="flex items-center gap-3 text-text-muted">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Loading dashboard...</span>
+            <div
+                className={`
+          flex
+          min-h-[60vh]
+          items-center
+          justify-center
+          ${pageText}
+        `}
+            >
+                <div
+                    className={`
+            flex
+            items-center
+            gap-3
+            text-sm
+
+            ${secondaryText}
+          `}
+                >
+                    <Loader2 className="h-5 w-5 animate-spin text-violet-500" />
+
+                    <span>
+                        Loading dashboard...
+                    </span>
                 </div>
             </div>
         )
     }
 
+    /*
+     * ==========================================================
+     * ERROR
+     * ==========================================================
+     */
+
     if (error) {
         return (
-            <div className="space-y-6">
+            <div
+                className={`
+          space-y-6
+          ${pageText}
+        `}
+            >
                 <div>
-                    <h1 className="font-display text-2xl font-bold text-text-primary">
+                    <p
+                        className="
+              text-[10px]
+              font-bold
+              uppercase
+              tracking-[0.18em]
+              text-violet-500
+            "
+                    >
+                        Workspace
+                    </p>
+
+                    <h1
+                        className="
+              mt-1
+              text-2xl
+              font-bold
+              tracking-[-0.03em]
+            "
+                    >
                         Dashboard
                     </h1>
-                    <p className="mt-1 text-sm text-text-muted">
-                        Overview of your 39Production system.
+
+                    <p
+                        className={`
+              mt-1
+              text-sm
+              ${secondaryText}
+            `}
+                    >
+                        Overview of your
+                        39Production system.
                     </p>
                 </div>
 
-                <div className="rounded-xl border border-border-default bg-bg-surface p-6">
+                <div
+                    className={`
+            rounded-2xl
+            border
+            p-6
+            ${cardBg}
+            ${cardBorder}
+          `}
+                >
                     <div className="flex items-start gap-4">
-                        <div className="rounded-lg bg-red-500/10 p-3 text-red-400">
+                        <div
+                            className="
+                flex
+                h-11
+                w-11
+                shrink-0
+                items-center
+                justify-center
+                rounded-xl
+                bg-red-500/10
+                text-red-500
+              "
+                        >
                             <TrendingUp className="h-5 w-5" />
                         </div>
 
                         <div>
-                            <h2 className="font-semibold text-text-primary">
+                            <h2 className="font-semibold">
                                 Failed to load dashboard
                             </h2>
 
-                            <p className="mt-1 text-sm text-text-muted">
+                            <p
+                                className={`
+                  mt-1
+                  text-sm
+                  ${secondaryText}
+                `}
+                            >
                                 {error}
                             </p>
 
@@ -328,7 +657,21 @@ export function AdminDashboardPage() {
                                 onClick={() =>
                                     window.location.reload()
                                 }
-                                className="mt-4 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+                                className="
+                  mt-4
+                  inline-flex
+                  items-center
+                  rounded-xl
+                  bg-violet-600
+                  px-4
+                  py-2.5
+                  text-sm
+                  font-semibold
+                  text-white
+                  transition-all
+                  hover:bg-violet-700
+                  active:scale-[0.98]
+                "
                             >
                                 Try Again
                             </button>
@@ -339,188 +682,855 @@ export function AdminDashboardPage() {
         )
     }
 
-    return (
-        <div className="space-y-8">
-            <div>
-                <h1 className="font-display text-2xl font-bold text-text-primary">
-                    Dashboard
-                </h1>
+    /*
+     * ==========================================================
+     * DASHBOARD
+     * ==========================================================
+     */
 
-                <p className="mt-1 text-sm text-text-muted">
-                    Overview of your 39Production system.
-                </p>
+    return (
+        <div
+            className={`
+        space-y-8
+        ${pageText}
+      `}
+        >
+            {/* ======================================================
+          PAGE INTRO
+      ====================================================== */}
+            <div
+                className="
+          flex
+          flex-col
+          gap-4
+          lg:flex-row
+          lg:items-end
+          lg:justify-between
+        "
+            >
+                <div>
+                    <p
+                        className="
+              text-[10px]
+              font-bold
+              uppercase
+              tracking-[0.18em]
+              text-violet-500
+            "
+                    >
+                        Workspace
+                    </p>
+
+                    <h1
+                        className="
+              mt-1
+              text-2xl
+              font-bold
+              tracking-[-0.035em]
+              sm:text-3xl
+            "
+                    >
+                        Dashboard
+                    </h1>
+
+                    <p
+                        className={`
+              mt-2
+              max-w-2xl
+              text-sm
+              leading-6
+              ${secondaryText}
+            `}
+                    >
+                        Overview of your
+                        39Production system,
+                        orders, content, and
+                        current business activity.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={() =>
+                        navigate('/admin/orders')
+                    }
+                    className="
+            inline-flex
+            w-fit
+            items-center
+            gap-2
+            rounded-xl
+            border
+            border-violet-500/20
+            bg-violet-500/10
+            px-4
+            py-2.5
+            text-sm
+            font-semibold
+            text-violet-500
+            transition-all
+            hover:-translate-y-0.5
+            hover:bg-violet-500/15
+          "
+                >
+                    View Orders
+
+                    <ArrowRight className="h-4 w-4" />
+                </button>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-xl border border-border-default bg-bg-surface p-5">
-                    <div className="flex items-center justify-between">
+            {/* ======================================================
+          PRIMARY METRICS
+      ====================================================== */}
+            <div
+                className="
+          grid
+          gap-4
+          sm:grid-cols-2
+          xl:grid-cols-4
+        "
+            >
+                {/* Orders */}
+                <div
+                    className={`
+            group
+            rounded-2xl
+            border
+            p-5
+            transition-all
+            duration-200
+            hover:-translate-y-0.5
+            hover:shadow-lg
+
+            ${cardBg}
+            ${cardBorder}
+
+            ${isDark
+                            ? 'hover:shadow-black/20'
+                            : 'hover:shadow-neutral-200/70'
+                        }
+          `}
+                >
+                    <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-sm text-text-muted">
+                            <p
+                                className={`
+                  text-sm
+                  ${secondaryText}
+                `}
+                            >
                                 Total Orders
                             </p>
 
-                            <p className="mt-2 text-2xl font-bold text-text-primary">
+                            <p
+                                className="
+                  mt-3
+                  text-3xl
+                  font-bold
+                  tracking-[-0.04em]
+                "
+                            >
                                 {totalOrders}
                             </p>
                         </div>
 
-                        <div className="rounded-lg bg-brand-primary/10 p-3 text-brand-primary">
+                        <div
+                            className="
+                flex
+                h-10
+                w-10
+                items-center
+                justify-center
+                rounded-xl
+                bg-violet-500/10
+                text-violet-500
+                transition-transform
+                duration-200
+                group-hover:scale-105
+              "
+                        >
                             <ShoppingBag className="h-5 w-5" />
                         </div>
                     </div>
+
+                    <div
+                        className={`
+              mt-5
+              border-t
+              pt-3
+              text-xs
+
+              ${divider}
+              ${mutedText}
+            `}
+                    >
+                        All orders recorded by system
+                    </div>
                 </div>
 
-                <div className="rounded-xl border border-border-default bg-bg-surface p-5">
-                    <div className="flex items-center justify-between">
+                {/* Services */}
+                <div
+                    className={`
+            group
+            rounded-2xl
+            border
+            p-5
+            transition-all
+            duration-200
+            hover:-translate-y-0.5
+            hover:shadow-lg
+
+            ${cardBg}
+            ${cardBorder}
+
+            ${isDark
+                            ? 'hover:shadow-black/20'
+                            : 'hover:shadow-neutral-200/70'
+                        }
+          `}
+                >
+                    <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-sm text-text-muted">
+                            <p
+                                className={`
+                  text-sm
+                  ${secondaryText}
+                `}
+                            >
                                 Services
                             </p>
 
-                            <p className="mt-2 text-2xl font-bold text-text-primary">
+                            <p
+                                className="
+                  mt-3
+                  text-3xl
+                  font-bold
+                  tracking-[-0.04em]
+                "
+                            >
                                 {totalServices}
                             </p>
                         </div>
 
-                        <div className="rounded-lg bg-brand-secondary/10 p-3 text-brand-secondary">
+                        <div
+                            className="
+                flex
+                h-10
+                w-10
+                items-center
+                justify-center
+                rounded-xl
+                bg-fuchsia-500/10
+                text-fuchsia-500
+                transition-transform
+                duration-200
+                group-hover:scale-105
+              "
+                        >
                             <Briefcase className="h-5 w-5" />
                         </div>
                     </div>
+
+                    <div
+                        className={`
+              mt-5
+              border-t
+              pt-3
+              text-xs
+
+              ${divider}
+              ${mutedText}
+            `}
+                    >
+                        Services available on platform
+                    </div>
                 </div>
 
-                <div className="rounded-xl border border-border-default bg-bg-surface p-5">
-                    <div className="flex items-center justify-between">
+                {/* Products */}
+                <div
+                    className={`
+            group
+            rounded-2xl
+            border
+            p-5
+            transition-all
+            duration-200
+            hover:-translate-y-0.5
+            hover:shadow-lg
+
+            ${cardBg}
+            ${cardBorder}
+
+            ${isDark
+                            ? 'hover:shadow-black/20'
+                            : 'hover:shadow-neutral-200/70'
+                        }
+          `}
+                >
+                    <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-sm text-text-muted">
+                            <p
+                                className={`
+                  text-sm
+                  ${secondaryText}
+                `}
+                            >
                                 Products
                             </p>
 
-                            <p className="mt-2 text-2xl font-bold text-text-primary">
+                            <p
+                                className="
+                  mt-3
+                  text-3xl
+                  font-bold
+                  tracking-[-0.04em]
+                "
+                            >
                                 {totalProducts}
                             </p>
                         </div>
 
-                        <div className="rounded-lg bg-brand-accent/10 p-3 text-brand-accent">
+                        <div
+                            className="
+                flex
+                h-10
+                w-10
+                items-center
+                justify-center
+                rounded-xl
+                bg-pink-500/10
+                text-pink-500
+                transition-transform
+                duration-200
+                group-hover:scale-105
+              "
+                        >
                             <Package className="h-5 w-5" />
                         </div>
                     </div>
+
+                    <div
+                        className={`
+              mt-5
+              border-t
+              pt-3
+              text-xs
+
+              ${divider}
+              ${mutedText}
+            `}
+                    >
+                        Digital products in catalog
+                    </div>
                 </div>
 
-                <div className="rounded-xl border border-border-default bg-bg-surface p-5">
-                    <div className="flex items-center justify-between">
+                {/* Portfolio */}
+                <div
+                    className={`
+            group
+            rounded-2xl
+            border
+            p-5
+            transition-all
+            duration-200
+            hover:-translate-y-0.5
+            hover:shadow-lg
+
+            ${cardBg}
+            ${cardBorder}
+
+            ${isDark
+                            ? 'hover:shadow-black/20'
+                            : 'hover:shadow-neutral-200/70'
+                        }
+          `}
+                >
+                    <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-sm text-text-muted">
+                            <p
+                                className={`
+                  text-sm
+                  ${secondaryText}
+                `}
+                            >
                                 Portfolio
                             </p>
 
-                            <p className="mt-2 text-2xl font-bold text-text-primary">
+                            <p
+                                className="
+                  mt-3
+                  text-3xl
+                  font-bold
+                  tracking-[-0.04em]
+                "
+                            >
                                 {totalPortfolio}
                             </p>
                         </div>
 
-                        <div className="rounded-lg bg-brand-primary/10 p-3 text-brand-primary">
+                        <div
+                            className="
+                flex
+                h-10
+                w-10
+                items-center
+                justify-center
+                rounded-xl
+                bg-violet-500/10
+                text-violet-500
+                transition-transform
+                duration-200
+                group-hover:scale-105
+              "
+                        >
                             <FolderKanban className="h-5 w-5" />
                         </div>
+                    </div>
+
+                    <div
+                        className={`
+              mt-5
+              border-t
+              pt-3
+              text-xs
+
+              ${divider}
+              ${mutedText}
+            `}
+                    >
+                        Published creative works
                     </div>
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-xl border border-border-default bg-bg-surface p-5">
-                    <p className="text-sm text-text-muted">
-                        Total Revenue
+            {/* ======================================================
+          BUSINESS SUMMARY
+      ====================================================== */}
+            <div
+                className="
+          grid
+          gap-4
+          lg:grid-cols-3
+        "
+            >
+                {/* Revenue */}
+                <div
+                    className={`
+            rounded-2xl
+            border
+            p-5
+            ${cardBg}
+            ${cardBorder}
+          `}
+                >
+                    <div className="flex items-center justify-between">
+                        <p
+                            className={`
+                text-sm
+                ${secondaryText}
+              `}
+                        >
+                            Total Revenue
+                        </p>
+
+                        <div
+                            className="
+                flex
+                h-8
+                w-8
+                items-center
+                justify-center
+                rounded-lg
+                bg-emerald-500/10
+                text-emerald-500
+              "
+                        >
+                            <TrendingUp className="h-4 w-4" />
+                        </div>
+                    </div>
+
+                    <p
+                        className="
+              mt-3
+              text-2xl
+              font-bold
+              tracking-[-0.03em]
+            "
+                    >
+                        {formatCurrency(
+                            totalRevenue,
+                        )}
                     </p>
 
-                    <p className="mt-2 text-xl font-bold text-text-primary">
-                        {formatCurrency(totalRevenue)}
+                    <p
+                        className={`
+              mt-2
+              text-xs
+              ${mutedText}
+            `}
+                    >
+                        Combined value of recorded orders
                     </p>
                 </div>
 
-                <div className="rounded-xl border border-border-default bg-bg-surface p-5">
-                    <p className="text-sm text-text-muted">
-                        Pending Orders
-                    </p>
+                {/* Pending */}
+                <div
+                    className={`
+            rounded-2xl
+            border
+            p-5
+            ${cardBg}
+            ${cardBorder}
+          `}
+                >
+                    <div className="flex items-center justify-between">
+                        <p
+                            className={`
+                text-sm
+                ${secondaryText}
+              `}
+                        >
+                            Pending Orders
+                        </p>
 
-                    <p className="mt-2 text-xl font-bold text-text-primary">
+                        <div
+                            className="
+                flex
+                h-8
+                w-8
+                items-center
+                justify-center
+                rounded-lg
+                bg-amber-500/10
+                text-amber-500
+              "
+                        >
+                            <ShoppingBag className="h-4 w-4" />
+                        </div>
+                    </div>
+
+                    <p
+                        className="
+              mt-3
+              text-2xl
+              font-bold
+              tracking-[-0.03em]
+            "
+                    >
                         {pendingOrders}
                     </p>
+
+                    <p
+                        className={`
+              mt-2
+              text-xs
+              ${mutedText}
+            `}
+                    >
+                        Orders currently awaiting action
+                    </p>
                 </div>
 
-                <div className="rounded-xl border border-border-default bg-bg-surface p-5">
-                    <p className="text-sm text-text-muted">
-                        Completed Orders
+                {/* Completed */}
+                <div
+                    className={`
+            rounded-2xl
+            border
+            p-5
+            ${cardBg}
+            ${cardBorder}
+          `}
+                >
+                    <div className="flex items-center justify-between">
+                        <p
+                            className={`
+                text-sm
+                ${secondaryText}
+              `}
+                        >
+                            Completed Orders
+                        </p>
+
+                        <div
+                            className="
+                flex
+                h-8
+                w-8
+                items-center
+                justify-center
+                rounded-lg
+                bg-violet-500/10
+                text-violet-500
+              "
+                        >
+                            <FolderKanban className="h-4 w-4" />
+                        </div>
+                    </div>
+
+                    <p
+                        className="
+              mt-3
+              text-2xl
+              font-bold
+              tracking-[-0.03em]
+            "
+                    >
+                        {completedOrders}
                     </p>
 
-                    <p className="mt-2 text-xl font-bold text-text-primary">
-                        {completedOrders}
+                    <p
+                        className={`
+              mt-2
+              text-xs
+              ${mutedText}
+            `}
+                    >
+                        Orders successfully completed
                     </p>
                 </div>
             </div>
 
-            <div className="rounded-xl border border-border-default bg-bg-surface">
-                <div className="flex items-center justify-between border-b border-border-default px-5 py-4">
+            {/* ======================================================
+          RECENT ORDERS
+      ====================================================== */}
+            <div
+                className={`
+          overflow-hidden
+          rounded-2xl
+          border
+
+          ${cardBg}
+          ${cardBorder}
+        `}
+            >
+                {/* Header */}
+                <div
+                    className={`
+            flex
+            flex-col
+            gap-4
+            border-b
+            px-5
+            py-5
+            sm:flex-row
+            sm:items-center
+            sm:justify-between
+
+            ${divider}
+          `}
+                >
                     <div>
-                        <h2 className="font-semibold text-text-primary">
+                        <p
+                            className="
+                text-[10px]
+                font-bold
+                uppercase
+                tracking-[0.16em]
+                text-violet-500
+              "
+                        >
+                            Activity
+                        </p>
+
+                        <h2
+                            className="
+                mt-1
+                text-base
+                font-semibold
+              "
+                        >
                             Recent Orders
                         </h2>
 
-                        <p className="mt-1 text-xs text-text-muted">
-                            Latest orders received by the system.
+                        <p
+                            className={`
+                mt-1
+                text-xs
+                ${mutedText}
+              `}
+                        >
+                            Latest orders received by
+                            the system.
                         </p>
                     </div>
 
                     <button
                         type="button"
                         onClick={() =>
-                            navigate('/admin/orders')
+                            navigate(
+                                '/admin/orders',
+                            )
                         }
-                        className="flex items-center gap-2 text-sm font-medium text-brand-primary transition hover:opacity-80"
+                        className="
+              inline-flex
+              items-center
+              gap-2
+              text-sm
+              font-semibold
+              text-violet-500
+              transition-all
+              hover:gap-2.5
+            "
                     >
                         View all
+
                         <ArrowRight className="h-4 w-4" />
                     </button>
                 </div>
 
-                {orders.length === 0 ? (
-                    <div className="flex min-h-40 items-center justify-center px-5">
+                {/* Empty state */}
+                {orders.length ===
+                    0 ? (
+                    <div className="flex min-h-44 items-center justify-center px-5">
                         <div className="text-center">
-                            <ShoppingBag className="mx-auto h-8 w-8 text-text-muted" />
+                            <div
+                                className={`
+                  mx-auto
+                  flex
+                  h-11
+                  w-11
+                  items-center
+                  justify-center
+                  rounded-xl
 
-                            <p className="mt-3 text-sm font-medium text-text-primary">
+                  ${isDark
+                                        ? 'bg-white/[0.04] text-white/30'
+                                        : 'bg-neutral-100 text-neutral-400'
+                                    }
+                `}
+                            >
+                                <ShoppingBag className="h-5 w-5" />
+                            </div>
+
+                            <p
+                                className="
+                  mt-4
+                  text-sm
+                  font-semibold
+                "
+                            >
                                 No orders yet
                             </p>
 
-                            <p className="mt-1 text-xs text-text-muted">
-                                Orders will appear here once customers place them.
+                            <p
+                                className={`
+                  mt-1
+                  text-xs
+                  ${mutedText}
+                `}
+                            >
+                                Orders will appear here
+                                once customers place them.
                             </p>
                         </div>
                     </div>
                 ) : (
+                    /* ==================================================
+                       TABLE
+                    ================================================== */
                     <div className="overflow-x-auto">
-                        <table className="w-full min-w-[700px]">
+                        <table
+                            className="
+                w-full
+                min-w-[760px]
+              "
+                        >
                             <thead>
-                                <tr className="border-b border-border-default text-left">
-                                    <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-text-muted">
+                                <tr
+                                    className={`
+                    border-b
+                    text-left
+
+                    ${divider}
+                  `}
+                                >
+                                    <th
+                                        className={`
+                      px-5
+                      py-3.5
+                      text-[10px]
+                      font-bold
+                      uppercase
+                      tracking-[0.12em]
+
+                      ${mutedText}
+                    `}
+                                    >
                                         Order
                                     </th>
 
-                                    <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-text-muted">
+                                    <th
+                                        className={`
+                      px-5
+                      py-3.5
+                      text-[10px]
+                      font-bold
+                      uppercase
+                      tracking-[0.12em]
+
+                      ${mutedText}
+                    `}
+                                    >
                                         Customer
                                     </th>
 
-                                    <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-text-muted">
+                                    <th
+                                        className={`
+                      px-5
+                      py-3.5
+                      text-[10px]
+                      font-bold
+                      uppercase
+                      tracking-[0.12em]
+
+                      ${mutedText}
+                    `}
+                                    >
                                         Service
                                     </th>
 
-                                    <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-text-muted">
+                                    <th
+                                        className={`
+                      px-5
+                      py-3.5
+                      text-[10px]
+                      font-bold
+                      uppercase
+                      tracking-[0.12em]
+
+                      ${mutedText}
+                    `}
+                                    >
                                         Total
                                     </th>
 
-                                    <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-text-muted">
+                                    <th
+                                        className={`
+                      px-5
+                      py-3.5
+                      text-[10px]
+                      font-bold
+                      uppercase
+                      tracking-[0.12em]
+
+                      ${mutedText}
+                    `}
+                                    >
                                         Status
                                     </th>
 
-                                    <th className="px-5 py-3 text-xs font-medium uppercase tracking-wide text-text-muted">
+                                    <th
+                                        className={`
+                      px-5
+                      py-3.5
+                      text-[10px]
+                      font-bold
+                      uppercase
+                      tracking-[0.12em]
+
+                      ${mutedText}
+                    `}
+                                    >
                                         Date
                                     </th>
                                 </tr>
@@ -529,68 +1539,194 @@ export function AdminDashboardPage() {
                             <tbody>
                                 {orders
                                     .slice(0, 5)
-                                    .map((order) => (
-                                        <tr
-                                            key={order.id}
-                                            className="border-b border-border-default last:border-b-0"
-                                        >
-                                            <td className="px-5 py-4 text-sm font-medium text-text-primary">
-                                                {order.order_number}
-                                            </td>
+                                    .map(
+                                        (order) => {
+                                            const normalizedStatus =
+                                                order.status
+                                                    .toLowerCase()
+                                                    .replace(
+                                                        /[_-]/g,
+                                                        ' ',
+                                                    )
 
-                                            <td className="px-5 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-bg-elevated text-text-muted">
-                                                        <Users className="h-4 w-4" />
-                                                    </div>
+                                            const statusStyles =
+                                                normalizedStatus ===
+                                                    'completed'
+                                                    ? isDark
+                                                        ? 'bg-emerald-500/10 text-emerald-400'
+                                                        : 'bg-emerald-50 text-emerald-700'
+                                                    : normalizedStatus ===
+                                                        'pending'
+                                                        ? isDark
+                                                            ? 'bg-amber-500/10 text-amber-400'
+                                                            : 'bg-amber-50 text-amber-700'
+                                                        : normalizedStatus ===
+                                                            'cancelled'
+                                                            ? isDark
+                                                                ? 'bg-red-500/10 text-red-400'
+                                                                : 'bg-red-50 text-red-700'
+                                                            : isDark
+                                                                ? 'bg-white/[0.05] text-white/55'
+                                                                : 'bg-neutral-100 text-neutral-600'
 
-                                                    <div>
-                                                        <p className="text-sm font-medium text-text-primary">
+                                            return (
+                                                <tr
+                                                    key={
+                                                        order.id
+                                                    }
+                                                    className={`
+                            border-b
+                            transition-colors
+                            last:border-b-0
+
+                            ${divider}
+
+                            ${isDark
+                                                            ? 'hover:bg-white/[0.02]'
+                                                            : 'hover:bg-neutral-50/80'
+                                                        }
+                          `}
+                                                >
+                                                    {/* Order */}
+                                                    <td className="px-5 py-4">
+                                                        <p
+                                                            className="
+                                text-sm
+                                font-semibold
+                              "
+                                                        >
                                                             {
-                                                                order.customer_name
+                                                                order.order_number
                                                             }
                                                         </p>
+                                                    </td>
 
-                                                        {order.customer_email && (
-                                                            <p className="text-xs text-text-muted">
-                                                                {
-                                                                    order.customer_email
-                                                                }
-                                                            </p>
+                                                    {/* Customer */}
+                                                    <td className="px-5 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div
+                                                                className={`
+                                  flex
+                                  h-8
+                                  w-8
+                                  shrink-0
+                                  items-center
+                                  justify-center
+                                  rounded-lg
+
+                                  ${isDark
+                                                                        ? 'bg-white/[0.05] text-white/45'
+                                                                        : 'bg-neutral-100 text-neutral-500'
+                                                                    }
+                                `}
+                                                            >
+                                                                <Users className="h-4 w-4" />
+                                                            </div>
+
+                                                            <div className="min-w-0">
+                                                                <p
+                                                                    className="
+                                    truncate
+                                    text-sm
+                                    font-medium
+                                  "
+                                                                >
+                                                                    {
+                                                                        order.customer_name
+                                                                    }
+                                                                </p>
+
+                                                                {order.customer_email && (
+                                                                    <p
+                                                                        className={`
+                                      mt-0.5
+                                      truncate
+                                      text-xs
+
+                                      ${mutedText}
+                                    `}
+                                                                    >
+                                                                        {
+                                                                            order.customer_email
+                                                                        }
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+
+                                                    {/* Service */}
+                                                    <td
+                                                        className={`
+                              px-5
+                              py-4
+                              text-sm
+
+                              ${secondaryText}
+                            `}
+                                                    >
+                                                        {
+                                                            order.service_name ||
+                                                            '-'
+                                                        }
+                                                    </td>
+
+                                                    {/* Total */}
+                                                    <td className="px-5 py-4">
+                                                        <p
+                                                            className="
+                                text-sm
+                                font-semibold
+                              "
+                                                        >
+                                                            {formatCurrency(
+                                                                Number(
+                                                                    order.total_price ||
+                                                                    0,
+                                                                ),
+                                                            )}
+                                                        </p>
+                                                    </td>
+
+                                                    {/* Status */}
+                                                    <td className="px-5 py-4">
+                                                        <span
+                                                            className={`
+                                inline-flex
+                                rounded-full
+                                px-2.5
+                                py-1
+                                text-[11px]
+                                font-semibold
+                                capitalize
+
+                                ${statusStyles}
+                              `}
+                                                        >
+                                                            {
+                                                                order.status
+                                                            }
+                                                        </span>
+                                                    </td>
+
+                                                    {/* Date */}
+                                                    <td
+                                                        className={`
+                              px-5
+                              py-4
+                              text-sm
+
+                              ${mutedText}
+                            `}
+                                                    >
+                                                        {formatDate(
+                                                            order.created_at,
                                                         )}
-                                                    </div>
-                                                </div>
-                                            </td>
-
-                                            <td className="px-5 py-4 text-sm text-text-secondary">
-                                                {order.service_name ||
-                                                    '-'}
-                                            </td>
-
-                                            <td className="px-5 py-4 text-sm font-medium text-text-primary">
-                                                {formatCurrency(
-                                                    Number(
-                                                        order.total_price ||
-                                                        0,
-                                                    ),
-                                                )}
-                                            </td>
-
-                                            <td className="px-5 py-4">
-                                                <span className="inline-flex rounded-full bg-bg-elevated px-2.5 py-1 text-xs font-medium text-text-secondary">
-                                                    {
-                                                        order.status
-                                                    }
-                                                </span>
-                                            </td>
-
-                                            <td className="px-5 py-4 text-sm text-text-muted">
-                                                {formatDate(
-                                                    order.created_at,
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                    </td>
+                                                </tr>
+                                            )
+                                        },
+                                    )}
                             </tbody>
                         </table>
                     </div>

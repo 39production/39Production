@@ -16,6 +16,21 @@ import {
 const API_BASE_URL =
   'https://39production-api.39production.workers.dev'
 
+type AdminTheme = 'dark' | 'light'
+
+interface ThemeTokens {
+  page: string
+  surface: string
+  elevated: string
+  input: string
+  border: string
+  textPrimary: string
+  textSecondary: string
+  textMuted: string
+  hover: string
+  placeholder: string
+}
+
 interface Product {
   id: number
   name: string
@@ -77,6 +92,64 @@ interface PromotionForm {
   | 'Scheduled'
   | 'Expired'
   | 'Draft'
+}
+
+function useAdminTheme() {
+  const readTheme = (): AdminTheme =>
+    document.documentElement.dataset.adminTheme === 'light'
+      ? 'light'
+      : 'dark'
+
+  const [theme, setTheme] = useState<AdminTheme>(readTheme)
+
+  useEffect(() => {
+    const syncTheme = () => setTheme(readTheme())
+
+    syncTheme()
+
+    const observer = new MutationObserver(syncTheme)
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-admin-theme'],
+    })
+
+    return () => observer.disconnect()
+  }, [])
+
+  return theme
+}
+
+function getThemeTokens(
+  theme: AdminTheme,
+): ThemeTokens {
+  if (theme === 'light') {
+    return {
+      page: 'bg-[#f7f7fa]',
+      surface: 'bg-white',
+      elevated: 'bg-neutral-50',
+      input: 'bg-white',
+      border: 'border-neutral-200',
+      textPrimary: 'text-neutral-900',
+      textSecondary: 'text-neutral-600',
+      textMuted: 'text-neutral-500',
+      hover: 'hover:bg-neutral-50',
+      placeholder: 'placeholder:text-neutral-400',
+    }
+  }
+
+  return {
+    page: 'bg-[#0b0b0f]',
+    surface: 'bg-[#15151b]',
+    elevated: 'bg-[#1b1b22]',
+    input: 'bg-[#0f0f13]',
+    border: 'border-white/[0.08]',
+    textPrimary: 'text-white',
+    textSecondary: 'text-white/70',
+    textMuted: 'text-white/45',
+    hover: 'hover:bg-white/[0.04]',
+    placeholder: 'placeholder:text-white/25',
+  }
 }
 
 async function apiRequest<T>(
@@ -172,20 +245,29 @@ function formatDate(
 
 function getStatusClass(
   status: Promotion['status'],
+  theme: AdminTheme,
 ) {
   switch (status) {
     case 'Active':
-      return 'bg-green-500/10 text-green-400 border-green-500/20'
+      return theme === 'light'
+        ? 'bg-emerald-50 text-emerald-700'
+        : 'bg-emerald-500/10 text-emerald-400'
 
     case 'Scheduled':
-      return 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+      return theme === 'light'
+        ? 'bg-blue-50 text-blue-700'
+        : 'bg-blue-500/10 text-blue-400'
 
     case 'Expired':
-      return 'bg-red-500/10 text-red-400 border-red-500/20'
+      return theme === 'light'
+        ? 'bg-red-50 text-red-700'
+        : 'bg-red-500/10 text-red-400'
 
     case 'Draft':
     default:
-      return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+      return theme === 'light'
+        ? 'bg-neutral-100 text-neutral-600'
+        : 'bg-white/[0.06] text-white/55'
   }
 }
 
@@ -205,6 +287,9 @@ function getDiscountText(
 }
 
 export function AdminPromotionsPage() {
+  const theme = useAdminTheme()
+  const c = getThemeTokens(theme)
+
   const [promotions, setPromotions] =
     useState<Promotion[]>([])
 
@@ -239,8 +324,12 @@ export function AdminPromotionsPage() {
   const [showModal, setShowModal] =
     useState(false)
 
-  const [editingPromotion, setEditingPromotion] =
-    useState<Promotion | null>(null)
+  const [
+    editingPromotion,
+    setEditingPromotion,
+  ] = useState<Promotion | null>(
+    null,
+  )
 
   const [form, setForm] =
     useState<PromotionForm>(
@@ -275,7 +364,9 @@ export function AdminPromotionsPage() {
       ])
 
       setPromotions(
-        Array.isArray(promotionData)
+        Array.isArray(
+          promotionData,
+        )
           ? promotionData
           : [],
       )
@@ -383,7 +474,10 @@ export function AdminPromotionsPage() {
   const openEditModal = (
     promotion: Promotion,
   ) => {
-    setEditingPromotion(promotion)
+    setEditingPromotion(
+      promotion,
+    )
+
     setError('')
 
     setForm({
@@ -415,7 +509,8 @@ export function AdminPromotionsPage() {
         promotion.start_date,
       end_date:
         promotion.end_date,
-      status: promotion.status,
+      status:
+        promotion.status,
     })
 
     setShowModal(true)
@@ -679,403 +774,515 @@ export function AdminPromotionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-white">
-      <div className="p-6 md:p-8">
-        {/* Header */}
-        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">
-              Promotions
-            </h1>
+    <div
+      className={`min-h-full space-y-6 ${c.page}`}
+    >
+      {/* Header */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p
+            className={`text-sm ${c.textMuted}`}
+          >
+            Admin Panel
+          </p>
 
-            <p className="mt-1 text-sm text-zinc-400">
-              Kelola promotion untuk
-              product dan service.
-            </p>
-          </div>
+          <h1
+            className={`mt-1 text-2xl font-bold ${c.textPrimary}`}
+          >
+            Promotions
+          </h1>
 
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={loadData}
-              disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <RefreshCw
-                size={17}
-                className={
-                  loading
-                    ? 'animate-spin'
-                    : ''
-                }
-              />
-
-              Refresh
-            </button>
-
-            <button
-              type="button"
-              onClick={
-                openCreateModal
-              }
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-purple-700"
-            >
-              <Plus size={18} />
-
-              Add Promotion
-            </button>
-          </div>
+          <p
+            className={`mt-1 text-sm ${c.textMuted}`}
+          >
+            Kelola promotion untuk
+            product dan service.
+          </p>
         </div>
 
-        {/* Error */}
-        {error && !showModal && (
-          <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-            {error}
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={loadData}
+            disabled={loading}
+            className={`inline-flex items-center justify-center gap-2 rounded-lg border ${c.border} ${c.surface} px-4 py-2.5 text-sm font-medium ${c.textSecondary} ${c.hover} transition disabled:cursor-not-allowed disabled:opacity-50`}
+          >
+            <RefreshCw
+              size={17}
+              className={
+                loading
+                  ? 'animate-spin'
+                  : ''
+              }
+            />
+
+            Refresh
+          </button>
+
+          <button
+            type="button"
+            onClick={
+              openCreateModal
+            }
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"
+          >
+            <Plus size={18} />
+
+            Add Promotion
+          </button>
+        </div>
+      </div>
+
+      {/* Error */}
+      {error && !showModal && (
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+          {error}
+        </div>
+      )}
+
+      {/* Summary */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Total Promotions"
+          value={promotions.length}
+          icon={Tag}
+          theme={theme}
+        />
+
+        <StatCard
+          label="Active"
+          value={
+            promotions.filter(
+              (item) =>
+                item.status ===
+                'Active',
+            ).length
+          }
+          icon={Calendar}
+          theme={theme}
+        />
+
+        <StatCard
+          label="Scheduled"
+          value={
+            promotions.filter(
+              (item) =>
+                item.status ===
+                'Scheduled',
+            ).length
+          }
+          icon={RefreshCw}
+          theme={theme}
+        />
+
+        <StatCard
+          label="Product / Service"
+          value={`${promotions.filter((item) => item.target_type === 'Product').length} / ${promotions.filter((item) => item.target_type === 'Service').length}`}
+          icon={Briefcase}
+          theme={theme}
+        />
+      </div>
+
+      {/* Filters */}
+      <div
+        className={`rounded-xl border ${c.border} ${c.surface} p-4`}
+      >
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_180px_180px]">
+          <div className="relative">
+            <Search
+              size={18}
+              className={`absolute left-3 top-1/2 -translate-y-1/2 ${c.textMuted}`}
+            />
+
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) =>
+                setSearchQuery(
+                  event.target.value,
+                )
+              }
+              placeholder="Search promotion, code, product, service..."
+              className={`w-full rounded-lg border ${c.border} ${c.input} ${c.textPrimary} ${c.placeholder} py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10`}
+            />
           </div>
-        )}
 
-        {/* Filters */}
-        <div className="mb-6 rounded-xl border border-zinc-800 bg-[#18181B] p-4">
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_180px_180px]">
-            {/* Search */}
-            <div className="relative">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
-              />
+          <select
+            value={statusFilter}
+            onChange={(event) =>
+              setStatusFilter(
+                event.target.value as
+                | 'All'
+                | Promotion['status'],
+              )
+            }
+            className={`rounded-lg border ${c.border} ${c.input} ${c.textPrimary} px-3 py-2.5 text-sm outline-none focus:border-violet-500`}
+          >
+            <option value="All">
+              All Status
+            </option>
 
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(event) =>
-                  setSearchQuery(
-                    event.target.value,
-                  )
-                }
-                placeholder="Search promotion, code, product, service..."
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-900 py-2.5 pl-10 pr-4 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-purple-500"
-              />
-            </div>
+            <option value="Active">
+              Active
+            </option>
 
-            {/* Status */}
-            <select
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(
-                  event.target.value as
-                  | 'All'
-                  | Promotion['status'],
-                )
-              }
-              className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-white outline-none focus:border-purple-500"
-            >
-              <option value="All">
-                All Status
-              </option>
-              <option value="Active">
-                Active
-              </option>
-              <option value="Scheduled">
-                Scheduled
-              </option>
-              <option value="Expired">
-                Expired
-              </option>
-              <option value="Draft">
-                Draft
-              </option>
-            </select>
+            <option value="Scheduled">
+              Scheduled
+            </option>
 
-            {/* Target */}
-            <select
-              value={targetFilter}
-              onChange={(event) =>
-                setTargetFilter(
-                  event.target.value as
-                  | 'All'
-                  | Promotion['target_type'],
-                )
-              }
-              className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-white outline-none focus:border-purple-500"
-            >
-              <option value="All">
-                All Target
-              </option>
-              <option value="Product">
-                Product
-              </option>
-              <option value="Service">
-                Service
-              </option>
-            </select>
+            <option value="Expired">
+              Expired
+            </option>
+
+            <option value="Draft">
+              Draft
+            </option>
+          </select>
+
+          <select
+            value={targetFilter}
+            onChange={(event) =>
+              setTargetFilter(
+                event.target.value as
+                | 'All'
+                | Promotion['target_type'],
+              )
+            }
+            className={`rounded-lg border ${c.border} ${c.input} ${c.textPrimary} px-3 py-2.5 text-sm outline-none focus:border-violet-500`}
+          >
+            <option value="All">
+              All Target
+            </option>
+
+            <option value="Product">
+              Product
+            </option>
+
+            <option value="Service">
+              Service
+            </option>
+          </select>
+        </div>
+      </div>
+
+      {/* Content */}
+      {loading ? (
+        <div
+          className={`flex min-h-[300px] items-center justify-center rounded-xl border ${c.border} ${c.surface}`}
+        >
+          <div
+            className={`flex items-center gap-3 text-sm ${c.textMuted}`}
+          >
+            <Loader2
+              size={20}
+              className="animate-spin text-violet-500"
+            />
+
+            Loading promotions...
           </div>
         </div>
-
-        {/* Content */}
-        {loading ? (
-          <div className="flex min-h-[300px] items-center justify-center rounded-xl border border-zinc-800 bg-[#18181B]">
-            <div className="flex items-center gap-3 text-zinc-400">
-              <Loader2
-                size={20}
-                className="animate-spin"
-              />
-
-              Loading promotions...
-            </div>
+      ) : filteredPromotions.length ===
+        0 ? (
+        <div
+          className={`flex min-h-[300px] flex-col items-center justify-center rounded-xl border ${c.border} ${c.surface} px-6 text-center`}
+        >
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-violet-500/10">
+            <Tag
+              size={26}
+              className="text-violet-500"
+            />
           </div>
-        ) : filteredPromotions.length ===
-          0 ? (
-          <div className="flex min-h-[300px] flex-col items-center justify-center rounded-xl border border-zinc-800 bg-[#18181B] px-6 text-center">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-purple-500/10">
-              <Tag
-                size={26}
-                className="text-purple-400"
-              />
-            </div>
 
-            <h3 className="text-lg font-semibold">
-              No promotions found
-            </h3>
+          <h3
+            className={`text-lg font-semibold ${c.textPrimary}`}
+          >
+            No promotions found
+          </h3>
 
-            <p className="mt-1 max-w-md text-sm text-zinc-400">
-              Belum ada promotion yang
-              sesuai dengan filter.
-            </p>
+          <p
+            className={`mt-1 max-w-md text-sm ${c.textMuted}`}
+          >
+            Belum ada promotion yang
+            sesuai dengan filter.
+          </p>
 
-            {!searchQuery &&
-              statusFilter ===
-              'All' &&
-              targetFilter ===
-              'All' && (
-                <button
-                  type="button"
-                  onClick={
-                    openCreateModal
-                  }
-                  className="mt-5 inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-medium hover:bg-purple-700"
+          {!searchQuery &&
+            statusFilter ===
+            'All' &&
+            targetFilter ===
+            'All' && (
+              <button
+                type="button"
+                onClick={
+                  openCreateModal
+                }
+                className="mt-5 inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"
+              >
+                <Plus size={17} />
+
+                Add Promotion
+              </button>
+            )}
+        </div>
+      ) : (
+        <div
+          className={`overflow-hidden rounded-xl border ${c.border} ${c.surface}`}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1050px]">
+              <thead>
+                <tr
+                  className={`border-b ${c.border} ${c.elevated} text-left text-xs uppercase tracking-wider`}
                 >
-                  <Plus size={17} />
+                  <th
+                    className={`px-5 py-4 font-semibold ${c.textMuted}`}
+                  >
+                    Promotion
+                  </th>
 
-                  Add Promotion
-                </button>
-              )}
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-xl border border-zinc-800 bg-[#18181B]">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1050px]">
-                <thead>
-                  <tr className="border-b border-zinc-800 text-left text-xs uppercase tracking-wider text-zinc-500">
-                    <th className="px-5 py-4 font-medium">
-                      Promotion
-                    </th>
+                  <th
+                    className={`px-5 py-4 font-semibold ${c.textMuted}`}
+                  >
+                    Code
+                  </th>
 
-                    <th className="px-5 py-4 font-medium">
-                      Code
-                    </th>
+                  <th
+                    className={`px-5 py-4 font-semibold ${c.textMuted}`}
+                  >
+                    Discount
+                  </th>
 
-                    <th className="px-5 py-4 font-medium">
-                      Discount
-                    </th>
+                  <th
+                    className={`px-5 py-4 font-semibold ${c.textMuted}`}
+                  >
+                    Target
+                  </th>
 
-                    <th className="px-5 py-4 font-medium">
-                      Target
-                    </th>
+                  <th
+                    className={`px-5 py-4 font-semibold ${c.textMuted}`}
+                  >
+                    Period
+                  </th>
 
-                    <th className="px-5 py-4 font-medium">
-                      Period
-                    </th>
+                  <th
+                    className={`px-5 py-4 font-semibold ${c.textMuted}`}
+                  >
+                    Status
+                  </th>
 
-                    <th className="px-5 py-4 font-medium">
-                      Status
-                    </th>
+                  <th
+                    className={`px-5 py-4 text-right font-semibold ${c.textMuted}`}
+                  >
+                    Action
+                  </th>
+                </tr>
+              </thead>
 
-                    <th className="px-5 py-4 text-right font-medium">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-zinc-800">
-                  {filteredPromotions.map(
-                    (promotion) => (
-                      <tr
-                        key={
-                          promotion.id
-                        }
-                        className="transition hover:bg-zinc-900/60"
-                      >
-                        {/* Promotion */}
-                        <td className="px-5 py-4">
-                          <div>
-                            <div className="font-medium text-white">
-                              {
-                                promotion.title
-                              }
-                            </div>
-
-                            <div className="mt-1 max-w-xs truncate text-xs text-zinc-500">
-                              {
-                                promotion.description
-                              }
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Code */}
-                        <td className="px-5 py-4">
-                          <span className="inline-flex items-center rounded-md border border-purple-500/20 bg-purple-500/10 px-2.5 py-1 font-mono text-xs font-semibold text-purple-300">
+              <tbody
+                className={`divide-y ${c.border}`}
+              >
+                {filteredPromotions.map(
+                  (promotion) => (
+                    <tr
+                      key={
+                        promotion.id
+                      }
+                      className={`${c.hover} transition`}
+                    >
+                      {/* Promotion */}
+                      <td className="px-5 py-4">
+                        <div>
+                          <div
+                            className={`font-medium ${c.textPrimary}`}
+                          >
                             {
-                              promotion.code
+                              promotion.title
                             }
-                          </span>
-                        </td>
+                          </div>
 
-                        {/* Discount */}
-                        <td className="px-5 py-4">
-                          <div className="font-semibold text-white">
-                            {getDiscountText(
-                              promotion,
+                          <div
+                            className={`mt-1 max-w-xs truncate text-xs ${c.textMuted}`}
+                          >
+                            {
+                              promotion.description
+                            }
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Code */}
+                      <td className="px-5 py-4">
+                        <span className="inline-flex items-center rounded-md border border-violet-500/20 bg-violet-500/10 px-2.5 py-1 font-mono text-xs font-semibold text-violet-500">
+                          {
+                            promotion.code
+                          }
+                        </span>
+                      </td>
+
+                      {/* Discount */}
+                      <td className="px-5 py-4">
+                        <div
+                          className={`font-semibold ${c.textPrimary}`}
+                        >
+                          {getDiscountText(
+                            promotion,
+                          )}
+                        </div>
+
+                        <div
+                          className={`mt-1 text-xs ${c.textMuted}`}
+                        >
+                          {
+                            promotion.discount_type
+                          }
+                        </div>
+                      </td>
+
+                      {/* Target */}
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/10">
+                            {promotion.target_type ===
+                              'Product' ? (
+                              <Package
+                                size={15}
+                                className="text-violet-500"
+                              />
+                            ) : (
+                              <Briefcase
+                                size={15}
+                                className="text-pink-500"
+                              />
                             )}
                           </div>
 
-                          <div className="mt-1 text-xs text-zinc-500">
-                            {
-                              promotion.discount_type
-                            }
-                          </div>
-                        </td>
+                          <div>
+                            <div
+                              className={`text-xs ${c.textMuted}`}
+                            >
+                              {
+                                promotion.target_type
+                              }
+                            </div>
 
-                        {/* Target */}
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800">
-                              {promotion.target_type ===
-                                'Product' ? (
-                                <Package
-                                  size={15}
-                                  className="text-purple-400"
-                                />
-                              ) : (
-                                <Briefcase
-                                  size={15}
-                                  className="text-pink-400"
-                                />
+                            <div
+                              className={`max-w-[180px] truncate text-sm ${c.textSecondary}`}
+                            >
+                              {getTargetName(
+                                promotion,
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Period */}
+                      <td className="px-5 py-4">
+                        <div
+                          className={`flex items-start gap-2 text-sm ${c.textSecondary}`}
+                        >
+                          <Calendar
+                            size={15}
+                            className={`mt-0.5 shrink-0 ${c.textMuted}`}
+                          />
+
+                          <div>
+                            <div>
+                              {formatDate(
+                                promotion.start_date,
                               )}
                             </div>
 
-                            <div>
-                              <div className="text-xs text-zinc-500">
-                                {
-                                  promotion.target_type
-                                }
-                              </div>
-
-                              <div className="max-w-[180px] truncate text-sm text-zinc-200">
-                                {getTargetName(
-                                  promotion,
-                                )}
-                              </div>
+                            <div
+                              className={`mt-1 text-xs ${c.textMuted}`}
+                            >
+                              until{' '}
+                              {formatDate(
+                                promotion.end_date,
+                              )}
                             </div>
                           </div>
-                        </td>
+                        </div>
+                      </td>
 
-                        {/* Period */}
-                        <td className="px-5 py-4">
-                          <div className="flex items-start gap-2 text-sm">
-                            <Calendar
-                              size={15}
-                              className="mt-0.5 shrink-0 text-zinc-500"
-                            />
+                      {/* Status */}
+                      <td className="px-5 py-4">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClass(
+                            promotion.status,
+                            theme,
+                          )}`}
+                        >
+                          {
+                            promotion.status
+                          }
+                        </span>
+                      </td>
 
-                            <div>
-                              <div className="text-zinc-200">
-                                {formatDate(
-                                  promotion.start_date,
-                                )}
-                              </div>
-
-                              <div className="mt-1 text-xs text-zinc-500">
-                                until{' '}
-                                {formatDate(
-                                  promotion.end_date,
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Status */}
-                        <td className="px-5 py-4">
-                          <span
-                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusClass(
-                              promotion.status,
-                            )}`}
-                          >
-                            {
-                              promotion.status
+                      {/* Actions */}
+                      <td className="px-5 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openEditModal(
+                                promotion,
+                              )
                             }
-                          </span>
-                        </td>
+                            className={`flex h-9 w-9 items-center justify-center rounded-lg border ${c.border} ${c.input} ${c.textMuted} transition hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-500`}
+                            title="Edit"
+                          >
+                            <Edit
+                              size={16}
+                            />
+                          </button>
 
-                        {/* Actions */}
-                        <td className="px-5 py-4">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openEditModal(
-                                  promotion,
-                                )
-                              }
-                              className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 transition hover:border-purple-500/40 hover:bg-purple-500/10 hover:text-purple-300"
-                              title="Edit"
-                            >
-                              <Edit
-                                size={16}
-                              />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setDeleteId(
-                                  promotion.id,
-                                )
-                              }
-                              className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300"
-                              title="Delete"
-                            >
-                              <Trash2
-                                size={16}
-                              />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ),
-                  )}
-                </tbody>
-              </table>
-            </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDeleteId(
+                                promotion.id,
+                              )
+                            }
+                            className={`flex h-9 w-9 items-center justify-center rounded-lg border ${c.border} ${c.input} ${c.textMuted} transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-500`}
+                            title="Delete"
+                          >
+                            <Trash2
+                              size={16}
+                            />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Create / Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-zinc-800 bg-[#18181B] shadow-2xl">
-            {/* Modal Header */}
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-800 bg-[#18181B] px-6 py-5">
+          <div
+            className={`max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border ${c.border} ${c.surface} shadow-2xl`}
+          >
+            <div
+              className={`sticky top-0 z-10 flex items-center justify-between border-b ${c.border} ${c.surface} px-6 py-5`}
+            >
               <div>
-                <h2 className="text-lg font-semibold">
+                <h2
+                  className={`text-lg font-semibold ${c.textPrimary}`}
+                >
                   {editingPromotion
                     ? 'Edit Promotion'
                     : 'Add Promotion'}
                 </h2>
 
-                <p className="mt-1 text-sm text-zinc-500">
+                <p
+                  className={`mt-1 text-sm ${c.textMuted}`}
+                >
                   Hubungkan promotion
                   dengan product atau
                   service.
@@ -1088,13 +1295,12 @@ export function AdminPromotionsPage() {
                   closeModal
                 }
                 disabled={saving}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-800 hover:text-white disabled:opacity-50"
+                className={`flex h-9 w-9 items-center justify-center rounded-lg ${c.textMuted} ${c.hover} transition disabled:opacity-50`}
               >
                 <X size={19} />
               </button>
             </div>
 
-            {/* Modal Form */}
             <form
               onSubmit={
                 handleSubmit
@@ -1102,38 +1308,32 @@ export function AdminPromotionsPage() {
               className="space-y-5 p-6"
             >
               {error && (
-                <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
                   {error}
                 </div>
               )}
 
               {/* Title */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-zinc-300">
-                  Promotion Title
-                </label>
-
-                <input
-                  type="text"
-                  value={form.title}
-                  onChange={(event) =>
-                    setForm(
-                      (previous) => ({
-                        ...previous,
-                        title:
-                          event.target
-                            .value,
-                      }),
-                    )
-                  }
-                  placeholder="Contoh: Welcome 10"
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-purple-500"
-                />
-              </div>
+              <FormField
+                label="Promotion Title"
+                value={form.title}
+                onChange={(value) =>
+                  setForm(
+                    (previous) => ({
+                      ...previous,
+                      title: value,
+                    }),
+                  )
+                }
+                placeholder="Contoh: Welcome 10"
+                theme={theme}
+              />
 
               {/* Code */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-zinc-300">
+                <label
+                  className={`mb-2 block text-sm font-medium ${c.textSecondary}`}
+                >
                   Promotion Code
                 </label>
 
@@ -1144,17 +1344,18 @@ export function AdminPromotionsPage() {
                     setForm(
                       (previous) => ({
                         ...previous,
-                        code:
-                          event.target.value
-                            .toUpperCase(),
+                        code: event.target.value
+                          .toUpperCase(),
                       }),
                     )
                   }
                   placeholder="WELCOME10"
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5 font-mono text-sm text-white uppercase outline-none placeholder:text-zinc-600 focus:border-purple-500"
+                  className={`w-full rounded-lg border ${c.border} ${c.input} ${c.textPrimary} ${c.placeholder} px-4 py-2.5 font-mono text-sm uppercase outline-none focus:border-violet-500`}
                 />
 
-                <p className="mt-1.5 text-xs text-zinc-600">
+                <p
+                  className={`mt-1.5 text-xs ${c.textMuted}`}
+                >
                   Gunakan huruf, angka,
                   underscore (_) atau
                   hyphen (-).
@@ -1163,7 +1364,9 @@ export function AdminPromotionsPage() {
 
               {/* Description */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-zinc-300">
+                <label
+                  className={`mb-2 block text-sm font-medium ${c.textSecondary}`}
+                >
                   Description
                 </label>
 
@@ -1183,14 +1386,18 @@ export function AdminPromotionsPage() {
                   }
                   rows={3}
                   placeholder="Deskripsi promotion..."
-                  className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-purple-500"
+                  className={`${getTextareaClass(
+                    theme,
+                  )}`}
                 />
               </div>
 
               {/* Discount */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-zinc-300">
+                  <label
+                    className={`mb-2 block text-sm font-medium ${c.textSecondary}`}
+                  >
                     Discount Type
                   </label>
 
@@ -1203,14 +1410,17 @@ export function AdminPromotionsPage() {
                         (previous) => ({
                           ...previous,
                           discount_type:
-                            event.target
+                            event
+                              .target
                               .value as
                             | 'Percentage'
                             | 'Fixed',
                         }),
                       )
                     }
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm text-white outline-none focus:border-purple-500"
+                    className={getInputClass(
+                      theme,
+                    )}
                   >
                     <option value="Percentage">
                       Percentage
@@ -1223,7 +1433,9 @@ export function AdminPromotionsPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-zinc-300">
+                  <label
+                    className={`mb-2 block text-sm font-medium ${c.textSecondary}`}
+                  >
                     Discount Value
                   </label>
 
@@ -1240,9 +1452,7 @@ export function AdminPromotionsPage() {
                       value={
                         form.discount_value
                       }
-                      onChange={(
-                        event,
-                      ) =>
+                      onChange={(event) =>
                         setForm(
                           (
                             previous,
@@ -1256,10 +1466,14 @@ export function AdminPromotionsPage() {
                         )
                       }
                       placeholder="10"
-                      className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5 pr-12 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-purple-500"
+                      className={`${getInputClass(
+                        theme,
+                      )} pr-12`}
                     />
 
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-500">
+                    <span
+                      className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs ${c.textMuted}`}
+                    >
                       {form.discount_type ===
                         'Percentage'
                         ? '%'
@@ -1270,13 +1484,19 @@ export function AdminPromotionsPage() {
               </div>
 
               {/* Target */}
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+              <div
+                className={`rounded-xl border ${c.border} ${c.elevated} p-4`}
+              >
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-zinc-300">
+                  <label
+                    className={`block text-sm font-medium ${c.textSecondary}`}
+                  >
                     Promotion Target
                   </label>
 
-                  <p className="mt-1 text-xs text-zinc-600">
+                  <p
+                    className={`mt-1 text-xs ${c.textMuted}`}
+                  >
                     Promotion hanya berlaku
                     untuk satu product atau
                     satu service yang dipilih.
@@ -1293,9 +1513,9 @@ export function AdminPromotionsPage() {
                       )
                     }
                     className={`flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition ${form.target_type ===
-                      'Product'
-                      ? 'border-purple-500/50 bg-purple-500/10 text-purple-300'
-                      : 'border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
+                        'Product'
+                        ? 'border-violet-500/40 bg-violet-500/10 text-violet-500'
+                        : `${c.border} ${c.input} ${c.textMuted} ${c.hover}`
                       }`}
                   >
                     <Package size={17} />
@@ -1311,9 +1531,9 @@ export function AdminPromotionsPage() {
                       )
                     }
                     className={`flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition ${form.target_type ===
-                      'Service'
-                      ? 'border-pink-500/50 bg-pink-500/10 text-pink-300'
-                      : 'border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
+                        'Service'
+                        ? 'border-pink-500/40 bg-pink-500/10 text-pink-500'
+                        : `${c.border} ${c.input} ${c.textMuted} ${c.hover}`
                       }`}
                   >
                     <Briefcase
@@ -1328,7 +1548,9 @@ export function AdminPromotionsPage() {
                 {form.target_type ===
                   'Product' && (
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-zinc-300">
+                      <label
+                        className={`mb-2 block text-sm font-medium ${c.textSecondary}`}
+                      >
                         Select Product
                       </label>
 
@@ -1351,7 +1573,9 @@ export function AdminPromotionsPage() {
                             }),
                           )
                         }
-                        className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm text-white outline-none focus:border-purple-500"
+                        className={getInputClass(
+                          theme,
+                        )}
                       >
                         <option value="">
                           -- Select Product --
@@ -1381,7 +1605,13 @@ export function AdminPromotionsPage() {
 
                       {products.length ===
                         0 && (
-                          <p className="mt-2 text-xs text-yellow-500">
+                          <p
+                            className={`mt-2 text-xs ${theme ===
+                                'light'
+                                ? 'text-amber-700'
+                                : 'text-amber-400'
+                              }`}
+                          >
                             Belum ada product
                             Published yang
                             tersedia.
@@ -1394,7 +1624,9 @@ export function AdminPromotionsPage() {
                 {form.target_type ===
                   'Service' && (
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-zinc-300">
+                      <label
+                        className={`mb-2 block text-sm font-medium ${c.textSecondary}`}
+                      >
                         Select Service
                       </label>
 
@@ -1417,7 +1649,9 @@ export function AdminPromotionsPage() {
                             }),
                           )
                         }
-                        className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm text-white outline-none focus:border-purple-500"
+                        className={getInputClass(
+                          theme,
+                        )}
                       >
                         <option value="">
                           -- Select Service --
@@ -1447,7 +1681,13 @@ export function AdminPromotionsPage() {
 
                       {services.length ===
                         0 && (
-                          <p className="mt-2 text-xs text-yellow-500">
+                          <p
+                            className={`mt-2 text-xs ${theme ===
+                                'light'
+                                ? 'text-amber-700'
+                                : 'text-amber-400'
+                              }`}
+                          >
                             Belum ada service
                             Active yang
                             tersedia.
@@ -1460,7 +1700,9 @@ export function AdminPromotionsPage() {
               {/* Dates */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-zinc-300">
+                  <label
+                    className={`mb-2 block text-sm font-medium ${c.textSecondary}`}
+                  >
                     Start Date
                   </label>
 
@@ -1474,18 +1716,20 @@ export function AdminPromotionsPage() {
                         (previous) => ({
                           ...previous,
                           start_date:
-                            event
-                              .target
-                              .value,
+                            event.target.value,
                         }),
                       )
                     }
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm text-white outline-none focus:border-purple-500"
+                    className={getInputClass(
+                      theme,
+                    )}
                   />
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-zinc-300">
+                  <label
+                    className={`mb-2 block text-sm font-medium ${c.textSecondary}`}
+                  >
                     End Date
                   </label>
 
@@ -1503,20 +1747,22 @@ export function AdminPromotionsPage() {
                         (previous) => ({
                           ...previous,
                           end_date:
-                            event
-                              .target
-                              .value,
+                            event.target.value,
                         }),
                       )
                     }
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm text-white outline-none focus:border-purple-500"
+                    className={getInputClass(
+                      theme,
+                    )}
                   />
                 </div>
               </div>
 
               {/* Status */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-zinc-300">
+                <label
+                  className={`mb-2 block text-sm font-medium ${c.textSecondary}`}
+                >
                   Status
                 </label>
 
@@ -1532,7 +1778,9 @@ export function AdminPromotionsPage() {
                       }),
                     )
                   }
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm text-white outline-none focus:border-purple-500"
+                  className={getInputClass(
+                    theme,
+                  )}
                 >
                   <option value="Draft">
                     Draft
@@ -1553,14 +1801,16 @@ export function AdminPromotionsPage() {
               </div>
 
               {/* Buttons */}
-              <div className="flex justify-end gap-3 border-t border-zinc-800 pt-5">
+              <div
+                className={`flex justify-end gap-3 border-t ${c.border} pt-5`}
+              >
                 <button
                   type="button"
                   onClick={
                     closeModal
                   }
                   disabled={saving}
-                  className="rounded-lg border border-zinc-700 px-5 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:opacity-50"
+                  className={`rounded-lg border ${c.border} px-5 py-2.5 text-sm font-medium ${c.textSecondary} ${c.hover} transition disabled:opacity-50`}
                 >
                   Cancel
                 </button>
@@ -1568,7 +1818,7 @@ export function AdminPromotionsPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {saving && (
                     <Loader2
@@ -1592,19 +1842,25 @@ export function AdminPromotionsPage() {
       {/* Delete Confirmation */}
       {deleteId !== null && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-[#18181B] p-6 shadow-2xl">
+          <div
+            className={`w-full max-w-md rounded-2xl border ${c.border} ${c.surface} p-6 shadow-2xl`}
+          >
             <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
               <Trash2
                 size={22}
-                className="text-red-400"
+                className="text-red-500"
               />
             </div>
 
-            <h2 className="text-lg font-semibold text-white">
+            <h2
+              className={`text-lg font-semibold ${c.textPrimary}`}
+            >
               Delete Promotion?
             </h2>
 
-            <p className="mt-2 text-sm leading-6 text-zinc-400">
+            <p
+              className={`mt-2 text-sm leading-6 ${c.textMuted}`}
+            >
               Promotion ini akan dihapus
               secara permanen dari database.
               Tindakan ini tidak dapat
@@ -1618,7 +1874,7 @@ export function AdminPromotionsPage() {
                   setDeleteId(null)
                 }
                 disabled={deleting}
-                className="rounded-lg border border-zinc-700 px-5 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
+                className={`rounded-lg border ${c.border} px-5 py-2.5 text-sm font-medium ${c.textSecondary} ${c.hover} transition disabled:opacity-50`}
               >
                 Cancel
               </button>
@@ -1629,7 +1885,7 @@ export function AdminPromotionsPage() {
                   handleDelete
                 }
                 disabled={deleting}
-                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {deleting && (
                   <Loader2
@@ -1646,6 +1902,102 @@ export function AdminPromotionsPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function getInputClass(
+  theme: AdminTheme,
+) {
+  const c = getThemeTokens(theme)
+
+  return `w-full rounded-lg border ${c.border} ${c.input} ${c.textPrimary} ${c.placeholder} px-4 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10`
+}
+
+function getTextareaClass(
+  theme: AdminTheme,
+) {
+  const c = getThemeTokens(theme)
+
+  return `w-full resize-none rounded-lg border ${c.border} ${c.input} ${c.textPrimary} ${c.placeholder} px-4 py-2.5 text-sm leading-6 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10`
+}
+
+function FormField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  theme,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  theme: AdminTheme
+}) {
+  return (
+    <div>
+      <label
+        className={`mb-2 block text-sm font-medium ${getThemeTokens(theme)
+            .textSecondary
+          }`}
+      >
+        {label}
+      </label>
+
+      <input
+        type="text"
+        value={value}
+        onChange={(event) =>
+          onChange(
+            event.target.value,
+          )
+        }
+        placeholder={placeholder}
+        className={getInputClass(
+          theme,
+        )}
+      />
+    </div>
+  )
+}
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  theme,
+}: {
+  icon: any
+  label: string
+  value: number | string
+  theme: AdminTheme
+}) {
+  const c = getThemeTokens(theme)
+
+  return (
+    <div
+      className={`rounded-xl border ${c.border} ${c.surface} p-5 transition hover:-translate-y-0.5`}
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <p
+            className={`text-sm ${c.textMuted}`}
+          >
+            {label}
+          </p>
+
+          <p
+            className={`mt-2 text-xl font-bold ${c.textPrimary}`}
+          >
+            {value}
+          </p>
+        </div>
+
+        <div className="rounded-lg bg-violet-500/10 p-3 text-violet-500">
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
     </div>
   )
 }

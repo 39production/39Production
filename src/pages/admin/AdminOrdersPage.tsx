@@ -56,6 +56,8 @@ type OrderStatus =
     | 'Completed'
     | 'Cancelled'
 
+type ThemeMode = 'dark' | 'light'
+
 const emptyForm = {
     customer: '',
     email: '',
@@ -65,111 +67,371 @@ const emptyForm = {
     status: 'Pending' as OrderStatus,
 }
 
-function formatCurrency(value: number) {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        maximumFractionDigits: 0,
-    }).format(value)
+/* =========================================================
+   THEME HOOK
+========================================================= */
+
+function useAdminTheme(): ThemeMode {
+    const [theme, setTheme] =
+        useState<ThemeMode>(() => {
+            if (
+                typeof window ===
+                'undefined'
+            ) {
+                return 'dark'
+            }
+
+            const stored =
+                window.localStorage.getItem(
+                    '39production_admin_theme',
+                )
+
+            return stored === 'light'
+                ? 'light'
+                : 'dark'
+        })
+
+    useEffect(() => {
+        const syncTheme = () => {
+            const datasetTheme =
+                document.documentElement
+                    .dataset.adminTheme
+
+            if (
+                datasetTheme === 'light' ||
+                datasetTheme === 'dark'
+            ) {
+                setTheme(
+                    datasetTheme,
+                )
+                return
+            }
+
+            const stored =
+                window.localStorage.getItem(
+                    '39production_admin_theme',
+                )
+
+            setTheme(
+                stored === 'light'
+                    ? 'light'
+                    : 'dark',
+            )
+        }
+
+        syncTheme()
+
+        const observer =
+            new MutationObserver(
+                syncTheme,
+            )
+
+        observer.observe(
+            document.documentElement,
+            {
+                attributes: true,
+                attributeFilter: [
+                    'data-admin-theme',
+                ],
+            },
+        )
+
+        const handleStorage =
+            () => {
+                syncTheme()
+            }
+
+        window.addEventListener(
+            'storage',
+            handleStorage,
+        )
+
+        return () => {
+            observer.disconnect()
+
+            window.removeEventListener(
+                'storage',
+                handleStorage,
+            )
+        }
+    }, [])
+
+    return theme
 }
 
-function formatDate(date: string) {
+/* =========================================================
+   FORMATTERS
+========================================================= */
+
+function formatCurrency(
+    value: number,
+) {
+    return new Intl.NumberFormat(
+        'id-ID',
+        {
+            style: 'currency',
+            currency: 'IDR',
+            maximumFractionDigits: 0,
+        },
+    ).format(value)
+}
+
+function formatDate(
+    date: string,
+) {
     if (!date) return '-'
 
-    const parsedDate = new Date(date)
+    const parsedDate =
+        new Date(date)
 
-    if (Number.isNaN(parsedDate.getTime())) {
+    if (
+        Number.isNaN(
+            parsedDate.getTime(),
+        )
+    ) {
         return '-'
     }
 
-    return new Intl.DateTimeFormat('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-    }).format(parsedDate)
+    return new Intl.DateTimeFormat(
+        'id-ID',
+        {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+        },
+    ).format(parsedDate)
 }
 
-function getDateOnly(date?: string) {
+function getDateOnly(
+    date?: string,
+) {
     if (!date) {
-        return new Date().toISOString().split('T')[0]
+        return new Date()
+            .toISOString()
+            .split('T')[0]
     }
 
-    const parsedDate = new Date(date)
+    const parsedDate =
+        new Date(date)
 
-    if (Number.isNaN(parsedDate.getTime())) {
-        return new Date().toISOString().split('T')[0]
+    if (
+        Number.isNaN(
+            parsedDate.getTime(),
+        )
+    ) {
+        return new Date()
+            .toISOString()
+            .split('T')[0]
     }
 
-    return parsedDate.toISOString().split('T')[0]
+    return parsedDate
+        .toISOString()
+        .split('T')[0]
 }
 
-function mapOrder(data: any): Order {
+function mapOrder(
+    data: any,
+): Order {
     return {
-        id: Number(data.id),
-        orderNumber: String(data.order_number ?? ''),
-        customer: String(data.customer_name ?? ''),
-        email: String(data.customer_email ?? ''),
-        phone: String(data.customer_phone ?? ''),
-        item: String(data.product_name ?? ''),
-        productId: Number(data.product_id ?? 0),
+        id: Number(
+            data.id,
+        ),
+
+        orderNumber: String(
+            data.order_number ??
+            '',
+        ),
+
+        customer: String(
+            data.customer_name ??
+            '',
+        ),
+
+        email: String(
+            data.customer_email ??
+            '',
+        ),
+
+        phone: String(
+            data.customer_phone ??
+            '',
+        ),
+
+        item: String(
+            data.product_name ??
+            '',
+        ),
+
+        productId: Number(
+            data.product_id ??
+            0,
+        ),
+
         type:
-            data.type === 'Service'
+            data.type ===
+                'Service'
                 ? 'Service'
                 : 'Product',
-        quantity: Number(data.quantity ?? 0),
-        unitPrice: Number(data.unit_price ?? 0),
-        total: Number(data.total_price ?? 0),
-        date: getDateOnly(data.created_at),
+
+        quantity: Number(
+            data.quantity ??
+            0,
+        ),
+
+        unitPrice: Number(
+            data.unit_price ??
+            0,
+        ),
+
+        total: Number(
+            data.total_price ??
+            0,
+        ),
+
+        date: getDateOnly(
+            data.created_at,
+        ),
+
         status:
-            data.status === 'Processing'
+            data.status ===
+                'Processing'
                 ? 'Processing'
-                : data.status === 'Completed'
+                : data.status ===
+                    'Completed'
                     ? 'Completed'
-                    : data.status === 'Cancelled'
+                    : data.status ===
+                        'Cancelled'
                         ? 'Cancelled'
                         : 'Pending',
     }
 }
 
+/* =========================================================
+   PAGE
+========================================================= */
+
 export function AdminOrdersPage() {
+    const theme =
+        useAdminTheme()
+
+    const isDark =
+        theme === 'dark'
+
     const [orders, setOrders] =
         useState<Order[]>([])
 
-    const [products, setProducts] =
+    const [
+        products,
+        setProducts,
+    ] =
         useState<Product[]>([])
 
-    const [search, setSearch] = useState('')
-    const [statusFilter, setStatusFilter] =
-        useState('All')
-    const [typeFilter, setTypeFilter] =
-        useState('All')
+    const [
+        search,
+        setSearch,
+    ] = useState('')
 
-    const [isModalOpen, setIsModalOpen] =
-        useState(false)
+    const [
+        statusFilter,
+        setStatusFilter,
+    ] = useState('All')
 
-    const [editingOrder, setEditingOrder] =
-        useState<Order | null>(null)
+    const [
+        typeFilter,
+        setTypeFilter,
+    ] = useState('All')
 
-    const [form, setForm] =
-        useState(emptyForm)
+    const [
+        isModalOpen,
+        setIsModalOpen,
+    ] = useState(false)
 
-    const [error, setError] =
-        useState('')
+    const [
+        editingOrder,
+        setEditingOrder,
+    ] =
+        useState<Order | null>(
+            null,
+        )
 
-    const [loading, setLoading] =
-        useState(true)
+    const [
+        form,
+        setForm,
+    ] = useState(emptyForm)
 
-    const [productsLoading, setProductsLoading] =
-        useState(false)
+    const [
+        error,
+        setError,
+    ] = useState('')
 
-    const [submitting, setSubmitting] =
-        useState(false)
+    const [
+        loading,
+        setLoading,
+    ] = useState(true)
 
-    const [deletingId, setDeletingId] =
-        useState<number | null>(null)
+    const [
+        productsLoading,
+        setProductsLoading,
+    ] = useState(false)
 
-    const [successMessage, setSuccessMessage] =
-        useState('')
+    const [
+        submitting,
+        setSubmitting,
+    ] = useState(false)
+
+    const [
+        deletingId,
+        setDeletingId,
+    ] = useState<number | null>(
+        null,
+    )
+
+    const [
+        successMessage,
+        setSuccessMessage,
+    ] = useState('')
+
+    /* =====================================================
+       THEME TOKENS
+    ===================================================== */
+
+    const pageText = isDark
+        ? 'text-white'
+        : 'text-neutral-950'
+
+    const secondaryText =
+        isDark
+            ? 'text-white/55'
+            : 'text-neutral-600'
+
+    const mutedText = isDark
+        ? 'text-white/30'
+        : 'text-neutral-400'
+
+    const cardBg = isDark
+        ? 'bg-[#15151b]'
+        : 'bg-white'
+
+    const inputBg = isDark
+        ? 'bg-[#0f0f13]'
+        : 'bg-neutral-50'
+
+    const pageSurface =
+        isDark
+            ? 'bg-[#0b0b0f]'
+            : 'bg-[#f7f7fa]'
+
+    const border = isDark
+        ? 'border-white/[0.08]'
+        : 'border-neutral-200'
+
+    const divider = isDark
+        ? 'border-white/[0.06]'
+        : 'border-neutral-100'
+
+    const hoverRow = isDark
+        ? 'hover:bg-white/[0.02]'
+        : 'hover:bg-neutral-50/80'
 
     /* =====================================================
        FETCH ORDERS
@@ -180,14 +442,16 @@ export function AdminOrdersPage() {
             setLoading(true)
             setError('')
 
-            const response = await authenticatedFetch(
-                `${API_BASE_URL}/api/orders`,
-                {
-                    cache: 'no-store',
-                },
-            )
+            const response =
+                await authenticatedFetch(
+                    `${API_BASE_URL}/api/orders`,
+                    {
+                        cache: 'no-store',
+                    },
+                )
 
-            const result = await response.json()
+            const result =
+                await response.json()
 
             if (!response.ok) {
                 throw new Error(
@@ -196,15 +460,24 @@ export function AdminOrdersPage() {
                 )
             }
 
-            const data = Array.isArray(result)
-                ? result
-                : Array.isArray(result?.data)
-                    ? result.data
-                    : Array.isArray(result?.orders)
-                        ? result.orders
-                        : []
+            const data =
+                Array.isArray(result)
+                    ? result
+                    : Array.isArray(
+                        result?.data,
+                    )
+                        ? result.data
+                        : Array.isArray(
+                            result?.orders,
+                        )
+                            ? result.orders
+                            : []
 
-            setOrders(data.map(mapOrder))
+            setOrders(
+                data.map(
+                    mapOrder,
+                ),
+            )
         } catch (err) {
             console.error(
                 'Fetch orders error:',
@@ -212,7 +485,8 @@ export function AdminOrdersPage() {
             )
 
             setError(
-                err instanceof Error
+                err instanceof
+                    Error
                     ? err.message
                     : 'Failed to load orders.',
             )
@@ -227,13 +501,17 @@ export function AdminOrdersPage() {
 
     async function fetchProducts() {
         try {
-            setProductsLoading(true)
-
-            const response = await fetch(
-                `${API_BASE_URL}/api/products`,
+            setProductsLoading(
+                true,
             )
 
-            const result = await response.json()
+            const response =
+                await fetch(
+                    `${API_BASE_URL}/api/products`,
+                )
+
+            const result =
+                await response.json()
 
             if (!response.ok) {
                 throw new Error(
@@ -242,28 +520,40 @@ export function AdminOrdersPage() {
                 )
             }
 
-            const data = Array.isArray(result)
-                ? result
-                : Array.isArray(result?.data)
-                    ? result.data
-                    : Array.isArray(result?.products)
-                        ? result.products
-                        : []
+            const data =
+                Array.isArray(result)
+                    ? result
+                    : Array.isArray(
+                        result?.data,
+                    )
+                        ? result.data
+                        : Array.isArray(
+                            result?.products,
+                        )
+                            ? result.products
+                            : []
 
             const publishedProducts =
                 data.filter(
-                    (product: Product) =>
-                        product.status === 'Published',
+                    (
+                        product: Product,
+                    ) =>
+                        product.status ===
+                        'Published',
                 )
 
-            setProducts(publishedProducts)
+            setProducts(
+                publishedProducts,
+            )
         } catch (err) {
             console.error(
                 'Fetch products error:',
                 err,
             )
         } finally {
-            setProductsLoading(false)
+            setProductsLoading(
+                false,
+            )
         }
     }
 
@@ -276,97 +566,133 @@ export function AdminOrdersPage() {
        FILTER
     ===================================================== */
 
-    const filteredOrders = useMemo(() => {
-        return orders.filter((order) => {
-            const searchValue =
-                search.toLowerCase().trim()
+    const filteredOrders =
+        useMemo(() => {
+            return orders.filter(
+                (order) => {
+                    const searchValue =
+                        search
+                            .toLowerCase()
+                            .trim()
 
-            const matchesSearch =
-                order.orderNumber
-                    .toLowerCase()
-                    .includes(searchValue) ||
-                order.customer
-                    .toLowerCase()
-                    .includes(searchValue) ||
-                order.email
-                    .toLowerCase()
-                    .includes(searchValue) ||
-                order.item
-                    .toLowerCase()
-                    .includes(searchValue)
+                    const matchesSearch =
+                        order.orderNumber
+                            .toLowerCase()
+                            .includes(
+                                searchValue,
+                            ) ||
+                        order.customer
+                            .toLowerCase()
+                            .includes(
+                                searchValue,
+                            ) ||
+                        order.email
+                            .toLowerCase()
+                            .includes(
+                                searchValue,
+                            ) ||
+                        order.item
+                            .toLowerCase()
+                            .includes(
+                                searchValue,
+                            )
 
-            const matchesStatus =
-                statusFilter === 'All' ||
-                order.status === statusFilter
+                    const matchesStatus =
+                        statusFilter ===
+                        'All' ||
+                        order.status ===
+                        statusFilter
 
-            const matchesType =
-                typeFilter === 'All' ||
-                order.type === typeFilter
+                    const matchesType =
+                        typeFilter ===
+                        'All' ||
+                        order.type ===
+                        typeFilter
 
-            return (
-                matchesSearch &&
-                matchesStatus &&
-                matchesType
+                    return (
+                        matchesSearch &&
+                        matchesStatus &&
+                        matchesType
+                    )
+                },
             )
-        })
-    }, [
-        orders,
-        search,
-        statusFilter,
-        typeFilter,
-    ])
+        }, [
+            orders,
+            search,
+            statusFilter,
+            typeFilter,
+        ])
 
     /* =====================================================
        STATS
     ===================================================== */
 
-    const pendingCount = orders.filter(
-        (order) =>
-            order.status === 'Pending',
-    ).length
-
-    const processingCount = orders.filter(
-        (order) =>
-            order.status === 'Processing',
-    ).length
-
-    const completedCount = orders.filter(
-        (order) =>
-            order.status === 'Completed',
-    ).length
-
-    const totalRevenue = orders
-        .filter(
+    const pendingCount =
+        orders.filter(
             (order) =>
-                order.status !== 'Cancelled',
-        )
-        .reduce(
-            (total, order) =>
-                total + order.total,
-            0,
-        )
+                order.status ===
+                'Pending',
+        ).length
+
+    const processingCount =
+        orders.filter(
+            (order) =>
+                order.status ===
+                'Processing',
+        ).length
+
+    const completedCount =
+        orders.filter(
+            (order) =>
+                order.status ===
+                'Completed',
+        ).length
+
+    const totalRevenue =
+        orders
+            .filter(
+                (order) =>
+                    order.status !==
+                    'Cancelled',
+            )
+            .reduce(
+                (
+                    total,
+                    order,
+                ) =>
+                    total +
+                    order.total,
+                0,
+            )
 
     /* =====================================================
        SELECTED PRODUCT
     ===================================================== */
 
-    const selectedProduct = useMemo(() => {
-        const productId =
-            Number(form.productId)
+    const selectedProduct =
+        useMemo(() => {
+            const productId =
+                Number(
+                    form.productId,
+                )
 
-        return products.find(
-            (product) =>
-                product.id === productId,
-        )
-    }, [
-        form.productId,
-        products,
-    ])
+            return products.find(
+                (product) =>
+                    product.id ===
+                    productId,
+            )
+        }, [
+            form.productId,
+            products,
+        ])
 
     const calculatedTotal =
         selectedProduct
             ? selectedProduct.price *
-            Number(form.quantity || 0)
+            Number(
+                form.quantity ||
+                0,
+            )
             : 0
 
     /* =====================================================
@@ -374,14 +700,22 @@ export function AdminOrdersPage() {
     ===================================================== */
 
     function openAddModal() {
-        setEditingOrder(null)
+        setEditingOrder(
+            null,
+        )
+
         setForm({
             ...emptyForm,
             productId:
-                products.length > 0
-                    ? String(products[0].id)
+                products.length >
+                    0
+                    ? String(
+                        products[0]
+                            .id,
+                    )
                     : '',
         })
+
         setError('')
         setSuccessMessage('')
         setIsModalOpen(true)
@@ -393,15 +727,22 @@ export function AdminOrdersPage() {
         setEditingOrder(order)
 
         setForm({
-            customer: order.customer,
+            customer:
+                order.customer,
             email: order.email,
             phone: order.phone,
             productId:
                 order.productId
-                    ? String(order.productId)
+                    ? String(
+                        order.productId,
+                    )
                     : '',
-            quantity: String(order.quantity),
-            status: order.status,
+            quantity:
+                String(
+                    order.quantity,
+                ),
+            status:
+                order.status,
         })
 
         setError('')
@@ -410,7 +751,9 @@ export function AdminOrdersPage() {
     }
 
     function closeModal() {
-        if (submitting) return
+        if (submitting) {
+            return
+        }
 
         setIsModalOpen(false)
         setEditingOrder(null)
@@ -434,7 +777,9 @@ export function AdminOrdersPage() {
             form.customer.trim()
 
         const email =
-            form.email.trim().toLowerCase()
+            form.email
+                .trim()
+                .toLowerCase()
 
         const phone =
             form.phone.trim()
@@ -482,7 +827,9 @@ export function AdminOrdersPage() {
         }
 
         if (
-            !Number.isInteger(productId) ||
+            !Number.isInteger(
+                productId,
+            ) ||
             productId <= 0
         ) {
             setError(
@@ -492,7 +839,9 @@ export function AdminOrdersPage() {
         }
 
         if (
-            !Number.isInteger(quantity) ||
+            !Number.isInteger(
+                quantity,
+            ) ||
             quantity <= 0
         ) {
             setError(
@@ -535,10 +884,12 @@ export function AdminOrdersPage() {
                                 'Content-Type':
                                     'application/json',
                             },
-                            body: JSON.stringify({
-                                status:
-                                    form.status,
-                            }),
+                            body: JSON.stringify(
+                                {
+                                    status:
+                                        form.status,
+                                },
+                            ),
                         },
                     )
 
@@ -576,17 +927,19 @@ export function AdminOrdersPage() {
                             'Content-Type':
                                 'application/json',
                         },
-                        body: JSON.stringify({
-                            product_id:
-                                productId,
-                            customer_name:
-                                customer,
-                            customer_email:
-                                email,
-                            customer_phone:
-                                phone,
-                            quantity,
-                        }),
+                        body: JSON.stringify(
+                            {
+                                product_id:
+                                    productId,
+                                customer_name:
+                                    customer,
+                                customer_email:
+                                    email,
+                                customer_phone:
+                                    phone,
+                                quantity,
+                            },
+                        ),
                     },
                 )
 
@@ -615,7 +968,8 @@ export function AdminOrdersPage() {
             )
 
             setError(
-                err instanceof Error
+                err instanceof
+                    Error
                     ? err.message
                     : 'Failed to save order.',
             )
@@ -637,14 +991,18 @@ export function AdminOrdersPage() {
                     item.id === id,
             )
 
-        if (!order) return
+        if (!order) {
+            return
+        }
 
         const confirmed =
             window.confirm(
                 `Are you sure you want to delete "${order.orderNumber}"?`,
             )
 
-        if (!confirmed) return
+        if (!confirmed) {
+            return
+        }
 
         try {
             setDeletingId(id)
@@ -673,7 +1031,8 @@ export function AdminOrdersPage() {
                 (current) =>
                     current.filter(
                         (item) =>
-                            item.id !== id,
+                            item.id !==
+                            id,
                     ),
             )
 
@@ -687,7 +1046,8 @@ export function AdminOrdersPage() {
             )
 
             setError(
-                err instanceof Error
+                err instanceof
+                    Error
                     ? err.message
                     : 'Failed to delete order.',
             )
@@ -711,41 +1071,98 @@ export function AdminOrdersPage() {
     }
 
     return (
-        <div className="space-y-8">
+        <div
+            className={`
+                space-y-8
+                ${pageSurface}
+                ${pageText}
+            `}
+        >
             {/* =================================================
                HEADER
             ================================================= */}
 
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                    <p className="text-sm text-text-muted">
-                        Admin Panel
+                    <p
+                        className="
+                            text-[10px]
+                            font-bold
+                            uppercase
+                            tracking-[0.18em]
+                            text-violet-500
+                        "
+                    >
+                        Business
                     </p>
 
-                    <h1 className="mt-1 font-display text-3xl font-bold text-text-primary">
+                    <h1
+                        className="
+                            mt-1
+                            text-3xl
+                            font-bold
+                            tracking-[-0.035em]
+                        "
+                    >
                         Orders
                     </h1>
 
-                    <p className="mt-2 text-sm text-text-secondary">
-                        Manage customer orders and order status.
+                    <p
+                        className={`
+                            mt-2
+                            text-sm
+                            ${secondaryText}
+                        `}
+                    >
+                        Manage customer orders
+                        and order status.
                     </p>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row">
                     <button
                         type="button"
                         onClick={
                             handleRefresh
                         }
-                        disabled={loading}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-border-default px-4 py-2.5 text-sm font-semibold text-text-secondary transition-colors hover:bg-bg-base hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={
+                            loading
+                        }
+                        className={`
+                            inline-flex
+                            items-center
+                            justify-center
+                            gap-2
+                            rounded-xl
+                            border
+                            px-4
+                            py-2.5
+                            text-sm
+                            font-semibold
+                            transition-all
+                            disabled:cursor-not-allowed
+                            disabled:opacity-50
+
+                            ${border}
+                            ${secondaryText}
+
+                            ${isDark
+                                ? 'bg-white/[0.02] hover:bg-white/[0.05] hover:text-white'
+                                : 'bg-white hover:bg-neutral-50 hover:text-neutral-950'
+                            }
+                        `}
                     >
                         <RefreshCw
-                            className={`h-4 w-4 ${loading
-                                ? 'animate-spin'
-                                : ''
-                                }`}
+                            className={`
+                                h-4
+                                w-4
+                                ${loading
+                                    ? 'animate-spin'
+                                    : ''
+                                }
+                            `}
                         />
+
                         Refresh
                     </button>
 
@@ -754,7 +1171,23 @@ export function AdminOrdersPage() {
                         onClick={
                             openAddModal
                         }
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-secondary"
+                        className="
+                            inline-flex
+                            items-center
+                            justify-center
+                            gap-2
+                            rounded-xl
+                            bg-violet-600
+                            px-4
+                            py-2.5
+                            text-sm
+                            font-semibold
+                            text-white
+                            shadow-[0_8px_24px_rgba(124,58,237,0.18)]
+                            transition-all
+                            hover:-translate-y-0.5
+                            hover:bg-violet-700
+                        "
                     >
                         <Plus className="h-4 w-4" />
                         Add Order
@@ -767,13 +1200,35 @@ export function AdminOrdersPage() {
             ================================================= */}
 
             {error && (
-                <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm text-red-400">
+                <div
+                    className="
+                        rounded-xl
+                        border
+                        border-red-500/20
+                        bg-red-500/10
+                        px-5
+                        py-4
+                        text-sm
+                        text-red-500
+                    "
+                >
                     {error}
                 </div>
             )}
 
             {successMessage && (
-                <div className="rounded-xl border border-green-500/20 bg-green-500/10 px-5 py-4 text-sm text-green-400">
+                <div
+                    className="
+                        rounded-xl
+                        border
+                        border-emerald-500/20
+                        bg-emerald-500/10
+                        px-5
+                        py-4
+                        text-sm
+                        text-emerald-500
+                    "
+                >
                     {successMessage}
                 </div>
             )}
@@ -782,12 +1237,25 @@ export function AdminOrdersPage() {
                STATS
             ================================================= */}
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+            <div
+                className="
+                    grid
+                    grid-cols-1
+                    gap-4
+                    sm:grid-cols-2
+                    lg:grid-cols-3
+                    xl:grid-cols-5
+                "
+            >
                 <StatCard
                     label="Total Orders"
                     value={String(
                         orders.length,
                     )}
+                    isDark={isDark}
+                    icon={
+                        <ShoppingBag className="h-5 w-5" />
+                    }
                 />
 
                 <StatCard
@@ -795,6 +1263,11 @@ export function AdminOrdersPage() {
                     value={String(
                         pendingCount,
                     )}
+                    isDark={isDark}
+                    icon={
+                        <ShoppingBag className="h-5 w-5" />
+                    }
+                    accent="amber"
                 />
 
                 <StatCard
@@ -802,6 +1275,11 @@ export function AdminOrdersPage() {
                     value={String(
                         processingCount,
                     )}
+                    isDark={isDark}
+                    icon={
+                        <RefreshCw className="h-5 w-5" />
+                    }
+                    accent="blue"
                 />
 
                 <StatCard
@@ -809,6 +1287,11 @@ export function AdminOrdersPage() {
                     value={String(
                         completedCount,
                     )}
+                    isDark={isDark}
+                    icon={
+                        <Package className="h-5 w-5" />
+                    }
+                    accent="green"
                 />
 
                 <StatCard
@@ -816,6 +1299,11 @@ export function AdminOrdersPage() {
                     value={formatCurrency(
                         totalRevenue,
                     )}
+                    isDark={isDark}
+                    icon={
+                        <TrendingUpIcon />
+                    }
+                    accent="violet"
                 />
             </div>
 
@@ -823,14 +1311,36 @@ export function AdminOrdersPage() {
                SEARCH & FILTERS
             ================================================= */}
 
-            <div className="rounded-xl border border-border-default bg-bg-surface p-5">
+            <div
+                className={`
+                    rounded-2xl
+                    border
+                    p-5
+
+                    ${cardBg}
+                    ${border}
+                `}
+            >
                 <div className="grid gap-4 md:grid-cols-[1fr_200px_200px]">
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+                        <Search
+                            className={`
+                                absolute
+                                left-3
+                                top-1/2
+                                h-4
+                                w-4
+                                -translate-y-1/2
+
+                                ${mutedText}
+                            `}
+                        />
 
                         <input
                             type="text"
-                            value={search}
+                            value={
+                                search
+                            }
                             onChange={(
                                 event,
                             ) =>
@@ -840,8 +1350,27 @@ export function AdminOrdersPage() {
                                         .value,
                                 )
                             }
-                            placeholder="Search orders..."
-                            className="w-full rounded-lg border border-border-default bg-bg-base py-3 pl-10 pr-4 text-sm text-text-primary outline-none transition focus:border-brand-primary"
+                            placeholder="Search order, customer, email, or item..."
+                            className={`
+                                w-full
+                                rounded-xl
+                                border
+                                py-3
+                                pl-10
+                                pr-4
+                                text-sm
+                                outline-none
+                                transition-colors
+
+                                ${border}
+                                ${inputBg}
+                                ${pageText}
+
+                                ${isDark
+                                    ? 'placeholder:text-white/25 focus:border-violet-500/50'
+                                    : 'placeholder:text-neutral-400 focus:border-violet-400'
+                                }
+                            `}
                         />
                     </div>
 
@@ -858,7 +1387,24 @@ export function AdminOrdersPage() {
                                     .value,
                             )
                         }
-                        className="rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary"
+                        className={`
+                            rounded-xl
+                            border
+                            px-4
+                            py-3
+                            text-sm
+                            outline-none
+                            transition-colors
+
+                            ${border}
+                            ${inputBg}
+                            ${pageText}
+
+                            ${isDark
+                                ? 'focus:border-violet-500/50'
+                                : 'focus:border-violet-400'
+                            }
+                        `}
                     >
                         <option value="All">
                             All Types
@@ -886,7 +1432,24 @@ export function AdminOrdersPage() {
                                     .value,
                             )
                         }
-                        className="rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary"
+                        className={`
+                            rounded-xl
+                            border
+                            px-4
+                            py-3
+                            text-sm
+                            outline-none
+                            transition-colors
+
+                            ${border}
+                            ${inputBg}
+                            ${pageText}
+
+                            ${isDark
+                                ? 'focus:border-violet-500/50'
+                                : 'focus:border-violet-400'
+                            }
+                        `}
                     >
                         <option value="All">
                             All Status
@@ -915,44 +1478,163 @@ export function AdminOrdersPage() {
                ORDERS TABLE
             ================================================= */}
 
-            <div className="overflow-hidden rounded-xl border border-border-default bg-bg-surface">
+            <div
+                className={`
+                    overflow-hidden
+                    rounded-2xl
+                    border
+
+                    ${cardBg}
+                    ${border}
+                `}
+            >
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-[1250px] text-left text-sm">
-                        <thead className="border-b border-border-default bg-bg-base">
+                        <thead
+                            className={`
+                                border-b
+
+                                ${divider}
+
+                                ${isDark
+                                    ? 'bg-white/[0.02]'
+                                    : 'bg-neutral-50'
+                                }
+                            `}
+                        >
                             <tr>
-                                <th className="px-6 py-4 font-semibold text-text-primary">
+                                <th
+                                    className={`
+                                        px-6
+                                        py-4
+                                        text-xs
+                                        font-bold
+                                        uppercase
+                                        tracking-[0.08em]
+
+                                        ${mutedText}
+                                    `}
+                                >
                                     Order
                                 </th>
 
-                                <th className="px-6 py-4 font-semibold text-text-primary">
+                                <th
+                                    className={`
+                                        px-6
+                                        py-4
+                                        text-xs
+                                        font-bold
+                                        uppercase
+                                        tracking-[0.08em]
+
+                                        ${mutedText}
+                                    `}
+                                >
                                     Customer
                                 </th>
 
-                                <th className="px-6 py-4 font-semibold text-text-primary">
+                                <th
+                                    className={`
+                                        px-6
+                                        py-4
+                                        text-xs
+                                        font-bold
+                                        uppercase
+                                        tracking-[0.08em]
+
+                                        ${mutedText}
+                                    `}
+                                >
                                     Item
                                 </th>
 
-                                <th className="px-6 py-4 font-semibold text-text-primary">
+                                <th
+                                    className={`
+                                        px-6
+                                        py-4
+                                        text-xs
+                                        font-bold
+                                        uppercase
+                                        tracking-[0.08em]
+
+                                        ${mutedText}
+                                    `}
+                                >
                                     Type
                                 </th>
 
-                                <th className="px-6 py-4 font-semibold text-text-primary">
+                                <th
+                                    className={`
+                                        px-6
+                                        py-4
+                                        text-xs
+                                        font-bold
+                                        uppercase
+                                        tracking-[0.08em]
+
+                                        ${mutedText}
+                                    `}
+                                >
                                     Qty
                                 </th>
 
-                                <th className="px-6 py-4 font-semibold text-text-primary">
+                                <th
+                                    className={`
+                                        px-6
+                                        py-4
+                                        text-xs
+                                        font-bold
+                                        uppercase
+                                        tracking-[0.08em]
+
+                                        ${mutedText}
+                                    `}
+                                >
                                     Total
                                 </th>
 
-                                <th className="px-6 py-4 font-semibold text-text-primary">
+                                <th
+                                    className={`
+                                        px-6
+                                        py-4
+                                        text-xs
+                                        font-bold
+                                        uppercase
+                                        tracking-[0.08em]
+
+                                        ${mutedText}
+                                    `}
+                                >
                                     Date
                                 </th>
 
-                                <th className="px-6 py-4 font-semibold text-text-primary">
+                                <th
+                                    className={`
+                                        px-6
+                                        py-4
+                                        text-xs
+                                        font-bold
+                                        uppercase
+                                        tracking-[0.08em]
+
+                                        ${mutedText}
+                                    `}
+                                >
                                     Status
                                 </th>
 
-                                <th className="px-6 py-4 font-semibold text-text-primary">
+                                <th
+                                    className={`
+                                        px-6
+                                        py-4
+                                        text-xs
+                                        font-bold
+                                        uppercase
+                                        tracking-[0.08em]
+
+                                        ${mutedText}
+                                    `}
+                                >
                                     Actions
                                 </th>
                             </tr>
@@ -962,11 +1644,24 @@ export function AdminOrdersPage() {
                             {loading ? (
                                 <tr>
                                     <td
-                                        colSpan={9}
+                                        colSpan={
+                                            9
+                                        }
                                         className="px-6 py-16 text-center"
                                     >
-                                        <div className="flex items-center justify-center gap-3 text-text-muted">
-                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                        <div
+                                            className={`
+                                                flex
+                                                items-center
+                                                justify-center
+                                                gap-3
+                                                text-sm
+
+                                                ${secondaryText}
+                                            `}
+                                        >
+                                            <Loader2 className="h-5 w-5 animate-spin text-violet-500" />
+
                                             <span>
                                                 Loading orders...
                                             </span>
@@ -983,23 +1678,49 @@ export function AdminOrdersPage() {
                                                 key={
                                                     order.id
                                                 }
-                                                className="border-b border-border-default last:border-0"
+                                                className={`
+                                                    border-b
+                                                    transition-colors
+                                                    last:border-b-0
+
+                                                    ${divider}
+                                                    ${hoverRow}
+                                                `}
                                             >
                                                 {/* Order */}
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="rounded-lg bg-brand-primary/10 p-2 text-brand-primary">
-                                                            <ShoppingBag className="h-5 w-5" />
+                                                        <div
+                                                            className="
+                                                                flex
+                                                                h-9
+                                                                w-9
+                                                                shrink-0
+                                                                items-center
+                                                                justify-center
+                                                                rounded-lg
+                                                                bg-violet-500/10
+                                                                text-violet-500
+                                                            "
+                                                        >
+                                                            <ShoppingBag className="h-4 w-4" />
                                                         </div>
 
                                                         <div>
-                                                            <p className="font-medium text-text-primary">
+                                                            <p className="font-semibold">
                                                                 {
                                                                     order.orderNumber
                                                                 }
                                                             </p>
 
-                                                            <p className="text-xs text-text-muted">
+                                                            <p
+                                                                className={`
+                                                                    mt-0.5
+                                                                    text-xs
+
+                                                                    ${mutedText}
+                                                                `}
+                                                            >
                                                                 ID #
                                                                 {
                                                                     order.id
@@ -1012,20 +1733,34 @@ export function AdminOrdersPage() {
                                                 {/* Customer */}
                                                 <td className="px-6 py-4">
                                                     <div>
-                                                        <p className="font-medium text-text-primary">
+                                                        <p className="font-medium">
                                                             {
                                                                 order.customer
                                                             }
                                                         </p>
 
-                                                        <p className="mt-1 text-xs text-text-muted">
+                                                        <p
+                                                            className={`
+                                                                mt-1
+                                                                text-xs
+
+                                                                ${mutedText}
+                                                            `}
+                                                        >
                                                             {
                                                                 order.email
                                                             }
                                                         </p>
 
                                                         {order.phone && (
-                                                            <p className="mt-1 text-xs text-text-muted">
+                                                            <p
+                                                                className={`
+                                                                    mt-1
+                                                                    text-xs
+
+                                                                    ${mutedText}
+                                                                `}
+                                                            >
                                                                 {
                                                                     order.phone
                                                                 }
@@ -1036,7 +1771,13 @@ export function AdminOrdersPage() {
 
                                                 {/* Item */}
                                                 <td className="px-6 py-4">
-                                                    <p className="max-w-xs text-text-secondary">
+                                                    <p
+                                                        className={`
+                                                            max-w-xs
+
+                                                            ${secondaryText}
+                                                        `}
+                                                    >
                                                         {
                                                             order.item
                                                         }
@@ -1044,7 +1785,14 @@ export function AdminOrdersPage() {
 
                                                     {order.unitPrice >
                                                         0 && (
-                                                            <p className="mt-1 text-xs text-text-muted">
+                                                            <p
+                                                                className={`
+                                                                mt-1
+                                                                text-xs
+
+                                                                ${mutedText}
+                                                            `}
+                                                            >
                                                                 {formatCurrency(
                                                                     order.unitPrice,
                                                                 )}{' '}
@@ -1055,8 +1803,25 @@ export function AdminOrdersPage() {
 
                                                 {/* Type */}
                                                 <td className="px-6 py-4">
-                                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-bg-base px-3 py-1 text-xs font-medium text-text-secondary">
+                                                    <span
+                                                        className={`
+                                                            inline-flex
+                                                            items-center
+                                                            gap-1.5
+                                                            rounded-full
+                                                            px-3
+                                                            py-1
+                                                            text-xs
+                                                            font-medium
+
+                                                            ${isDark
+                                                                ? 'bg-white/[0.05] text-white/55'
+                                                                : 'bg-neutral-100 text-neutral-600'
+                                                            }
+                                                        `}
+                                                    >
                                                         <Package className="h-3.5 w-3.5" />
+
                                                         {
                                                             order.type
                                                         }
@@ -1064,21 +1829,37 @@ export function AdminOrdersPage() {
                                                 </td>
 
                                                 {/* Quantity */}
-                                                <td className="px-6 py-4 text-text-secondary">
+                                                <td
+                                                    className={`
+                                                        px-6
+                                                        py-4
+
+                                                        ${secondaryText}
+                                                    `}
+                                                >
                                                     {
                                                         order.quantity
                                                     }
                                                 </td>
 
                                                 {/* Total */}
-                                                <td className="px-6 py-4 font-medium text-text-primary">
-                                                    {formatCurrency(
-                                                        order.total,
-                                                    )}
+                                                <td className="px-6 py-4">
+                                                    <span className="font-semibold">
+                                                        {formatCurrency(
+                                                            order.total,
+                                                        )}
+                                                    </span>
                                                 </td>
 
                                                 {/* Date */}
-                                                <td className="px-6 py-4 text-text-secondary">
+                                                <td
+                                                    className={`
+                                                        px-6
+                                                        py-4
+
+                                                        ${secondaryText}
+                                                    `}
+                                                >
                                                     {formatDate(
                                                         order.date,
                                                     )}
@@ -1089,6 +1870,9 @@ export function AdminOrdersPage() {
                                                     <StatusBadge
                                                         status={
                                                             order.status
+                                                        }
+                                                        isDark={
+                                                            isDark
                                                         }
                                                     />
                                                 </td>
@@ -1103,7 +1887,19 @@ export function AdminOrdersPage() {
                                                                     order,
                                                                 )
                                                             }
-                                                            className="rounded-lg border border-border-default p-2 text-text-muted transition-colors hover:text-text-primary"
+                                                            className={`
+                                                                rounded-lg
+                                                                border
+                                                                p-2
+                                                                transition-all
+
+                                                                ${border}
+
+                                                                ${isDark
+                                                                    ? 'text-white/45 hover:bg-white/[0.05] hover:text-white'
+                                                                    : 'text-neutral-400 hover:bg-neutral-50 hover:text-neutral-950'
+                                                                }
+                                                            `}
                                                             title="Edit order"
                                                         >
                                                             <Edit className="h-4 w-4" />
@@ -1120,7 +1916,18 @@ export function AdminOrdersPage() {
                                                                 deletingId ===
                                                                 order.id
                                                             }
-                                                            className="rounded-lg border border-border-default p-2 text-red-400 transition-colors hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                                            className={`
+                                                                rounded-lg
+                                                                border
+                                                                p-2
+                                                                text-red-500
+                                                                transition-all
+                                                                hover:bg-red-500/10
+                                                                disabled:cursor-not-allowed
+                                                                disabled:opacity-50
+
+                                                                ${border}
+                                                            `}
                                                             title="Delete order"
                                                         >
                                                             {deletingId ===
@@ -1143,9 +1950,17 @@ export function AdminOrdersPage() {
                                                     colSpan={
                                                         9
                                                     }
-                                                    className="px-6 py-16 text-center text-sm text-text-muted"
+                                                    className={`
+                                                    px-6
+                                                    py-16
+                                                    text-center
+                                                    text-sm
+
+                                                    ${mutedText}
+                                                `}
                                                 >
-                                                    No orders found.
+                                                    No orders
+                                                    found.
                                                 </td>
                                             </tr>
                                         )}
@@ -1161,18 +1976,81 @@ export function AdminOrdersPage() {
             ================================================= */}
 
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
-                    <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-border-default bg-bg-surface shadow-2xl">
+                <div
+                    className="
+                        fixed
+                        inset-0
+                        z-50
+                        flex
+                        items-center
+                        justify-center
+                        bg-black/60
+                        px-4
+                        py-6
+                        backdrop-blur-sm
+                    "
+                >
+                    <div
+                        className={`
+                            max-h-[90vh]
+                            w-full
+                            max-w-3xl
+                            overflow-y-auto
+                            rounded-2xl
+                            border
+                            shadow-2xl
+
+                            ${cardBg}
+                            ${border}
+                        `}
+                    >
                         {/* Modal Header */}
-                        <div className="flex items-center justify-between border-b border-border-default px-6 py-5">
+                        <div
+                            className={`
+                                flex
+                                items-center
+                                justify-between
+                                border-b
+                                px-6
+                                py-5
+
+                                ${divider}
+                            `}
+                        >
                             <div>
-                                <h2 className="font-display text-xl font-bold text-text-primary">
+                                <p
+                                    className="
+                                        text-[10px]
+                                        font-bold
+                                        uppercase
+                                        tracking-[0.16em]
+                                        text-violet-500
+                                    "
+                                >
+                                    Orders
+                                </p>
+
+                                <h2
+                                    className="
+                                        mt-1
+                                        text-xl
+                                        font-bold
+                                        tracking-[-0.02em]
+                                    "
+                                >
                                     {editingOrder
                                         ? 'Edit Order'
                                         : 'Add Order'}
                                 </h2>
 
-                                <p className="mt-1 text-sm text-text-muted">
+                                <p
+                                    className={`
+                                        mt-1
+                                        text-sm
+
+                                        ${mutedText}
+                                    `}
+                                >
                                     {editingOrder
                                         ? 'Update order status.'
                                         : 'Create a new product order.'}
@@ -1187,7 +2065,15 @@ export function AdminOrdersPage() {
                                 disabled={
                                     submitting
                                 }
-                                className="rounded-lg p-2 text-text-muted transition-colors hover:bg-bg-base hover:text-text-primary disabled:opacity-50"
+                                className={`
+                                    rounded-lg
+                                    p-2
+                                    transition-colors
+                                    disabled:opacity-50
+
+                                    ${secondaryText}
+                                    ${hoverRow}
+                                `}
                                 aria-label="Close modal"
                             >
                                 <X className="h-5 w-5" />
@@ -1202,7 +2088,18 @@ export function AdminOrdersPage() {
                         >
                             <div className="space-y-5 px-6 py-6">
                                 {error && (
-                                    <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                                    <div
+                                        className="
+                                            rounded-xl
+                                            border
+                                            border-red-500/20
+                                            bg-red-500/10
+                                            px-4
+                                            py-3
+                                            text-sm
+                                            text-red-500
+                                        "
+                                    >
                                         {
                                             error
                                         }
@@ -1214,7 +2111,14 @@ export function AdminOrdersPage() {
                                     <div>
                                         <label
                                             htmlFor="order-customer"
-                                            className="mb-2 block text-sm font-medium text-text-primary"
+                                            className={`
+                                                mb-2
+                                                block
+                                                text-sm
+                                                font-semibold
+
+                                                ${pageText}
+                                            `}
                                         >
                                             Customer
                                         </label>
@@ -1244,14 +2148,40 @@ export function AdminOrdersPage() {
                                             disabled={
                                                 submitting
                                             }
-                                            className="w-full rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary disabled:opacity-50"
+                                            className={`
+                                                w-full
+                                                rounded-xl
+                                                border
+                                                px-4
+                                                py-3
+                                                text-sm
+                                                outline-none
+                                                transition-colors
+                                                disabled:opacity-50
+
+                                                ${border}
+                                                ${inputBg}
+                                                ${pageText}
+
+                                                ${isDark
+                                                    ? 'placeholder:text-white/25 focus:border-violet-500/50'
+                                                    : 'placeholder:text-neutral-400 focus:border-violet-400'
+                                                }
+                                            `}
                                         />
                                     </div>
 
                                     <div>
                                         <label
                                             htmlFor="order-email"
-                                            className="mb-2 block text-sm font-medium text-text-primary"
+                                            className={`
+                                                mb-2
+                                                block
+                                                text-sm
+                                                font-semibold
+
+                                                ${pageText}
+                                            `}
                                         >
                                             Customer Email
                                         </label>
@@ -1280,7 +2210,26 @@ export function AdminOrdersPage() {
                                             disabled={
                                                 submitting
                                             }
-                                            className="w-full rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary disabled:opacity-50"
+                                            className={`
+                                                w-full
+                                                rounded-xl
+                                                border
+                                                px-4
+                                                py-3
+                                                text-sm
+                                                outline-none
+                                                transition-colors
+                                                disabled:opacity-50
+
+                                                ${border}
+                                                ${inputBg}
+                                                ${pageText}
+
+                                                ${isDark
+                                                    ? 'placeholder:text-white/25 focus:border-violet-500/50'
+                                                    : 'placeholder:text-neutral-400 focus:border-violet-400'
+                                                }
+                                            `}
                                         />
                                     </div>
                                 </div>
@@ -1289,7 +2238,14 @@ export function AdminOrdersPage() {
                                 <div>
                                     <label
                                         htmlFor="order-phone"
-                                        className="mb-2 block text-sm font-medium text-text-primary"
+                                        className={`
+                                            mb-2
+                                            block
+                                            text-sm
+                                            font-semibold
+
+                                            ${pageText}
+                                        `}
                                     >
                                         Customer Phone
                                     </label>
@@ -1318,7 +2274,26 @@ export function AdminOrdersPage() {
                                         disabled={
                                             submitting
                                         }
-                                        className="w-full rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary disabled:opacity-50"
+                                        className={`
+                                            w-full
+                                            rounded-xl
+                                            border
+                                            px-4
+                                            py-3
+                                            text-sm
+                                            outline-none
+                                            transition-colors
+                                            disabled:opacity-50
+
+                                            ${border}
+                                            ${inputBg}
+                                            ${pageText}
+
+                                            ${isDark
+                                                ? 'placeholder:text-white/25 focus:border-violet-500/50'
+                                                : 'placeholder:text-neutral-400 focus:border-violet-400'
+                                            }
+                                        `}
                                     />
                                 </div>
 
@@ -1326,7 +2301,14 @@ export function AdminOrdersPage() {
                                 <div>
                                     <label
                                         htmlFor="order-product"
-                                        className="mb-2 block text-sm font-medium text-text-primary"
+                                        className={`
+                                            mb-2
+                                            block
+                                            text-sm
+                                            font-semibold
+
+                                            ${pageText}
+                                        `}
                                     >
                                         Product
                                     </label>
@@ -1358,7 +2340,27 @@ export function AdminOrdersPage() {
                                                 editingOrder,
                                             )
                                         }
-                                        className="w-full rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary disabled:cursor-not-allowed disabled:opacity-50"
+                                        className={`
+                                            w-full
+                                            rounded-xl
+                                            border
+                                            px-4
+                                            py-3
+                                            text-sm
+                                            outline-none
+                                            transition-colors
+                                            disabled:cursor-not-allowed
+                                            disabled:opacity-50
+
+                                            ${border}
+                                            ${inputBg}
+                                            ${pageText}
+
+                                            ${isDark
+                                                ? 'focus:border-violet-500/50'
+                                                : 'focus:border-violet-400'
+                                            }
+                                        `}
                                     >
                                         <option value="">
                                             {productsLoading
@@ -1398,8 +2400,10 @@ export function AdminOrdersPage() {
                                         products.length ===
                                         0 &&
                                         !productsLoading && (
-                                            <p className="mt-2 text-xs text-red-400">
-                                                No published products are available.
+                                            <p className="mt-2 text-xs text-red-500">
+                                                No published
+                                                products are
+                                                available.
                                             </p>
                                         )}
                                 </div>
@@ -1409,7 +2413,14 @@ export function AdminOrdersPage() {
                                     <div>
                                         <label
                                             htmlFor="order-quantity"
-                                            className="mb-2 block text-sm font-medium text-text-primary"
+                                            className={`
+                                                mb-2
+                                                block
+                                                text-sm
+                                                font-semibold
+
+                                                ${pageText}
+                                            `}
                                         >
                                             Quantity
                                         </label>
@@ -1444,15 +2455,42 @@ export function AdminOrdersPage() {
                                             disabled={
                                                 submitting
                                             }
-                                            className="w-full rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary disabled:opacity-50"
+                                            className={`
+                                                w-full
+                                                rounded-xl
+                                                border
+                                                px-4
+                                                py-3
+                                                text-sm
+                                                outline-none
+                                                transition-colors
+                                                disabled:opacity-50
+
+                                                ${border}
+                                                ${inputBg}
+                                                ${pageText}
+
+                                                ${isDark
+                                                    ? 'focus:border-violet-500/50'
+                                                    : 'focus:border-violet-400'
+                                                }
+                                            `}
                                         />
 
                                         {selectedProduct && (
-                                            <p className="mt-2 text-xs text-text-muted">
+                                            <p
+                                                className={`
+                                                    mt-2
+                                                    text-xs
+
+                                                    ${mutedText}
+                                                `}
+                                            >
                                                 {
                                                     selectedProduct.stock
                                                 }{' '}
-                                                item(s) available
+                                                item(s)
+                                                available
                                             </p>
                                         )}
                                     </div>
@@ -1461,22 +2499,53 @@ export function AdminOrdersPage() {
                                     <div>
                                         <label
                                             htmlFor="order-total"
-                                            className="mb-2 block text-sm font-medium text-text-primary"
+                                            className={`
+                                                mb-2
+                                                block
+                                                text-sm
+                                                font-semibold
+
+                                                ${pageText}
+                                            `}
                                         >
                                             Total Amount
                                         </label>
 
                                         <div
                                             id="order-total"
-                                            className="flex min-h-[46px] items-center rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm font-semibold text-text-primary"
+                                            className={`
+                                                flex
+                                                min-h-[46px]
+                                                items-center
+                                                rounded-xl
+                                                border
+                                                px-4
+                                                py-3
+                                                text-sm
+                                                font-semibold
+
+                                                ${border}
+                                                ${inputBg}
+                                                ${pageText}
+                                            `}
                                         >
                                             {formatCurrency(
                                                 calculatedTotal,
                                             )}
                                         </div>
 
-                                        <p className="mt-2 text-xs text-text-muted">
-                                            Calculated automatically from product price.
+                                        <p
+                                            className={`
+                                                mt-2
+                                                text-xs
+
+                                                ${mutedText}
+                                            `}
+                                        >
+                                            Calculated
+                                            automatically
+                                            from product
+                                            price.
                                         </p>
                                     </div>
                                 </div>
@@ -1485,7 +2554,14 @@ export function AdminOrdersPage() {
                                 <div>
                                     <label
                                         htmlFor="order-status"
-                                        className="mb-2 block text-sm font-medium text-text-primary"
+                                        className={`
+                                            mb-2
+                                            block
+                                            text-sm
+                                            font-semibold
+
+                                            ${pageText}
+                                        `}
                                     >
                                         Status
                                     </label>
@@ -1503,16 +2579,36 @@ export function AdminOrdersPage() {
                                                     current,
                                                 ) => ({
                                                     ...current,
-                                                    status: event
-                                                        .target
-                                                        .value as OrderStatus,
+                                                    status:
+                                                        event
+                                                            .target
+                                                            .value as OrderStatus,
                                                 }),
                                             )
                                         }
                                         disabled={
                                             submitting
                                         }
-                                        className="w-full rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary disabled:opacity-50"
+                                        className={`
+                                            w-full
+                                            rounded-xl
+                                            border
+                                            px-4
+                                            py-3
+                                            text-sm
+                                            outline-none
+                                            transition-colors
+                                            disabled:opacity-50
+
+                                            ${border}
+                                            ${inputBg}
+                                            ${pageText}
+
+                                            ${isDark
+                                                ? 'focus:border-violet-500/50'
+                                                : 'focus:border-violet-400'
+                                            }
+                                        `}
                                     >
                                         <option value="Pending">
                                             Pending
@@ -1534,14 +2630,47 @@ export function AdminOrdersPage() {
 
                                 {/* Info */}
                                 {!editingOrder && (
-                                    <div className="rounded-lg border border-brand-primary/20 bg-brand-primary/5 px-4 py-3 text-sm text-text-secondary">
-                                        When the order is created, the product stock will automatically be reduced by the selected quantity.
+                                    <div
+                                        className={`
+                                            rounded-xl
+                                            border
+                                            border-violet-500/20
+                                            px-4
+                                            py-3
+                                            text-sm
+
+                                            ${isDark
+                                                ? 'bg-violet-500/[0.05] text-white/55'
+                                                : 'bg-violet-50 text-neutral-600'
+                                            }
+                                        `}
+                                    >
+                                        When the
+                                        order is
+                                        created,
+                                        product stock
+                                        will
+                                        automatically
+                                        be reduced by
+                                        the selected
+                                        quantity.
                                     </div>
                                 )}
                             </div>
 
                             {/* Modal Footer */}
-                            <div className="flex justify-end gap-3 border-t border-border-default px-6 py-5">
+                            <div
+                                className={`
+                                    flex
+                                    justify-end
+                                    gap-3
+                                    border-t
+                                    px-6
+                                    py-5
+
+                                    ${divider}
+                                `}
+                            >
                                 <button
                                     type="button"
                                     onClick={
@@ -1550,7 +2679,24 @@ export function AdminOrdersPage() {
                                     disabled={
                                         submitting
                                     }
-                                    className="rounded-lg border border-border-default px-5 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-base hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                                    className={`
+                                        rounded-xl
+                                        border
+                                        px-5
+                                        py-2.5
+                                        text-sm
+                                        font-medium
+                                        transition-colors
+                                        disabled:cursor-not-allowed
+                                        disabled:opacity-50
+
+                                        ${border}
+
+                                        ${isDark
+                                            ? 'text-white/60 hover:bg-white/[0.045] hover:text-white'
+                                            : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-950'
+                                        }
+                                    `}
                                 >
                                     Cancel
                                 </button>
@@ -1559,13 +2705,26 @@ export function AdminOrdersPage() {
                                     type="submit"
                                     disabled={
                                         submitting ||
-                                        (
-                                            !editingOrder &&
+                                        (!editingOrder &&
                                             products.length ===
-                                            0
-                                        )
+                                            0)
                                     }
-                                    className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="
+                                        inline-flex
+                                        items-center
+                                        gap-2
+                                        rounded-xl
+                                        bg-violet-600
+                                        px-5
+                                        py-2.5
+                                        text-sm
+                                        font-semibold
+                                        text-white
+                                        transition-all
+                                        hover:bg-violet-700
+                                        disabled:cursor-not-allowed
+                                        disabled:opacity-50
+                                    "
                                 >
                                     {submitting ? (
                                         <>
@@ -1593,26 +2752,77 @@ export function AdminOrdersPage() {
 }
 
 /* =========================================================
+   TRENDING ICON
+========================================================= */
+
+function TrendingUpIcon() {
+    return (
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+        >
+            <path
+                d="M3 17L9 11L13 15L21 7"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+
+            <path
+                d="M15 7H21V13"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+        </svg>
+    )
+}
+
+/* =========================================================
    STATUS BADGE
 ========================================================= */
 
 function StatusBadge({
     status,
+    isDark,
 }: {
     status: Order['status']
+    isDark: boolean
 }) {
     const statusClass =
         status === 'Pending'
-            ? 'bg-yellow-400/10 text-yellow-400'
-            : status === 'Processing'
-                ? 'bg-blue-400/10 text-blue-400'
-                : status === 'Completed'
-                    ? 'bg-green-400/10 text-green-400'
-                    : 'bg-red-400/10 text-red-400'
+            ? isDark
+                ? 'bg-amber-500/10 text-amber-400'
+                : 'bg-amber-50 text-amber-700'
+            : status ===
+                'Processing'
+                ? isDark
+                    ? 'bg-blue-500/10 text-blue-400'
+                    : 'bg-blue-50 text-blue-700'
+                : status ===
+                    'Completed'
+                    ? isDark
+                        ? 'bg-emerald-500/10 text-emerald-400'
+                        : 'bg-emerald-50 text-emerald-700'
+                    : isDark
+                        ? 'bg-red-500/10 text-red-400'
+                        : 'bg-red-50 text-red-700'
 
     return (
         <span
-            className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass}`}
+            className={`
+                inline-flex
+                rounded-full
+                px-3
+                py-1
+                text-xs
+                font-semibold
+                ${statusClass}
+            `}
         >
             {status}
         </span>
@@ -1626,23 +2836,113 @@ function StatusBadge({
 function StatCard({
     label,
     value,
+    icon,
+    isDark,
+    accent = 'violet',
 }: {
     label: string
     value: string
+    icon: React.ReactNode
+    isDark: boolean
+    accent?:
+    | 'violet'
+    | 'amber'
+    | 'blue'
+    | 'green'
 }) {
-    return (
-        <div className="rounded-xl border border-border-default bg-bg-surface p-5">
-            <div className="mb-3 flex items-center gap-2 text-brand-primary">
-                <ShoppingBag className="h-5 w-5" />
+    const accentClass =
+        accent === 'amber'
+            ? isDark
+                ? 'bg-amber-500/10 text-amber-400'
+                : 'bg-amber-50 text-amber-600'
+            : accent === 'blue'
+                ? isDark
+                    ? 'bg-blue-500/10 text-blue-400'
+                    : 'bg-blue-50 text-blue-600'
+                : accent === 'green'
+                    ? isDark
+                        ? 'bg-emerald-500/10 text-emerald-400'
+                        : 'bg-emerald-50 text-emerald-600'
+                    : isDark
+                        ? 'bg-violet-500/10 text-violet-400'
+                        : 'bg-violet-50 text-violet-600'
 
-                <span className="text-sm">
-                    {label}
-                </span>
+    return (
+        <div
+            className={`
+                rounded-2xl
+                border
+                p-5
+                transition-all
+                duration-200
+                hover:-translate-y-0.5
+                hover:shadow-lg
+
+                ${isDark
+                    ? 'border-white/[0.08] bg-[#15151b] hover:shadow-black/20'
+                    : 'border-neutral-200 bg-white hover:shadow-neutral-200/70'
+                }
+            `}
+        >
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p
+                        className={`
+                            text-sm
+
+                            ${isDark
+                                ? 'text-white/55'
+                                : 'text-neutral-600'
+                            }
+                        `}
+                    >
+                        {label}
+                    </p>
+
+                    <p
+                        className="
+                            mt-3
+                            text-2xl
+                            font-bold
+                            tracking-[-0.035em]
+                        "
+                    >
+                        {value}
+                    </p>
+                </div>
+
+                <div
+                    className={`
+                        flex
+                        h-10
+                        w-10
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-xl
+
+                        ${accentClass}
+                    `}
+                >
+                    {icon}
+                </div>
             </div>
 
-            <p className="text-2xl font-bold text-text-primary">
-                {value}
-            </p>
+            <div
+                className={`
+                    mt-5
+                    border-t
+                    pt-3
+                    text-[11px]
+
+                    ${isDark
+                        ? 'border-white/[0.06] text-white/25'
+                        : 'border-neutral-100 text-neutral-400'
+                    }
+                `}
+            >
+                39Production workspace
+            </div>
         </div>
     )
 }

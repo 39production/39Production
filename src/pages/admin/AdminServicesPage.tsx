@@ -5,9 +5,19 @@ const API_BASE_URL = 'https://39production-api.39production.workers.dev'
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const MAX_STORED_IMAGE_SIZE = 150 * 1024
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const ALLOWED_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+]
 
-type ServicePricingType = 'fixed' | 'starting_from' | 'custom_quote'
+type ServicePricingType =
+  | 'fixed'
+  | 'starting_from'
+  | 'custom_quote'
+
+type AdminTheme = 'dark' | 'light'
 
 interface Service {
   id: number
@@ -49,6 +59,75 @@ const emptyForm: ServiceForm = {
   status: 'Active',
 }
 
+interface ThemeTokens {
+  page: string
+  surface: string
+  elevated: string
+  input: string
+  border: string
+  textPrimary: string
+  textSecondary: string
+  textMuted: string
+  hover: string
+  placeholder: string
+}
+
+function useAdminTheme() {
+  const readTheme = (): AdminTheme =>
+    document.documentElement.dataset.adminTheme === 'light'
+      ? 'light'
+      : 'dark'
+
+  const [theme, setTheme] = useState<AdminTheme>(readTheme)
+
+  useEffect(() => {
+    const syncTheme = () => setTheme(readTheme())
+
+    syncTheme()
+
+    const observer = new MutationObserver(syncTheme)
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-admin-theme'],
+    })
+
+    return () => observer.disconnect()
+  }, [])
+
+  return theme
+}
+
+function getThemeTokens(theme: AdminTheme): ThemeTokens {
+  if (theme === 'light') {
+    return {
+      page: 'bg-[#f7f7fa]',
+      surface: 'bg-white',
+      elevated: 'bg-neutral-50',
+      input: 'bg-white',
+      border: 'border-neutral-200',
+      textPrimary: 'text-neutral-900',
+      textSecondary: 'text-neutral-600',
+      textMuted: 'text-neutral-500',
+      hover: 'hover:bg-neutral-50',
+      placeholder: 'placeholder:text-neutral-400',
+    }
+  }
+
+  return {
+    page: 'bg-[#0b0b0f]',
+    surface: 'bg-[#15151b]',
+    elevated: 'bg-[#1b1b22]',
+    input: 'bg-[#0f0f13]',
+    border: 'border-white/[0.08]',
+    textPrimary: 'text-white',
+    textSecondary: 'text-white/70',
+    textMuted: 'text-white/45',
+    hover: 'hover:bg-white/[0.04]',
+    placeholder: 'placeholder:text-white/25',
+  }
+}
+
 function extractToken(value: unknown): string | null {
   if (typeof value === 'string') {
     const trimmed = value.trim()
@@ -76,12 +155,20 @@ function extractToken(value: unknown): string | null {
     ]) {
       const candidate = record[key]
 
-      if (typeof candidate === 'string' && candidate.trim()) {
+      if (
+        typeof candidate === 'string' &&
+        candidate.trim()
+      ) {
         return candidate.trim()
       }
     }
 
-    for (const key of ['data', 'auth', 'session', 'user']) {
+    for (const key of [
+      'data',
+      'auth',
+      'session',
+      'user',
+    ]) {
       const candidate = extractToken(record[key])
 
       if (candidate) return candidate
@@ -118,7 +205,10 @@ function getStoredAuthTokens() {
     'user',
   ]
 
-  for (const storage of [window.localStorage, window.sessionStorage]) {
+  for (const storage of [
+    window.localStorage,
+    window.sessionStorage,
+  ]) {
     for (const key of preferredKeys) {
       try {
         add(storage.getItem(key))
@@ -128,10 +218,17 @@ function getStoredAuthTokens() {
     }
 
     try {
-      for (let index = 0; index < storage.length; index += 1) {
+      for (
+        let index = 0;
+        index < storage.length;
+        index += 1
+      ) {
         const key = storage.key(index)
 
-        if (key && !preferredKeys.includes(key)) {
+        if (
+          key &&
+          !preferredKeys.includes(key)
+        ) {
           add(storage.getItem(key))
         }
       }
@@ -146,12 +243,15 @@ function getStoredAuthTokens() {
 async function getAdminToken(): Promise<string | null> {
   for (const token of getStoredAuthTokens()) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const response = await fetch(
+        `${API_BASE_URL}/api/auth/me`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: 'no-store',
         },
-        cache: 'no-store',
-      })
+      )
 
       if (response.ok) {
         return token
@@ -164,16 +264,24 @@ async function getAdminToken(): Promise<string | null> {
   return null
 }
 
-async function adminFetch(url: string, init: RequestInit = {}) {
+async function adminFetch(
+  url: string,
+  init: RequestInit = {},
+) {
   const token = await getAdminToken()
 
   if (!token) {
-    throw new Error('Admin session not found or expired. Please login again.')
+    throw new Error(
+      'Admin session not found or expired. Please login again.',
+    )
   }
 
   const headers = new Headers(init.headers)
 
-  headers.set('Authorization', `Bearer ${token}`)
+  headers.set(
+    'Authorization',
+    `Bearer ${token}`,
+  )
 
   return fetch(url, {
     ...init,
@@ -181,8 +289,14 @@ async function adminFetch(url: string, init: RequestInit = {}) {
   })
 }
 
-function formatCurrency(value: number | null | undefined) {
-  if (value === null || value === undefined || Number.isNaN(value)) {
+function formatCurrency(
+  value: number | null | undefined,
+) {
+  if (
+    value === null ||
+    value === undefined ||
+    Number.isNaN(value)
+  ) {
     return '-'
   }
 
@@ -193,33 +307,31 @@ function formatCurrency(value: number | null | undefined) {
   }).format(value)
 }
 
-function getPricingLabel(pricingType: ServicePricingType) {
+function getPricingLabel(
+  pricingType: ServicePricingType,
+) {
   switch (pricingType) {
     case 'fixed':
       return 'Fixed Price'
-
     case 'starting_from':
       return 'Starting From'
-
     case 'custom_quote':
       return 'Custom Quote'
-
     default:
       return 'Fixed Price'
   }
 }
 
-function getPricingDescription(pricingType: ServicePricingType) {
+function getPricingDescription(
+  pricingType: ServicePricingType,
+) {
   switch (pricingType) {
     case 'fixed':
       return 'Customer can directly purchase this service at the listed price.'
-
     case 'starting_from':
       return 'Display a minimum starting price. Final price depends on project scope.'
-
     case 'custom_quote':
       return 'Hide the price and ask the customer to request a custom quotation.'
-
     default:
       return ''
   }
@@ -228,7 +340,9 @@ function getPricingDescription(pricingType: ServicePricingType) {
 function formatServicePrice(service: Service) {
   switch (service.pricing_type) {
     case 'fixed':
-      return service.price ? formatCurrency(service.price) : 'Price not set'
+      return service.price
+        ? formatCurrency(service.price)
+        : 'Price not set'
 
     case 'starting_from':
       return service.starting_price
@@ -239,13 +353,19 @@ function formatServicePrice(service: Service) {
       return 'Custom Quote'
 
     default:
-      return service.price ? formatCurrency(service.price) : 'Price not set'
+      return service.price
+        ? formatCurrency(service.price)
+        : 'Price not set'
   }
 }
 
-async function compressServiceImage(file: File): Promise<File> {
+async function compressServiceImage(
+  file: File,
+): Promise<File> {
   if (file.type === 'image/gif') {
-    if (file.size > MAX_STORED_IMAGE_SIZE) {
+    if (
+      file.size > MAX_STORED_IMAGE_SIZE
+    ) {
       throw new Error(
         'GIF must not exceed 150 KB. Please choose a smaller image or use JPG/PNG/WEBP.',
       )
@@ -287,7 +407,11 @@ async function compressServiceImage(file: File): Promise<File> {
     for (const maxDimension of dimensions) {
       const scale = Math.min(
         1,
-        maxDimension / Math.max(bitmap.width, bitmap.height),
+        maxDimension /
+        Math.max(
+          bitmap.width,
+          bitmap.height,
+        ),
       )
 
       const width = Math.max(
@@ -300,12 +424,14 @@ async function compressServiceImage(file: File): Promise<File> {
         Math.round(bitmap.height * scale),
       )
 
-      const canvas = document.createElement('canvas')
+      const canvas =
+        document.createElement('canvas')
 
       canvas.width = width
       canvas.height = height
 
-      const context = canvas.getContext('2d')
+      const context =
+        canvas.getContext('2d')
 
       if (!context) continue
 
@@ -318,22 +444,23 @@ async function compressServiceImage(file: File): Promise<File> {
       )
 
       for (const quality of qualities) {
-        const blob = await new Promise<Blob | null>((resolve) => {
-          canvas.toBlob(
-            resolve,
-            'image/webp',
-            quality,
+        const blob =
+          await new Promise<Blob | null>(
+            (resolve) => {
+              canvas.toBlob(
+                resolve,
+                'image/webp',
+                quality,
+              )
+            },
           )
-        })
 
         if (
           blob &&
           blob.size <= MAX_STORED_IMAGE_SIZE
         ) {
           return new File(
-            [
-              blob,
-            ],
+            [blob],
             `${file.name.replace(/\.[^.]+$/, '')}.webp`,
             {
               type: 'image/webp',
@@ -353,11 +480,19 @@ async function compressServiceImage(file: File): Promise<File> {
 }
 
 export function AdminServicesPage() {
-  const [services, setServices] = useState<Service[]>([])
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('All')
+  const theme = useAdminTheme()
+  const c = getThemeTokens(theme)
 
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [services, setServices] = useState<
+    Service[]
+  >([])
+
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] =
+    useState('All')
+
+  const [isModalOpen, setIsModalOpen] =
+    useState(false)
 
   const [editingService, setEditingService] =
     useState<Service | null>(null)
@@ -372,12 +507,25 @@ export function AdminServicesPage() {
     useState('')
 
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
+  const [loading, setLoading] =
+    useState(true)
+  const [submitting, setSubmitting] =
+    useState(false)
 
   useEffect(() => {
     fetchServices()
   }, [])
+
+  useEffect(() => {
+    return () => {
+      if (
+        imagePreview &&
+        imagePreview.startsWith('blob:')
+      ) {
+        URL.revokeObjectURL(imagePreview)
+      }
+    }
+  }, [imagePreview])
 
   async function fetchServices() {
     try {
@@ -399,7 +547,8 @@ export function AdminServicesPage() {
 
       if (!result.success) {
         throw new Error(
-          result.message || 'Failed to load services.',
+          result.message ||
+          'Failed to load services.',
         )
       }
 
@@ -417,50 +566,80 @@ export function AdminServicesPage() {
 
   const filteredServices = useMemo(() => {
     return services.filter((service) => {
-      const value = search.toLowerCase()
+      const value = search
+        .toLowerCase()
+        .trim()
 
       const matchesSearch =
-        service.name.toLowerCase().includes(value) ||
-        service.category.toLowerCase().includes(value) ||
-        service.description.toLowerCase().includes(value)
+        service.name
+          .toLowerCase()
+          .includes(value) ||
+        service.category
+          .toLowerCase()
+          .includes(value) ||
+        service.description
+          .toLowerCase()
+          .includes(value)
 
       const matchesStatus =
         statusFilter === 'All' ||
         service.status === statusFilter
 
-      return matchesSearch && matchesStatus
+      return (
+        matchesSearch &&
+        matchesStatus
+      )
     })
-  }, [services, search, statusFilter])
+  }, [
+    services,
+    search,
+    statusFilter,
+  ])
 
   const activeCount = services.filter(
-    (service) => service.status === 'Active',
+    (service) =>
+      service.status === 'Active',
   ).length
 
   const draftCount = services.filter(
-    (service) => service.status === 'Draft',
+    (service) =>
+      service.status === 'Draft',
   ).length
 
   function resetImageState() {
+    if (
+      imagePreview &&
+      imagePreview.startsWith('blob:')
+    ) {
+      URL.revokeObjectURL(imagePreview)
+    }
+
     setImageFile(null)
     setImagePreview('')
   }
 
   function openAddModal() {
     setEditingService(null)
-    setForm(emptyForm)
+    setForm({
+      ...emptyForm,
+    })
     resetImageState()
     setError('')
     setIsModalOpen(true)
   }
 
-  function openEditModal(service: Service) {
+  function openEditModal(
+    service: Service,
+  ) {
     setEditingService(service)
 
     setForm({
       name: service.name,
       category: service.category,
-      description: service.description,
-      pricing_type: service.pricing_type || 'fixed',
+      description:
+        service.description,
+      pricing_type:
+        service.pricing_type || 'fixed',
       price:
         service.price !== null &&
           service.price !== undefined
@@ -468,14 +647,19 @@ export function AdminServicesPage() {
           : '',
       starting_price:
         service.starting_price !== null &&
-          service.starting_price !== undefined
-          ? String(service.starting_price)
+          service.starting_price !==
+          undefined
+          ? String(
+            service.starting_price,
+          )
           : '',
       status: service.status,
     })
 
     setImageFile(null)
-    setImagePreview(service.image_url || '')
+    setImagePreview(
+      service.image_url || '',
+    )
     setError('')
     setIsModalOpen(true)
   }
@@ -485,7 +669,9 @@ export function AdminServicesPage() {
 
     setIsModalOpen(false)
     setEditingService(null)
-    setForm(emptyForm)
+    setForm({
+      ...emptyForm,
+    })
     resetImageState()
     setError('')
   }
@@ -493,28 +679,40 @@ export function AdminServicesPage() {
   function handleImageChange(
     event: React.ChangeEvent<HTMLInputElement>,
   ) {
-    const file = event.target.files?.[0]
+    const file =
+      event.target.files?.[0]
 
     if (!file) return
 
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    if (
+      !ALLOWED_IMAGE_TYPES.includes(
+        file.type,
+      )
+    ) {
       setError(
         'Image must be JPG, PNG, WEBP, or GIF.',
       )
       return
     }
 
-    if (file.size > MAX_IMAGE_SIZE) {
+    if (
+      file.size > MAX_IMAGE_SIZE
+    ) {
       setError(
         'Image size must not exceed 5 MB.',
       )
       return
     }
 
+    if (
+      imagePreview &&
+      imagePreview.startsWith('blob:')
+    ) {
+      URL.revokeObjectURL(imagePreview)
+    }
+
     setError('')
-
     setImageFile(file)
-
     setImagePreview(
       URL.createObjectURL(file),
     )
@@ -524,11 +722,11 @@ export function AdminServicesPage() {
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault()
-
     setError('')
 
     const name = form.name.trim()
-    const description = form.description.trim()
+    const description =
+      form.description.trim()
 
     const price = Number(form.price)
     const startingPrice = Number(
@@ -536,16 +734,22 @@ export function AdminServicesPage() {
     )
 
     if (!name) {
-      setError('Service name is required.')
+      setError(
+        'Service name is required.',
+      )
       return
     }
 
     if (!description) {
-      setError('Description is required.')
+      setError(
+        'Description is required.',
+      )
       return
     }
 
-    if (form.pricing_type === 'fixed') {
+    if (
+      form.pricing_type === 'fixed'
+    ) {
       if (
         !form.price ||
         Number.isNaN(price) ||
@@ -558,10 +762,15 @@ export function AdminServicesPage() {
       }
     }
 
-    if (form.pricing_type === 'starting_from') {
+    if (
+      form.pricing_type ===
+      'starting_from'
+    ) {
       if (
         !form.starting_price ||
-        Number.isNaN(startingPrice) ||
+        Number.isNaN(
+          startingPrice,
+        ) ||
         startingPrice <= 0
       ) {
         setError(
@@ -574,7 +783,8 @@ export function AdminServicesPage() {
     try {
       setSubmitting(true)
 
-      const formData = new FormData()
+      const formData =
+        new FormData()
 
       formData.append(
         'name',
@@ -596,7 +806,9 @@ export function AdminServicesPage() {
         form.pricing_type,
       )
 
-      if (form.pricing_type === 'fixed') {
+      if (
+        form.pricing_type === 'fixed'
+      ) {
         formData.append(
           'price',
           String(price),
@@ -609,7 +821,8 @@ export function AdminServicesPage() {
       }
 
       if (
-        form.pricing_type === 'starting_from'
+        form.pricing_type ===
+        'starting_from'
       ) {
         formData.append(
           'starting_price',
@@ -646,17 +859,16 @@ export function AdminServicesPage() {
         ? `${API_BASE_URL}/api/services/${editingService!.id}`
         : `${API_BASE_URL}/api/services`
 
-      const response = await adminFetch(
-        url,
-        {
+      const response =
+        await adminFetch(url, {
           method: isEditing
             ? 'PUT'
             : 'POST',
           body: formData,
-        },
-      )
+        })
 
-      const result: ApiResponse<Service> =
+      const result:
+        ApiResponse<Service> =
         await response.json()
 
       if (
@@ -677,11 +889,12 @@ export function AdminServicesPage() {
 
       setServices((current) =>
         isEditing
-          ? current.map((service) =>
-            service.id ===
-              result.data!.id
-              ? result.data!
-              : service,
+          ? current.map(
+            (service) =>
+              service.id ===
+                result.data!.id
+                ? result.data!
+                : service,
           )
           : [
             result.data!,
@@ -701,10 +914,13 @@ export function AdminServicesPage() {
     }
   }
 
-  async function handleDelete(id: number) {
-    const service = services.find(
-      (item) => item.id === id,
-    )
+  async function handleDelete(
+    id: number,
+  ) {
+    const service =
+      services.find(
+        (item) => item.id === id,
+      )
 
     if (!service) return
 
@@ -719,14 +935,16 @@ export function AdminServicesPage() {
     try {
       setError('')
 
-      const response = await adminFetch(
-        `${API_BASE_URL}/api/services/${id}`,
-        {
-          method: 'DELETE',
-        },
-      )
+      const response =
+        await adminFetch(
+          `${API_BASE_URL}/api/services/${id}`,
+          {
+            method: 'DELETE',
+          },
+        )
 
-      const result: ApiResponse<unknown> =
+      const result:
+        ApiResponse<unknown> =
         await response.json()
 
       if (
@@ -754,26 +972,35 @@ export function AdminServicesPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div
+      className={`min-h-full space-y-8 ${c.page}`}
+    >
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm text-text-muted">
+          <p
+            className={`text-sm ${c.textMuted}`}
+          >
             Admin Panel
           </p>
 
-          <h1 className="mt-1 font-display text-3xl font-bold text-text-primary">
+          <h1
+            className={`mt-1 text-3xl font-bold ${c.textPrimary}`}
+          >
             Services
           </h1>
 
-          <p className="mt-2 text-sm text-text-secondary">
-            Manage services offered by 39Production.
+          <p
+            className={`mt-2 text-sm ${c.textSecondary}`}
+          >
+            Manage services offered by
+            39Production.
           </p>
         </div>
 
         <button
           type="button"
           onClick={openAddModal}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-secondary"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-700"
         >
           <Plus className="h-4 w-4" />
           Add Service
@@ -781,7 +1008,7 @@ export function AdminServicesPage() {
       </div>
 
       {error && !isModalOpen && (
-        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
           {error}
         </div>
       )}
@@ -789,41 +1016,58 @@ export function AdminServicesPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatCard
           label="Total Services"
-          value={String(services.length)}
+          value={String(
+            services.length,
+          )}
+          theme={theme}
         />
 
         <StatCard
           label="Active Services"
-          value={String(activeCount)}
+          value={String(
+            activeCount,
+          )}
+          theme={theme}
         />
 
         <StatCard
           label="Draft Services"
-          value={String(draftCount)}
+          value={String(
+            draftCount,
+          )}
+          theme={theme}
         />
       </div>
 
-      <div className="rounded-xl border border-border-default bg-bg-surface p-5">
+      <div
+        className={`rounded-xl border ${c.border} ${c.surface} p-5`}
+      >
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+            <Search
+              className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${c.textMuted}`}
+            />
 
             <input
               value={search}
               onChange={(e) =>
-                setSearch(e.target.value)
+                setSearch(
+                  e.target.value,
+                )
               }
               placeholder="Search services..."
-              className="w-full rounded-lg border border-border-default bg-bg-base py-3 pl-10 pr-4 text-sm text-text-primary outline-none transition focus:border-brand-primary"
+              className={`w-full rounded-lg border ${c.border} ${c.input} ${c.textPrimary} ${c.placeholder} py-3 pl-10 pr-4 text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10`}
             />
           </div>
 
           <select
             value={statusFilter}
             onChange={(e) =>
-              setStatusFilter(e.target.value)
+              setStatusFilter(
+                e.target.value,
+              )
             }
-            className="rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary"
+            className={`rounded-lg border ${c.border} ${c.input} ${c.textPrimary} px-4 py-3 text-sm outline-none transition focus:border-violet-500`}
           >
             <option>All</option>
             <option>Active</option>
@@ -832,11 +1076,15 @@ export function AdminServicesPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border-default bg-bg-surface">
+      <div
+        className={`overflow-hidden rounded-xl border ${c.border} ${c.surface}`}
+      >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-left text-sm">
-            <thead className="border-b border-border-default bg-bg-base">
-              <tr>
+            <thead>
+              <tr
+                className={`border-b ${c.border} ${c.elevated}`}
+              >
                 {[
                   'Service',
                   'Category',
@@ -847,7 +1095,7 @@ export function AdminServicesPage() {
                 ].map((h) => (
                   <th
                     key={h}
-                    className="px-6 py-4 font-semibold text-text-primary"
+                    className={`px-6 py-4 font-semibold ${c.textPrimary}`}
                   >
                     {h}
                   </th>
@@ -860,7 +1108,7 @@ export function AdminServicesPage() {
                 <tr>
                   <td
                     colSpan={6}
-                    className="px-6 py-16 text-center text-text-muted"
+                    className={`px-6 py-16 text-center ${c.textMuted}`}
                   >
                     Loading services...
                   </td>
@@ -871,11 +1119,16 @@ export function AdminServicesPage() {
                     (service) => (
                       <tr
                         key={service.id}
-                        className="border-b border-border-default last:border-0"
+                        className={`border-b ${c.border} last:border-0 ${c.hover} transition-colors`}
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="h-12 w-12 overflow-hidden rounded-lg bg-brand-primary/10 text-brand-primary">
+                            <div
+                              className={`h-12 w-12 shrink-0 overflow-hidden rounded-lg ${service.image_url
+                                  ? ''
+                                  : 'bg-violet-500/10 text-violet-500'
+                                }`}
+                            >
                               {service.image_url ? (
                                 <img
                                   src={
@@ -893,23 +1146,31 @@ export function AdminServicesPage() {
                               )}
                             </div>
 
-                            <div>
-                              <p className="font-medium text-text-primary">
+                            <div className="min-w-0">
+                              <p
+                                className={`truncate font-medium ${c.textPrimary}`}
+                              >
                                 {service.name}
                               </p>
 
-                              <p className="text-xs text-text-muted">
+                              <p
+                                className={`mt-1 text-xs ${c.textMuted}`}
+                              >
                                 ID #{service.id}
                               </p>
                             </div>
                           </div>
                         </td>
 
-                        <td className="px-6 py-4 text-text-secondary">
+                        <td
+                          className={`px-6 py-4 ${c.textSecondary}`}
+                        >
                           {service.category}
                         </td>
 
-                        <td className="max-w-sm px-6 py-4 text-text-secondary">
+                        <td
+                          className={`max-w-sm px-6 py-4 ${c.textSecondary}`}
+                        >
                           <p className="line-clamp-2">
                             {
                               service.description
@@ -919,13 +1180,17 @@ export function AdminServicesPage() {
 
                         <td className="px-6 py-4">
                           <div className="space-y-1">
-                            <p className="font-medium text-text-primary">
+                            <p
+                              className={`font-medium ${c.textPrimary}`}
+                            >
                               {formatServicePrice(
                                 service,
                               )}
                             </p>
 
-                            <p className="text-xs text-text-muted">
+                            <p
+                              className={`text-xs ${c.textMuted}`}
+                            >
                               {getPricingLabel(
                                 service.pricing_type,
                               )}
@@ -935,10 +1200,16 @@ export function AdminServicesPage() {
 
                         <td className="px-6 py-4">
                           <span
-                            className={`rounded-full px-3 py-1 text-xs font-medium ${service.status ===
-                              'Active'
-                              ? 'bg-green-400/10 text-green-400'
-                              : 'bg-yellow-400/10 text-yellow-400'
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${service.status ===
+                                'Active'
+                                ? theme ===
+                                  'light'
+                                  ? 'bg-emerald-50 text-emerald-700'
+                                  : 'bg-emerald-500/10 text-emerald-400'
+                                : theme ===
+                                  'light'
+                                  ? 'bg-amber-50 text-amber-700'
+                                  : 'bg-amber-500/10 text-amber-400'
                               }`}
                           >
                             {service.status}
@@ -954,7 +1225,7 @@ export function AdminServicesPage() {
                                   service,
                                 )
                               }
-                              className="rounded-lg border border-border-default p-2 text-text-muted hover:text-text-primary"
+                              className={`rounded-lg border ${c.border} p-2 ${c.textMuted} transition hover:text-violet-500`}
                               title="Edit service"
                             >
                               <Edit className="h-4 w-4" />
@@ -967,7 +1238,7 @@ export function AdminServicesPage() {
                                   service.id,
                                 )
                               }
-                              className="rounded-lg border border-border-default p-2 text-red-400 hover:bg-red-400/10"
+                              className="rounded-lg border border-red-500/20 p-2 text-red-500 transition hover:bg-red-500/10"
                               title="Delete service"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -983,7 +1254,7 @@ export function AdminServicesPage() {
                       <tr>
                         <td
                           colSpan={6}
-                          className="px-6 py-16 text-center text-sm text-text-muted"
+                          className={`px-6 py-16 text-center text-sm ${c.textMuted}`}
                         >
                           No services found.
                         </td>
@@ -997,17 +1268,25 @@ export function AdminServicesPage() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border-default bg-bg-surface shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border-default px-6 py-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
+          <div
+            className={`max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border ${c.border} ${c.surface} shadow-2xl`}
+          >
+            <div
+              className={`flex items-center justify-between border-b ${c.border} px-6 py-5`}
+            >
               <div>
-                <h2 className="font-display text-xl font-bold text-text-primary">
+                <h2
+                  className={`text-xl font-bold ${c.textPrimary}`}
+                >
                   {editingService
                     ? 'Edit Service'
                     : 'Add Service'}
                 </h2>
 
-                <p className="mt-1 text-sm text-text-muted">
+                <p
+                  className={`mt-1 text-sm ${c.textMuted}`}
+                >
                   {editingService
                     ? 'Update service information.'
                     : 'Create a new service for your customers.'}
@@ -1018,27 +1297,33 @@ export function AdminServicesPage() {
                 type="button"
                 onClick={closeModal}
                 disabled={submitting}
-                className="rounded-lg p-2 text-text-muted hover:bg-bg-base hover:text-text-primary disabled:opacity-50"
+                className={`rounded-lg p-2 ${c.textMuted} ${c.hover} transition disabled:opacity-50`}
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit}>
+            <form
+              onSubmit={handleSubmit}
+            >
               <div className="space-y-5 px-6 py-6">
                 {error && (
-                  <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                  <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
                     {error}
                   </div>
                 )}
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-text-primary">
+                  <label
+                    className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
+                  >
                     Service Image
                   </label>
 
-                  <div className="flex items-center gap-4">
-                    <div className="h-28 w-28 overflow-hidden rounded-xl border border-border-default bg-bg-base">
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={`h-28 w-28 shrink-0 overflow-hidden rounded-xl border ${c.border} ${c.input}`}
+                    >
                       {imagePreview ? (
                         <img
                           src={imagePreview}
@@ -1046,7 +1331,9 @@ export function AdminServicesPage() {
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <div className="flex h-full flex-col items-center justify-center text-text-muted">
+                        <div
+                          className={`flex h-full flex-col items-center justify-center ${c.textMuted}`}
+                        >
                           <ImagePlus className="h-7 w-7" />
 
                           <span className="mt-2 text-xs">
@@ -1056,8 +1343,10 @@ export function AdminServicesPage() {
                       )}
                     </div>
 
-                    <div>
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border-default px-4 py-2.5 text-sm font-medium text-text-primary hover:bg-bg-base">
+                    <div className="min-w-0">
+                      <label
+                        className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border ${c.border} px-4 py-2.5 text-sm font-medium ${c.textPrimary} ${c.hover}`}
+                      >
                         <ImagePlus className="h-4 w-4" />
 
                         Choose Image
@@ -1068,19 +1357,25 @@ export function AdminServicesPage() {
                           onChange={
                             handleImageChange
                           }
-                          disabled={submitting}
+                          disabled={
+                            submitting
+                          }
                           className="sr-only"
                         />
                       </label>
 
-                      <p className="mt-2 text-xs text-text-muted">
-                        JPG, PNG, WEBP, GIF. Max
-                        upload 5 MB; stored image is
-                        compressed to 150 KB.
+                      <p
+                        className={`mt-2 text-xs leading-5 ${c.textMuted}`}
+                      >
+                        JPG, PNG, WEBP, GIF. Max upload
+                        5 MB; stored image is compressed to
+                        150 KB.
                       </p>
 
                       {imageFile && (
-                        <p className="mt-2 max-w-xs truncate text-xs text-text-secondary">
+                        <p
+                          className={`mt-2 max-w-xs truncate text-xs ${c.textSecondary}`}
+                        >
                           {imageFile.name}
                         </p>
                       )}
@@ -1089,7 +1384,9 @@ export function AdminServicesPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-text-primary">
+                  <label
+                    className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
+                  >
                     Service Name
                   </label>
 
@@ -1097,34 +1394,40 @@ export function AdminServicesPage() {
                     type="text"
                     value={form.name}
                     onChange={(e) =>
-                      setForm((current) => ({
-                        ...current,
-                        name: e.target.value,
-                      }))
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          name: e.target.value,
+                        }),
+                      )
                     }
                     placeholder="e.g. Web Development"
                     disabled={submitting}
-                    className="w-full rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary disabled:opacity-60"
+                    className={`w-full rounded-lg border ${c.border} ${c.input} ${c.textPrimary} ${c.placeholder} px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 disabled:opacity-60`}
                   />
                 </div>
 
                 <div className="grid gap-5 md:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-text-primary">
+                    <label
+                      className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
+                    >
                       Category
                     </label>
 
                     <select
                       value={form.category}
                       onChange={(e) =>
-                        setForm((current) => ({
-                          ...current,
-                          category:
-                            e.target.value,
-                        }))
+                        setForm(
+                          (current) => ({
+                            ...current,
+                            category:
+                              e.target.value,
+                          }),
+                        )
                       }
                       disabled={submitting}
-                      className="w-full rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary"
+                      className={`w-full rounded-lg border ${c.border} ${c.input} ${c.textPrimary} px-4 py-3 text-sm outline-none focus:border-violet-500`}
                     >
                       <option>
                         Development
@@ -1149,23 +1452,27 @@ export function AdminServicesPage() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-text-primary">
+                    <label
+                      className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
+                    >
                       Status
                     </label>
 
                     <select
                       value={form.status}
                       onChange={(e) =>
-                        setForm((current) => ({
-                          ...current,
-                          status:
-                            e.target.value as
-                            | 'Active'
-                            | 'Draft',
-                        }))
+                        setForm(
+                          (current) => ({
+                            ...current,
+                            status:
+                              e.target.value as
+                              | 'Active'
+                              | 'Draft',
+                          }),
+                        )
                       }
                       disabled={submitting}
-                      className="w-full rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary"
+                      className={`w-full rounded-lg border ${c.border} ${c.input} ${c.textPrimary} px-4 py-3 text-sm outline-none focus:border-violet-500`}
                     >
                       <option value="Active">
                         Active
@@ -1179,21 +1486,28 @@ export function AdminServicesPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-text-primary">
+                  <label
+                    className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
+                  >
                     Pricing Type
                   </label>
 
                   <select
-                    value={form.pricing_type}
+                    value={
+                      form.pricing_type
+                    }
                     onChange={(e) =>
-                      setForm((current) => ({
-                        ...current,
-                        pricing_type:
-                          e.target.value as ServicePricingType,
-                      }))
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          pricing_type:
+                            e.target
+                              .value as ServicePricingType,
+                        }),
+                      )
                     }
                     disabled={submitting}
-                    className="w-full rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary"
+                    className={`w-full rounded-lg border ${c.border} ${c.input} ${c.textPrimary} px-4 py-3 text-sm outline-none focus:border-violet-500`}
                   >
                     <option value="fixed">
                       Fixed Price
@@ -1208,7 +1522,9 @@ export function AdminServicesPage() {
                     </option>
                   </select>
 
-                  <p className="mt-2 text-xs text-text-muted">
+                  <p
+                    className={`mt-2 text-xs leading-5 ${c.textMuted}`}
+                  >
                     {getPricingDescription(
                       form.pricing_type,
                     )}
@@ -1217,27 +1533,45 @@ export function AdminServicesPage() {
 
                 {form.pricing_type ===
                   'fixed' && (
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-text-primary">
+                    <div
+                      className={`rounded-xl border ${c.border} ${c.elevated} p-4`}
+                    >
+                      <label
+                        className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
+                      >
                         Fixed Price
                       </label>
 
-                      <input
-                        type="number"
-                        min="1"
-                        value={form.price}
-                        onChange={(e) =>
-                          setForm((current) => ({
-                            ...current,
-                            price: e.target.value,
-                          }))
-                        }
-                        placeholder="5000000"
-                        disabled={submitting}
-                        className="w-full rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary"
-                      />
+                      <div className="relative">
+                        <span
+                          className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm ${c.textMuted}`}
+                        >
+                          Rp
+                        </span>
 
-                      <p className="mt-2 text-xs text-text-muted">
+                        <input
+                          type="number"
+                          min="1"
+                          value={form.price}
+                          onChange={(e) =>
+                            setForm(
+                              (current) => ({
+                                ...current,
+                                price: e.target.value,
+                              }),
+                            )
+                          }
+                          placeholder="5000000"
+                          disabled={
+                            submitting
+                          }
+                          className={`w-full rounded-lg border ${c.border} ${c.input} ${c.textPrimary} pl-10 pr-4 py-3 text-sm outline-none focus:border-violet-500`}
+                        />
+                      </div>
+
+                      <p
+                        className={`mt-2 text-xs ${c.textMuted}`}
+                      >
                         Customer will pay this exact
                         price when ordering.
                       </p>
@@ -1246,83 +1580,118 @@ export function AdminServicesPage() {
 
                 {form.pricing_type ===
                   'starting_from' && (
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-text-primary">
+                    <div
+                      className={`rounded-xl border ${c.border} ${c.elevated} p-4`}
+                    >
+                      <label
+                        className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
+                      >
                         Starting Price
                       </label>
 
-                      <input
-                        type="number"
-                        min="1"
-                        value={
-                          form.starting_price
-                        }
-                        onChange={(e) =>
-                          setForm((current) => ({
-                            ...current,
-                            starting_price:
-                              e.target.value,
-                          }))
-                        }
-                        placeholder="1500000"
-                        disabled={submitting}
-                        className="w-full rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary"
-                      />
+                      <div className="relative">
+                        <span
+                          className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm ${c.textMuted}`}
+                        >
+                          Rp
+                        </span>
 
-                      <p className="mt-2 text-xs text-text-muted">
+                        <input
+                          type="number"
+                          min="1"
+                          value={
+                            form.starting_price
+                          }
+                          onChange={(e) =>
+                            setForm(
+                              (current) => ({
+                                ...current,
+                                starting_price:
+                                  e.target.value,
+                              }),
+                            )
+                          }
+                          placeholder="1500000"
+                          disabled={
+                            submitting
+                          }
+                          className={`w-full rounded-lg border ${c.border} ${c.input} ${c.textPrimary} pl-10 pr-4 py-3 text-sm outline-none focus:border-violet-500`}
+                        />
+                      </div>
+
+                      <p
+                        className={`mt-2 text-xs leading-5 ${c.textMuted}`}
+                      >
                         This will appear publicly as
-                        "Starting from" or "From".
-                        Final price will be determined
-                        after reviewing the project.
+                        "Starting from" or "From". Final
+                        price will be determined after
+                        reviewing the project.
                       </p>
                     </div>
                   )}
 
                 {form.pricing_type ===
                   'custom_quote' && (
-                    <div className="rounded-lg border border-brand-primary/20 bg-brand-primary/5 px-4 py-4">
-                      <p className="text-sm font-medium text-text-primary">
+                    <div
+                      className={`rounded-lg border border-violet-500/20 ${theme === 'light'
+                          ? 'bg-violet-50'
+                          : 'bg-violet-500/[0.06]'
+                        } px-4 py-4`}
+                    >
+                      <p
+                        className={`text-sm font-medium ${c.textPrimary}`}
+                      >
                         Custom Quote
                       </p>
 
-                      <p className="mt-1 text-xs leading-5 text-text-muted">
-                        No price will be displayed for
-                        this service. Customers will be
-                        asked to submit a project request
-                        and 39Production can determine
-                        the final quotation manually.
+                      <p
+                        className={`mt-1 text-xs leading-5 ${c.textMuted}`}
+                      >
+                        No price will be displayed for this
+                        service. Customers will be asked to
+                        submit a project request and
+                        39Production can determine the final
+                        quotation manually.
                       </p>
                     </div>
                   )}
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-text-primary">
+                  <label
+                    className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
+                  >
                     Description
                   </label>
 
                   <textarea
                     rows={4}
-                    value={form.description}
+                    value={
+                      form.description
+                    }
                     onChange={(e) =>
-                      setForm((current) => ({
-                        ...current,
-                        description:
-                          e.target.value,
-                      }))
+                      setForm(
+                        (current) => ({
+                          ...current,
+                          description:
+                            e.target.value,
+                        }),
+                      )
                     }
                     placeholder="Describe this service..."
                     disabled={submitting}
-                    className="w-full resize-none rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm text-text-primary outline-none focus:border-brand-primary"
+                    className={`w-full resize-none rounded-lg border ${c.border} ${c.input} ${c.textPrimary} ${c.placeholder} px-4 py-3 text-sm leading-6 outline-none focus:border-violet-500`}
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 border-t border-border-default px-6 py-5">
+              <div
+                className={`flex justify-end gap-3 border-t ${c.border} px-6 py-5`}
+              >
                 <button
                   type="button"
                   onClick={closeModal}
                   disabled={submitting}
-                  className="rounded-lg border border-border-default px-5 py-2.5 text-sm font-medium text-text-secondary hover:bg-bg-base disabled:opacity-50"
+                  className={`rounded-lg border ${c.border} px-5 py-2.5 text-sm font-medium ${c.textSecondary} ${c.hover} transition disabled:opacity-50`}
                 >
                   Cancel
                 </button>
@@ -1330,7 +1699,7 @@ export function AdminServicesPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-brand-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-secondary disabled:opacity-60"
+                  className="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
                 >
                   {submitting
                     ? 'Saving...'
@@ -1350,21 +1719,33 @@ export function AdminServicesPage() {
 function StatCard({
   label,
   value,
+  theme,
 }: {
   label: string
   value: string
+  theme: AdminTheme
 }) {
-  return (
-    <div className="rounded-xl border border-border-default bg-bg-surface p-5">
-      <div className="mb-3 flex items-center gap-2 text-brand-primary">
-        <Briefcase className="h-5 w-5" />
+  const c = getThemeTokens(theme)
 
-        <span className="text-sm">
+  return (
+    <div
+      className={`rounded-xl border ${c.border} ${c.surface} p-5 transition hover:-translate-y-0.5`}
+    >
+      <div className="mb-3 flex items-center gap-2 text-violet-500">
+        <div className="rounded-lg bg-violet-500/10 p-2">
+          <Briefcase className="h-5 w-5" />
+        </div>
+
+        <span
+          className={`text-sm ${c.textMuted}`}
+        >
           {label}
         </span>
       </div>
 
-      <p className="text-2xl font-bold text-text-primary">
+      <p
+        className={`text-2xl font-bold ${c.textPrimary}`}
+      >
         {value}
       </p>
     </div>
