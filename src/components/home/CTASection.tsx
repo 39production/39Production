@@ -1,4 +1,3 @@
-
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
@@ -12,107 +11,124 @@ import {
 } from 'lucide-react'
 
 export function CTASection() {
+  const pillars = [
+    {
+      icon: Music2,
+      label: 'Entertainment',
+    },
+    {
+      icon: Code2,
+      label: 'Creative Technology',
+    },
+    {
+      icon: Wand2,
+      label: 'Creative Services',
+    },
+    {
+      icon: Layers3,
+      label: 'Digital Products',
+    },
+  ]
+
   return (
     <section
       aria-labelledby="cta-title"
-      className="relative isolate overflow-hidden border-t border-border-default bg-bg-base py-24 lg:py-32"
+      className="relative isolate overflow-hidden border-t border-neutral-200 bg-white py-20 sm:py-24 lg:py-32"
     >
       {/* =========================================================
           BACKGROUND
       ========================================================== */}
+
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 overflow-hidden"
+        className="pointer-events-none absolute inset-0 -z-20 overflow-hidden"
       >
-        {/* Gradient atmosphere */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(139,92,246,0.14),transparent_42%)]" />
+        {/* Main soft atmosphere */}
+        <div className="ctaGlow ctaGlowOne absolute -left-40 top-1/2 h-[460px] w-[460px] -translate-y-1/2 rounded-full" />
 
-        <div className="absolute -left-40 top-1/2 h-[420px] w-[420px] -translate-y-1/2 rounded-full bg-brand-primary/10 blur-[130px] animate-[cta-float_9s_ease-in-out_infinite]" />
+        <div className="ctaGlow ctaGlowTwo absolute -right-40 top-1/2 h-[460px] w-[460px] -translate-y-1/2 rounded-full" />
 
-        <div
-          className="absolute -right-40 top-1/2 h-[420px] w-[420px] -translate-y-1/2 rounded-full bg-brand-accent/10 blur-[130px] animate-[cta-float_10s_ease-in-out_infinite_reverse]"
-        />
+        <div className="ctaGlow ctaGlowCenter absolute left-1/2 top-[42%] h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full" />
 
-        {/* Grid */}
-        <div
-          className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(139,92,246,0.8) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(139,92,246,0.8) 1px, transparent 1px)
-            `,
-            backgroundSize: '60px 60px',
-          }}
-        />
+        {/* Very subtle grid */}
+        <div className="ctaGrid absolute inset-0" />
 
-        {/* Center glow */}
-        <div className="absolute left-1/2 top-1/2 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-primary/10 blur-[100px] animate-pulse" />
+        {/* Moving accent lines */}
+        <div className="ctaLine ctaLineOne absolute left-[-20%] top-[28%] h-px w-[140%]" />
 
-        {/* Floating particles */}
-        <div className="absolute left-[15%] top-[30%] h-1.5 w-1.5 rounded-full bg-brand-primary shadow-[0_0_20px_rgba(139,92,246,0.9)] animate-[cta-particle_5s_ease-in-out_infinite]" />
+        <div className="ctaLine ctaLineTwo absolute left-[-20%] top-[72%] h-px w-[140%]" />
 
-        <div
-          className="absolute left-[25%] bottom-[25%] h-1 w-1 rounded-full bg-pink-400 shadow-[0_0_18px_rgba(236,72,153,0.9)] animate-[cta-particle_7s_ease-in-out_infinite]"
-          style={{ animationDelay: '1s' }}
-        />
+        {/* Particles */}
+        <span className="ctaParticle ctaParticleOne absolute left-[14%] top-[28%] h-1.5 w-1.5 rounded-full" />
 
-        <div
-          className="absolute right-[18%] top-[25%] h-1.5 w-1.5 rounded-full bg-purple-300 shadow-[0_0_20px_rgba(192,132,252,0.9)] animate-[cta-particle_6s_ease-in-out_infinite]"
-          style={{ animationDelay: '2s' }}
-        />
+        <span className="ctaParticle ctaParticleTwo absolute left-[25%] bottom-[24%] h-1 w-1 rounded-full" />
 
-        <div
-          className="absolute right-[25%] bottom-[30%] h-1 w-1 rounded-full bg-cyan-400 shadow-[0_0_18px_rgba(34,211,238,0.9)] animate-[cta-particle_8s_ease-in-out_infinite]"
-          style={{ animationDelay: '3s' }}
-        />
+        <span className="ctaParticle ctaParticleThree absolute right-[18%] top-[25%] h-1.5 w-1.5 rounded-full" />
+
+        <span className="ctaParticle ctaParticleFour absolute right-[25%] bottom-[28%] h-1 w-1 rounded-full" />
       </div>
 
       {/* =========================================================
           MAIN
       ========================================================== */}
-      <div className="relative mx-auto max-w-6xl px-4 lg:px-8">
 
-        {/* Main glass container */}
-        <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.025] px-6 py-16 shadow-2xl shadow-purple-950/20 backdrop-blur-xl sm:px-10 lg:px-16 lg:py-20">
-
+      <div className="relative mx-auto max-w-[1180px] px-5 sm:px-8 lg:px-10">
+        <div className="ctaPanel relative overflow-hidden rounded-[30px] border border-neutral-200 bg-neutral-50/80 px-6 py-14 shadow-[0_20px_70px_rgba(15,23,42,0.06)] sm:px-10 sm:py-16 lg:px-16 lg:py-20">
           {/* =====================================================
-              DECORATIVE LOGO / 39
+              DECORATIVE 39
           ====================================================== */}
+
           <div
             aria-hidden="true"
             className="pointer-events-none absolute left-1/2 top-1/2 hidden h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 lg:block"
           >
-            {/* Outer orbit */}
-            <div className="absolute inset-0 rounded-full border border-brand-primary/10 animate-[cta-spin_30s_linear_infinite]" />
+            <div className="ctaOrbitOuter absolute inset-0 rounded-full border border-violet-200/50" />
 
-            {/* Inner orbit */}
-            <div className="absolute inset-[55px] rounded-full border border-brand-accent/10 animate-[cta-spin-reverse_22s_linear_infinite]" />
+            <div className="ctaOrbitInner absolute inset-[58px] rounded-full border border-pink-200/40" />
 
-            {/* Orbit dots */}
-            <div className="absolute left-1/2 top-0 h-2 w-2 -translate-x-1/2 rounded-full bg-brand-primary shadow-[0_0_20px_rgba(139,92,246,0.9)]" />
+            <div className="absolute left-1/2 top-0 h-2 w-2 -translate-x-1/2 rounded-full bg-violet-500" />
 
-            <div className="absolute bottom-[12%] left-[5%] h-1.5 w-1.5 rounded-full bg-pink-400 shadow-[0_0_20px_rgba(236,72,153,0.9)]" />
+            <div className="absolute bottom-[12%] left-[5%] h-1.5 w-1.5 rounded-full bg-pink-500" />
 
-            <div className="absolute right-[8%] top-[20%] h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.9)]" />
+            <div className="absolute right-[8%] top-[20%] h-1.5 w-1.5 rounded-full bg-cyan-500" />
 
-            {/* Giant 39 */}
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none font-display text-[16rem] font-black leading-none tracking-[-0.12em] text-white/[0.025]">
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none font-display text-[15rem] font-black leading-none tracking-[-0.12em] text-neutral-900/[0.025]">
               39
             </div>
           </div>
 
-          {/* =====================================================
-              TOP LABEL
-          ====================================================== */}
-          <div className="relative z-10 flex justify-center">
-            <div className="inline-flex animate-[cta-fade-up_0.7s_ease-out_both] items-center gap-2 rounded-full border border-brand-primary/30 bg-brand-primary/10 px-4 py-2 backdrop-blur-md">
-              <Sparkles
-                aria-hidden="true"
-                className="h-4 w-4 text-brand-primary animate-pulse"
-              />
+          {/* Decorative stars */}
+          <Star
+            aria-hidden="true"
+            className="ctaStar absolute left-[8%] top-[18%] hidden h-4 w-4 text-violet-400 lg:block"
+          />
 
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-primary sm:text-sm">
-                Let's Build Something
+          <Star
+            aria-hidden="true"
+            className="ctaStar absolute right-[10%] top-[25%] hidden h-3 w-3 text-pink-400 lg:block"
+            style={{
+              animationDelay: '1s',
+            }}
+          />
+
+          <Sparkles
+            aria-hidden="true"
+            className="ctaStar absolute bottom-[18%] left-[12%] hidden h-4 w-4 text-purple-300 lg:block"
+            style={{
+              animationDelay: '2s',
+            }}
+          />
+
+          {/* =====================================================
+              LABEL
+          ====================================================== */}
+
+          <div className="relative z-10 flex justify-center">
+            <div className="ctaFade ctaFadeOne inline-flex items-center gap-2 rounded-full border border-violet-100 bg-violet-50 px-4 py-2">
+              <Sparkles className="h-4 w-4 text-violet-600" />
+
+              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-700 sm:text-xs">
+                LET&apos;S BUILD SOMETHING
               </span>
             </div>
           </div>
@@ -120,62 +136,48 @@ export function CTASection() {
           {/* =====================================================
               TITLE
           ====================================================== */}
-          <div className="relative z-10 mx-auto max-w-4xl text-center">
 
+          <div className="relative z-10 mx-auto max-w-4xl text-center">
             <h2
               id="cta-title"
-              className="mt-7 animate-[cta-fade-up_0.8s_0.08s_ease-out_both] font-display text-4xl font-bold leading-[1.05] tracking-tight text-text-primary sm:text-5xl lg:text-7xl"
+              className="ctaFade ctaFadeTwo mt-7 text-3xl font-semibold leading-[1.05] tracking-tight text-neutral-950 sm:text-5xl lg:text-6xl"
             >
-              Ideas Deserve to{' '}
-              <span className="gradient-text">Become Real.</span>
+              Ideas deserve to
+              <span className="block bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
+                become real.
+              </span>
             </h2>
 
-            <p className="mx-auto mt-6 max-w-2xl animate-[cta-fade-up_0.8s_0.16s_ease-out_both] text-base leading-8 text-text-secondary sm:text-lg">
-              We combine technology, design, and creative production to
-              build digital experiences, products, and stories that
-              people remember.
+            <p className="ctaFade ctaFadeThree mx-auto mt-6 max-w-2xl text-sm leading-6 text-neutral-500 sm:text-base sm:leading-7 lg:text-lg">
+              Kami menggabungkan technology, design, dan creative production
+              untuk membangun digital experiences, products, dan stories yang
+              punya tujuan nyata.
             </p>
 
-            <p className="mt-3 animate-[cta-fade-up_0.8s_0.22s_ease-out_both] font-display text-sm italic text-text-muted">
+            <p className="ctaFade ctaFadeFour mt-4 text-sm italic text-neutral-400">
               Imagine it. Build it. Make it matter.
             </p>
           </div>
 
           {/* =====================================================
-              SERVICES / BUSINESS PILLARS
+              BUSINESS PILLARS
           ====================================================== */}
-          <div className="relative z-10 mx-auto mt-10 flex max-w-3xl flex-wrap justify-center gap-2 animate-[cta-fade-up_0.8s_0.28s_ease-out_both]">
-            {[
-              {
-                icon: Music2,
-                label: 'Entertainment',
-              },
-              {
-                icon: Code2,
-                label: 'Creative Technology',
-              },
-              {
-                icon: Wand2,
-                label: 'Creative Services',
-              },
-              {
-                icon: Layers3,
-                label: 'Digital Products',
-              },
-            ].map((item) => {
+
+          <div className="ctaFade ctaFadeFive relative z-10 mx-auto mt-9 flex max-w-3xl flex-wrap justify-center gap-2.5">
+            {pillars.map((item) => {
               const Icon = item.icon
 
               return (
                 <div
                   key={item.label}
-                  className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-4 py-2.5 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-brand-primary/30 hover:bg-brand-primary/5"
+                  className="group inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2.5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md"
                 >
                   <Icon
                     aria-hidden="true"
-                    className="h-3.5 w-3.5 text-brand-primary transition-transform duration-300 group-hover:scale-110"
+                    className="h-3.5 w-3.5 text-violet-600 transition-transform duration-300 group-hover:scale-110"
                   />
 
-                  <span className="text-xs font-medium text-text-muted transition-colors group-hover:text-text-primary">
+                  <span className="text-xs font-medium text-neutral-600">
                     {item.label}
                   </span>
                 </div>
@@ -186,115 +188,224 @@ export function CTASection() {
           {/* =====================================================
               BUTTONS
           ====================================================== */}
-          <div className="relative z-10 mt-10 flex animate-[cta-fade-up_0.8s_0.34s_ease-out_both] flex-col items-center justify-center gap-3 sm:flex-row">
 
+          <div className="ctaFade ctaFadeSix relative z-10 mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
               to="/contact"
-              className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-primary to-brand-accent px-8 py-3.5 text-sm font-semibold text-white shadow-xl shadow-brand-primary/20 outline-none transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-[0_0_45px_rgba(139,92,246,0.4)] focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base"
+              className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-neutral-950 px-7 py-3.5 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:bg-violet-600 hover:shadow-xl hover:shadow-violet-200 sm:w-auto"
             >
               Start a Project
 
-              <ArrowRight
-                aria-hidden="true"
-                className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1"
-              />
+              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
 
             <Link
               to="/services"
-              className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border-default bg-bg-surface/70 px-8 py-3.5 text-sm font-semibold text-text-primary backdrop-blur-md outline-none transition-all duration-300 hover:-translate-y-1 hover:border-brand-primary/40 hover:bg-bg-elevated focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base"
+              className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-neutral-200 bg-white px-7 py-3.5 text-sm font-semibold text-neutral-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-200 hover:text-violet-600 hover:shadow-md sm:w-auto"
             >
-              Explore Our Work
+              Explore Our Services
 
-              <ArrowRight
-                aria-hidden="true"
-                className="h-4 w-4 text-text-muted transition-all duration-300 group-hover:translate-x-1 group-hover:text-brand-primary"
-              />
+              <ArrowRight className="h-4 w-4 text-neutral-400 transition-all duration-300 group-hover:translate-x-1 group-hover:text-violet-600" />
             </Link>
           </div>
 
           {/* =====================================================
               MINI BRAND FOOTER
           ====================================================== */}
-          <div className="relative z-10 mt-14 flex flex-col items-center justify-center gap-4 border-t border-white/10 pt-8 sm:flex-row sm:gap-6">
 
+          <div className="ctaFade ctaFadeSeven relative z-10 mt-12 flex flex-col items-center justify-center gap-5 border-t border-neutral-200 pt-7 sm:flex-row sm:gap-6">
             <div className="flex items-center gap-3">
               <div className="relative flex h-10 w-10 items-center justify-center">
-                {/* Logo glow */}
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-brand-primary to-brand-accent opacity-20 blur-md" />
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 opacity-15 blur-md" />
 
-                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-bg-surface">
-                  <span className="font-display text-lg font-black gradient-text">
+                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-200 bg-white shadow-sm">
+                  <span className="font-display text-lg font-black bg-gradient-to-r from-violet-600 to-pink-500 bg-clip-text text-transparent">
                     39
                   </span>
                 </div>
               </div>
 
               <div className="text-left">
-                <p className="font-display text-sm font-bold text-text-primary">
+                <p className="text-sm font-bold text-neutral-900">
                   39Production
                 </p>
 
-                <p className="text-[10px] text-text-muted">
+                <p className="text-[10px] text-neutral-400">
                   サンキュープロダクション
                 </p>
               </div>
             </div>
 
-            <div className="hidden h-5 w-px bg-border-default sm:block" />
+            <div className="hidden h-5 w-px bg-neutral-200 sm:block" />
 
-            <div className="flex items-center gap-2 text-xs text-text-muted">
+            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-neutral-400">
               <Disc3
                 aria-hidden="true"
-                className="h-3.5 w-3.5 text-brand-accent animate-[cta-spin_8s_linear_infinite]"
+                className="h-3.5 w-3.5 text-pink-500"
               />
 
-              <span>
-                Creating Digital Works.
-              </span>
+              <span>Creating Digital Works.</span>
 
-              <span className="text-border-default">•</span>
+              <span className="text-neutral-300">•</span>
 
-              <span>
-                Producing Stories.
-              </span>
+              <span>Producing Stories.</span>
 
-              <span className="text-border-default">•</span>
+              <span className="text-neutral-300">•</span>
 
-              <span>
-                Sharing Gratitude.
-              </span>
+              <span>Sharing Gratitude.</span>
             </div>
           </div>
-
-          {/* Decorative stars */}
-          <Star
-            aria-hidden="true"
-            className="absolute left-[8%] top-[18%] hidden h-4 w-4 text-brand-primary/40 lg:block animate-[cta-twinkle_3s_ease-in-out_infinite]"
-          />
-
-          <Star
-            aria-hidden="true"
-            className="absolute right-[10%] top-[25%] hidden h-3 w-3 text-brand-accent/50 lg:block animate-[cta-twinkle_4s_ease-in-out_infinite]"
-            style={{ animationDelay: '1s' }}
-          />
-
-          <Sparkles
-            aria-hidden="true"
-            className="absolute bottom-[18%] left-[12%] hidden h-4 w-4 text-purple-300/30 lg:block animate-[cta-twinkle_5s_ease-in-out_infinite]"
-            style={{ animationDelay: '2s' }}
-          />
         </div>
       </div>
 
       {/* =========================================================
           ANIMATIONS
       ========================================================== */}
+
       <style>{`
-        @keyframes cta-fade-up {
+        .ctaGlow {
+          filter: blur(90px);
+          opacity: 0.45;
+        }
+
+        .ctaGlowOne {
+          background: rgba(139, 92, 246, 0.055);
+          animation: ctaGlowOne 15s ease-in-out infinite;
+        }
+
+        .ctaGlowTwo {
+          background: rgba(236, 72, 153, 0.04);
+          animation: ctaGlowTwo 18s ease-in-out infinite;
+        }
+
+        .ctaGlowCenter {
+          background: rgba(124, 58, 237, 0.035);
+          animation: ctaGlowCenter 14s ease-in-out infinite;
+        }
+
+        .ctaGrid {
+          background-image:
+            linear-gradient(
+              to right,
+              rgba(15, 23, 42, 0.02) 1px,
+              transparent 1px
+            ),
+            linear-gradient(
+              to bottom,
+              rgba(15, 23, 42, 0.02) 1px,
+              transparent 1px
+            );
+
+          background-size: 64px 64px;
+
+          mask-image:
+            radial-gradient(
+              ellipse at center,
+              black 0%,
+              transparent 72%
+            );
+
+          -webkit-mask-image:
+            radial-gradient(
+              ellipse at center,
+              black 0%,
+              transparent 72%
+            );
+
+          animation: ctaGridMove 22s linear infinite;
+        }
+
+        .ctaLine {
+          background: linear-gradient(
+            to right,
+            transparent,
+            rgba(139, 92, 246, 0.08),
+            transparent
+          );
+
+          opacity: 0.4;
+          animation: ctaLineMove 10s ease-in-out infinite;
+        }
+
+        .ctaLineTwo {
+          background: linear-gradient(
+            to right,
+            transparent,
+            rgba(236, 72, 153, 0.06),
+            transparent
+          );
+
+          animation-delay: 3s;
+        }
+
+        .ctaParticle {
+          background: rgba(124, 58, 237, 0.3);
+          box-shadow: 0 0 12px rgba(124, 58, 237, 0.12);
+          animation: ctaParticleFloat 5s ease-in-out infinite;
+        }
+
+        .ctaParticleTwo,
+        .ctaParticleFour {
+          background: rgba(236, 72, 153, 0.25);
+          box-shadow: 0 0 12px rgba(236, 72, 153, 0.1);
+        }
+
+        .ctaParticleTwo {
+          animation-delay: 1s;
+        }
+
+        .ctaParticleThree {
+          animation-delay: 2s;
+        }
+
+        .ctaParticleFour {
+          animation-delay: 3s;
+        }
+
+        .ctaFade {
+          animation: ctaFadeUp 0.75s ease-out both;
+        }
+
+        .ctaFadeTwo {
+          animation-delay: 0.08s;
+        }
+
+        .ctaFadeThree {
+          animation-delay: 0.16s;
+        }
+
+        .ctaFadeFour {
+          animation-delay: 0.22s;
+        }
+
+        .ctaFadeFive {
+          animation-delay: 0.28s;
+        }
+
+        .ctaFadeSix {
+          animation-delay: 0.34s;
+        }
+
+        .ctaFadeSeven {
+          animation-delay: 0.4s;
+        }
+
+        .ctaOrbitOuter {
+          animation: ctaOrbitSpin 30s linear infinite;
+        }
+
+        .ctaOrbitInner {
+          animation: ctaOrbitSpinReverse 22s linear infinite;
+        }
+
+        .ctaStar {
+          animation: ctaTwinkle 3.5s ease-in-out infinite;
+        }
+
+        @keyframes ctaFadeUp {
           from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(18px);
           }
 
           to {
@@ -303,71 +414,132 @@ export function CTASection() {
           }
         }
 
-        @keyframes cta-float {
+        @keyframes ctaGlowOne {
           0%,
           100% {
-            transform: translateY(-50%);
+            transform: translate3d(0, -50%, 0) scale(1);
           }
 
           50% {
-            transform: translateY(calc(-50% - 20px));
+            transform: translate3d(45px, calc(-50% + 25px), 0) scale(1.08);
           }
         }
 
-        @keyframes cta-particle {
+        @keyframes ctaGlowTwo {
           0%,
           100% {
-            transform: translateY(0) translateX(0);
+            transform: translate3d(0, -50%, 0) scale(1);
+          }
+
+          50% {
+            transform: translate3d(-45px, calc(-50% - 25px), 0) scale(1.06);
+          }
+        }
+
+        @keyframes ctaGlowCenter {
+          0%,
+          100% {
+            transform: translate3d(-50%, -50%, 0) scale(1);
+          }
+
+          50% {
+            transform: translate3d(-50%, calc(-50% - 20px), 0) scale(1.08);
+          }
+        }
+
+        @keyframes ctaGridMove {
+          from {
+            background-position: 0 0;
+          }
+
+          to {
+            background-position: 64px 64px;
+          }
+        }
+
+        @keyframes ctaLineMove {
+          0%,
+          100% {
+            transform: translateX(-3%);
+            opacity: 0.15;
+          }
+
+          50% {
+            transform: translateX(3%);
+            opacity: 0.5;
+          }
+        }
+
+        @keyframes ctaParticleFloat {
+          0%,
+          100% {
+            transform: translateY(0) scale(1);
+            opacity: 0.3;
+          }
+
+          50% {
+            transform: translateY(-16px) scale(1.3);
+            opacity: 0.8;
+          }
+        }
+
+        @keyframes ctaOrbitSpin {
+          from {
+            transform: rotate(0deg);
+          }
+
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        @keyframes ctaOrbitSpinReverse {
+          from {
+            transform: rotate(360deg);
+          }
+
+          to {
+            transform: rotate(0deg);
+          }
+        }
+
+        @keyframes ctaTwinkle {
+          0%,
+          100% {
             opacity: 0.25;
+            transform: scale(0.85);
           }
 
           50% {
-            transform: translateY(-20px) translateX(8px);
-            opacity: 1;
+            opacity: 0.8;
+            transform: scale(1.1);
           }
         }
 
-        @keyframes cta-spin {
-          from {
-            transform: rotate(0deg);
+        @media (max-width: 640px) {
+          .ctaGlow {
+            opacity: 0.3;
           }
 
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        @keyframes cta-spin-reverse {
-          from {
-            transform: rotate(360deg);
+          .ctaGrid {
+            background-size: 52px 52px;
           }
 
-          to {
-            transform: rotate(0deg);
-          }
-        }
-
-        @keyframes cta-twinkle {
-          0%,
-          100% {
+          .ctaLine {
             opacity: 0.2;
-            transform: scale(0.8);
-          }
-
-          50% {
-            opacity: 1;
-            transform: scale(1.15);
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          *,
-          *::before,
-          *::after {
-            animation-duration: 0.01ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: 0.01ms !important;
-            scroll-behavior: auto !important;
+          .ctaGlow,
+          .ctaGrid,
+          .ctaLine,
+          .ctaParticle,
+          .ctaFade,
+          .ctaOrbitOuter,
+          .ctaOrbitInner,
+          .ctaStar {
+            animation: none !important;
           }
         }
       `}</style>

@@ -19,34 +19,99 @@ export function SectionHeading({
 }: SectionHeadingProps) {
   const headingLabel = eyebrow ?? label
 
+  const isCenter = align === 'center'
+
   return (
     <div
-      className={`${align === 'center' ? 'text-center' : 'text-left'} ${className}`}
+      className={`
+        ${isCenter ? 'text-center' : 'text-left'}
+        ${className}
+      `}
     >
+      {/* =========================================================
+          EYEBROW
+      ========================================================== */}
+
       {headingLabel && (
-        <span className="mb-3 inline-block text-sm font-semibold tracking-widest text-brand-primary uppercase">
-          {headingLabel}
-        </span>
+        <div
+          className={`
+            mb-4
+            inline-flex
+            items-center
+            gap-2
+            rounded-full
+            border
+            border-violet-100
+            bg-violet-50
+            px-3.5
+            py-2
+            ${isCenter ? 'justify-center' : ''}
+          `}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
+
+          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-700 sm:text-[11px]">
+            {headingLabel}
+          </span>
+        </div>
       )}
 
-      <h2 className="font-display text-3xl font-bold text-text-primary md:text-4xl lg:text-5xl">
-        {title}{' '}
+      {/* =========================================================
+          TITLE
+      ========================================================== */}
+
+      <h2 className="text-3xl font-semibold leading-[1.1] tracking-tight text-neutral-950 sm:text-4xl lg:text-5xl">
+        <span>{title}</span>
+
         {highlight && (
-          <span className="text-brand-primary">
-            {highlight}
-          </span>
+          <>
+            {' '}
+
+            <span className="bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
+              {highlight}
+            </span>
+          </>
         )}
       </h2>
 
+      {/* =========================================================
+          DESCRIPTION
+      ========================================================== */}
+
       {description && (
-        <p className="mx-auto mt-4 max-w-2xl text-lg text-text-secondary">
+        <p
+          className={`
+            mt-5
+            text-sm
+            leading-6
+            text-neutral-500
+            sm:text-base
+            sm:leading-7
+            ${isCenter ? 'mx-auto max-w-2xl' : 'max-w-2xl'}
+          `}
+        >
           {description}
         </p>
       )}
 
+      {/* =========================================================
+          DECORATIVE LINE
+      ========================================================== */}
+
       <div
-        className={`section-line mt-6 ${align === 'center' ? 'mx-auto' : ''
-          }`}
+        aria-hidden="true"
+        className={`
+          sectionHeadingLine
+          mt-6
+          h-px
+          w-14
+          bg-gradient-to-r
+          from-violet-500
+          to-pink-500
+          transition-all
+          duration-500
+          ${isCenter ? 'mx-auto' : ''}
+        `}
       />
     </div>
   )

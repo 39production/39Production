@@ -48,7 +48,8 @@ export function PortfolioPage() {
           },
         )
 
-        const result = await response.json()
+        const result =
+          await response.json()
 
         if (!response.ok) {
           throw new Error(
@@ -57,7 +58,9 @@ export function PortfolioPage() {
           )
         }
 
-        const data = Array.isArray(result?.data)
+        const data = Array.isArray(
+          result?.data,
+        )
           ? result.data
           : []
 
@@ -76,73 +79,92 @@ export function PortfolioPage() {
       }
     }
 
-    fetchPortfolio()
+    void fetchPortfolio()
   }, [])
 
   const categories = useMemo(() => {
-    const uniqueCategories = Array.from(
-      new Set(
-        portfolio
-          .filter(
-            (item) =>
-              item.status === 'Published',
-          )
-          .map((item) => item.category)
-          .filter(Boolean),
-      ),
-    )
+    const uniqueCategories =
+      Array.from(
+        new Set(
+          portfolio
+            .filter(
+              (item) =>
+                item.status ===
+                'Published',
+            )
+            .map(
+              (item) =>
+                item.category,
+            )
+            .filter(Boolean),
+        ),
+      )
 
-    return ['All', ...uniqueCategories]
+    return [
+      'All',
+      ...uniqueCategories,
+    ]
   }, [portfolio])
 
-  const filteredPortfolio = useMemo(() => {
-    return portfolio.filter(
-      (item) =>
-        item.status === 'Published' &&
-        (activeCategory === 'All' ||
-          item.category === activeCategory),
-    )
-  }, [portfolio, activeCategory])
+  const filteredPortfolio =
+    useMemo(() => {
+      return portfolio.filter(
+        (item) =>
+          item.status ===
+          'Published' &&
+          (activeCategory ===
+            'All' ||
+            item.category ===
+            activeCategory),
+      )
+    }, [
+      portfolio,
+      activeCategory,
+    ])
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-bg-base">
+    <main className="relative min-h-screen overflow-hidden bg-white">
       {/* =========================================================
           BACKGROUND
       ========================================================== */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-48 -top-32 h-[500px] w-[500px] rounded-full bg-brand-primary/12 blur-[140px]" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-white via-white to-neutral-50" />
 
-        <div className="absolute -right-48 top-[20%] h-[500px] w-[500px] rounded-full bg-brand-accent/10 blur-[140px]" />
+        <div className="absolute -left-56 -top-32 h-[500px] w-[500px] rounded-full bg-violet-100/60 blur-[130px]" />
 
-        <div className="absolute left-1/2 top-[8%] h-[300px] w-[300px] -translate-x-1/2 rounded-full bg-brand-primary/5 blur-[100px]" />
+        <div className="absolute -right-56 top-[18%] h-[480px] w-[480px] rounded-full bg-pink-100/50 blur-[130px]" />
 
-        <div className="absolute inset-0 opacity-[0.035] [background-image:linear-gradient(rgba(255,255,255,0.6)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.6)_1px,transparent_1px)] [background-size:48px_48px]" />
-
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_15%,rgba(0,0,0,0.5)_100%)]" />
+        <div className="absolute left-1/2 top-[8%] h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-fuchsia-100/35 blur-[110px]" />
       </div>
 
       {/* =========================================================
           HERO
       ========================================================== */}
-      <section className="relative border-b border-border-default">
-        <div className="mx-auto max-w-7xl px-5 pb-9 pt-16 sm:px-8 sm:pb-10 lg:px-10 lg:pb-12 lg:pt-20">
-          <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+      <section className="relative border-b border-neutral-200">
+        <div className="mx-auto max-w-7xl px-4 pb-9 pt-24 sm:px-6 sm:pb-10 sm:pt-28 lg:px-8 lg:pb-12 lg:pt-32">
+          <div className="flex flex-col justify-between gap-7 lg:flex-row lg:items-end">
             <div className="max-w-3xl">
               {/* Badge */}
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-brand-primary/20 bg-bg-surface/60 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-primary backdrop-blur-md">
-                <Sparkles className="h-3.5 w-3.5" />
-                Creative Portfolio
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3.5 py-2 shadow-sm">
+                <Sparkles className="h-3.5 w-3.5 text-violet-600" />
+
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700 sm:text-xs">
+                  Creative Portfolio
+                </span>
               </div>
 
               {/* Heading */}
-              <h1 className="font-display text-4xl font-black leading-[1.02] tracking-tight text-text-primary sm:text-5xl lg:text-6xl">
+              <h1 className="text-4xl font-black leading-[0.98] tracking-[-0.045em] text-neutral-950 sm:text-5xl lg:text-6xl">
                 Selected{' '}
-                <span className="gradient-text">
+                <span className="bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-500 bg-clip-text text-transparent">
                   Works
                 </span>
               </h1>
 
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-text-muted sm:text-base">
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-600 sm:text-base sm:leading-8">
                 A selection of digital experiences,
                 creative products, and production work
                 crafted across technology, design,
@@ -150,19 +172,19 @@ export function PortfolioPage() {
               </p>
             </div>
 
-            {/* Published count */}
+            {/* Published Count */}
             {!loading && !error && (
-              <div className="hidden shrink-0 items-center gap-3 rounded-2xl border border-border-default bg-bg-surface/50 px-4 py-3 backdrop-blur-md sm:flex">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-primary/10">
-                  <FolderOpen className="h-4 w-4 text-brand-primary" />
+              <div className="hidden shrink-0 items-center gap-3 rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm sm:flex">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-700">
+                  <FolderOpen className="h-4 w-4" />
                 </div>
 
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.15em] text-text-muted">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-neutral-400">
                     Published Works
                   </p>
 
-                  <p className="font-display text-lg font-bold text-text-primary">
+                  <p className="text-lg font-black text-neutral-950">
                     {filteredPortfolio.length}
                   </p>
                 </div>
@@ -175,23 +197,23 @@ export function PortfolioPage() {
       {/* =========================================================
           CONTENT
       ========================================================== */}
-      <section className="relative mx-auto max-w-7xl px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
+      <section className="relative mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-9 lg:px-8 lg:py-10">
         {/* =======================================================
             CATEGORY FILTER
         ======================================================== */}
         {!loading &&
           !error &&
           categories.length > 1 && (
-            <div className="mb-7">
+            <div className="mb-8">
               <div className="mb-3 flex items-center gap-2">
-                <div className="h-1 w-5 rounded-full bg-gradient-to-r from-brand-primary to-brand-accent" />
+                <div className="h-1 w-5 rounded-full bg-gradient-to-r from-violet-600 to-pink-500" />
 
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-muted">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400">
                   Explore by category
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-none sm:flex-wrap sm:overflow-visible">
                 {categories.map(
                   (category) => {
                     const isActive =
@@ -207,9 +229,9 @@ export function PortfolioPage() {
                             category,
                           )
                         }
-                        className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${isActive
-                            ? 'bg-gradient-to-r from-brand-primary to-brand-accent text-white shadow-md shadow-brand-primary/20'
-                            : 'border border-border-default bg-bg-surface/60 text-text-muted backdrop-blur-md hover:border-brand-primary/40 hover:text-text-primary'
+                        className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-semibold transition-all duration-200 ${isActive
+                            ? 'bg-neutral-950 text-white shadow-[0_8px_20px_rgba(0,0,0,0.10)]'
+                            : 'border border-neutral-200 bg-white text-neutral-500 shadow-sm hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700'
                           }`}
                       >
                         {category}
@@ -225,20 +247,20 @@ export function PortfolioPage() {
             LOADING
         ======================================================== */}
         {loading && (
-          <div className="flex min-h-[260px] items-center justify-center">
-            <div className="relative flex items-center gap-3 rounded-2xl border border-border-default bg-bg-surface/70 px-5 py-4 backdrop-blur-xl">
-              <div className="absolute -inset-5 -z-10 rounded-full bg-brand-primary/10 blur-2xl" />
+          <div className="flex min-h-[280px] items-center justify-center">
+            <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-5 shadow-[0_15px_45px_rgba(0,0,0,0.05)]">
+              <div className="flex items-center gap-3 text-sm text-neutral-500">
+                <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
 
-              <Loader2 className="h-5 w-5 animate-spin text-brand-primary" />
+                <div>
+                  <p className="font-semibold text-neutral-900">
+                    Loading portfolio
+                  </p>
 
-              <div>
-                <p className="text-sm font-semibold text-text-primary">
-                  Loading portfolio
-                </p>
-
-                <p className="text-xs text-text-muted">
-                  Menyiapkan selected works...
-                </p>
+                  <p className="text-xs text-neutral-400">
+                    Menyiapkan selected works...
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -248,19 +270,17 @@ export function PortfolioPage() {
             ERROR
         ======================================================== */}
         {!loading && error && (
-          <div className="relative overflow-hidden rounded-2xl border border-red-500/20 bg-bg-surface/70 p-7 text-center backdrop-blur-xl">
-            <div className="absolute inset-0 bg-red-500/[0.025]" />
-
+          <div className="relative overflow-hidden rounded-2xl border border-red-200 bg-red-50 p-6 text-center sm:p-7">
             <div className="relative">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10">
-                <FolderOpen className="h-5 w-5 text-red-400" />
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 text-red-600">
+                <FolderOpen className="h-5 w-5" />
               </div>
 
-              <h2 className="mt-4 font-display text-lg font-bold text-text-primary">
+              <h2 className="mt-4 text-lg font-bold text-neutral-950">
                 Unable to load portfolio
               </h2>
 
-              <p className="mt-1 text-sm text-red-400">
+              <p className="mt-1 text-sm text-red-600">
                 {error}
               </p>
             </div>
@@ -274,19 +294,19 @@ export function PortfolioPage() {
           !error &&
           filteredPortfolio.length ===
           0 && (
-            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-border-default bg-bg-surface/60 p-7 text-center backdrop-blur-xl">
-              <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-border-default bg-bg-elevated">
-                <FolderOpen className="h-6 w-6 text-text-muted" />
+            <div className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-neutral-200 bg-white p-7 text-center shadow-[0_15px_50px_rgba(0,0,0,0.04)]">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-50 text-neutral-400">
+                <FolderOpen className="h-6 w-6" />
               </div>
 
-              <h2 className="mt-4 font-display text-lg font-bold text-text-primary">
+              <h2 className="mt-4 text-lg font-bold text-neutral-950">
                 No published work yet
               </h2>
 
-              <p className="mt-1 max-w-md text-sm leading-6 text-text-muted">
-                Our portfolio is continuously
-                evolving. Published projects will
-                appear here as they become available.
+              <p className="mt-1 max-w-md text-sm leading-6 text-neutral-500">
+                Our portfolio is continuously evolving.
+                Published projects will appear here as
+                they become available.
               </p>
             </div>
           )}
@@ -296,47 +316,92 @@ export function PortfolioPage() {
         ======================================================== */}
         {!loading &&
           !error &&
-          filteredPortfolio.length > 0 && (
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+          filteredPortfolio.length >
+          0 && (
+            <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
               {filteredPortfolio.map(
                 (item) => (
                   <article
                     key={item.id}
-                    className="group relative overflow-hidden rounded-2xl border border-border-default bg-bg-surface/70 shadow-lg backdrop-blur-xl transition duration-500 hover:-translate-y-1 hover:border-brand-primary/40 hover:shadow-xl hover:shadow-brand-primary/5"
+                    className="
+                      group
+                      relative
+                      flex
+                      h-full
+                      flex-col
+                      overflow-hidden
+                      rounded-[1.5rem]
+                      border
+                      border-neutral-200
+                      bg-white
+                      shadow-[0_10px_35px_rgba(0,0,0,0.045)]
+                      transition-all
+                      duration-300
+                      hover:-translate-y-1
+                      hover:border-violet-200
+                      hover:shadow-[0_20px_55px_rgba(124,58,237,0.10)]
+                    "
                   >
-                    {/* Image */}
-                    <div className="relative aspect-[16/9] overflow-hidden bg-bg-base">
-                      {item.image_url ? (
-                        <img
-                          src={item.image_url}
-                          alt={item.title}
-                          loading="lazy"
-                          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
-                          <div className="absolute h-32 w-32 rounded-full bg-brand-primary/15 blur-[70px]" />
+                    {/* Top hover line */}
+                    <div className="absolute inset-x-6 top-0 z-30 h-px bg-gradient-to-r from-transparent via-violet-500 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-                          <FolderOpen className="relative h-11 w-11 text-text-muted" />
-                        </div>
+                    {/* =================================================
+                        IMAGE
+                    ================================================== */}
+                    <div className="relative aspect-[16/10] overflow-hidden bg-neutral-100">
+                      {item.image_url ? (
+                        <>
+                          <img
+                            src={
+                              item.image_url
+                            }
+                            alt={item.title}
+                            loading="lazy"
+                            decoding="async"
+                            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                          />
+
+                          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-neutral-950/65 via-neutral-950/5 to-transparent" />
+
+                          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-violet-500/10 via-transparent to-pink-500/10 opacity-70 transition-opacity duration-500 group-hover:opacity-100" />
+                        </>
+                      ) : (
+                        <>
+                          <div className="absolute inset-0 bg-gradient-to-br from-violet-100 via-white to-pink-100" />
+
+                          <div
+                            className="absolute inset-0 opacity-[0.06]"
+                            style={{
+                              backgroundImage: `
+                                linear-gradient(rgba(124,58,237,0.7) 1px, transparent 1px),
+                                linear-gradient(90deg, rgba(124,58,237,0.7) 1px, transparent 1px)
+                              `,
+                              backgroundSize:
+                                '32px 32px',
+                            }}
+                          />
+
+                          <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2">
+                            <div className="absolute -inset-8 rounded-full bg-violet-200/50 blur-2xl" />
+
+                            <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-violet-200 bg-white text-violet-600 shadow-xl">
+                              <FolderOpen className="h-9 w-9" />
+                            </div>
+                          </div>
+                        </>
                       )}
 
-                      {/* Overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-transparent opacity-80" />
-
-                      <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/20 via-transparent to-brand-accent/20 opacity-0 transition duration-500 group-hover:opacity-100" />
-
                       {/* Category */}
-                      <div className="absolute left-3 top-3">
-                        <span className="rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-md">
+                      <div className="absolute left-4 top-4">
+                        <span className="inline-flex rounded-full border border-white/30 bg-neutral-950/45 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-white shadow-sm backdrop-blur-md">
                           {item.category}
                         </span>
                       </div>
 
                       {/* Year */}
                       {item.year && (
-                        <div className="absolute right-3 top-3">
-                          <span className="rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-[10px] font-medium text-white backdrop-blur-md">
+                        <div className="absolute right-4 top-4">
+                          <span className="inline-flex rounded-full border border-white/30 bg-neutral-950/45 px-3 py-1.5 text-[10px] font-medium text-white shadow-sm backdrop-blur-md">
                             {item.year}
                           </span>
                         </div>
@@ -344,8 +409,8 @@ export function PortfolioPage() {
 
                       {/* Client */}
                       {item.client && (
-                        <div className="absolute bottom-3 left-3 right-3">
-                          <p className="text-[9px] uppercase tracking-[0.15em] text-white/55">
+                        <div className="absolute bottom-4 left-4 right-4">
+                          <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-white/60">
                             Client
                           </p>
 
@@ -356,31 +421,35 @@ export function PortfolioPage() {
                       )}
                     </div>
 
-                    {/* Content */}
-                    <div className="p-4">
-                      <h2 className="font-display text-lg font-bold leading-tight text-text-primary transition group-hover:text-brand-primary">
+                    {/* =================================================
+                        CONTENT
+                    ================================================== */}
+                    <div className="flex flex-1 flex-col p-5 sm:p-6">
+                      <h2 className="line-clamp-2 text-lg font-bold leading-6 text-neutral-950 transition-colors group-hover:text-violet-700 sm:text-xl">
                         {item.title}
                       </h2>
 
                       {item.description && (
-                        <p className="mt-2 line-clamp-2 text-xs leading-5 text-text-muted">
+                        <p className="mt-2 line-clamp-3 min-h-[66px] text-sm leading-6 text-neutral-500">
                           {item.description}
                         </p>
                       )}
 
-                      <div className="mt-4 flex items-center justify-between border-t border-border-default pt-3">
-                        <div>
-                          <p className="text-[9px] uppercase tracking-[0.15em] text-text-muted">
-                            Category
-                          </p>
+                      <div className="mt-auto pt-5">
+                        <div className="flex items-center justify-between gap-4 border-t border-neutral-100 pt-4">
+                          <div className="min-w-0">
+                            <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-neutral-400">
+                              Category
+                            </p>
 
-                          <p className="mt-0.5 text-xs font-medium text-text-primary">
-                            {item.category}
-                          </p>
-                        </div>
+                            <p className="mt-0.5 truncate text-xs font-medium text-neutral-800">
+                              {item.category}
+                            </p>
+                          </div>
 
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-default bg-bg-base/50 text-text-muted transition group-hover:border-brand-primary/30 group-hover:bg-brand-primary/10 group-hover:text-brand-primary">
-                          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-neutral-200 bg-white text-neutral-400 shadow-sm transition-all duration-300 group-hover:border-violet-200 group-hover:bg-violet-50 group-hover:text-violet-700">
+                            <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+                          </div>
                         </div>
                       </div>
                     </div>

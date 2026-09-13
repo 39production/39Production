@@ -14,22 +14,25 @@ export function Logo({
 }: LogoProps) {
   const sizes = {
     sm: {
-      image: 'h-9 w-9',
-      wordmark: 'text-lg',
-      subtext: 'text-[8px]',
+      image: 'h-8 w-8',
+      wordmark: 'text-[17px]',
+      subtext: 'text-[7px]',
       gap: 'gap-2.5',
+      radius: 'rounded-lg',
     },
     md: {
-      image: 'h-11 w-11',
-      wordmark: 'text-2xl',
-      subtext: 'text-[9px]',
+      image: 'h-10 w-10',
+      wordmark: 'text-[21px]',
+      subtext: 'text-[8px]',
       gap: 'gap-3',
+      radius: 'rounded-xl',
     },
     lg: {
-      image: 'h-16 w-16',
-      wordmark: 'text-4xl',
-      subtext: 'text-[11px]',
-      gap: 'gap-4',
+      image: 'h-14 w-14',
+      wordmark: 'text-[30px]',
+      subtext: 'text-[10px]',
+      gap: 'gap-3.5',
+      radius: 'rounded-xl',
     },
   }
 
@@ -41,60 +44,71 @@ export function Logo({
       aria-label="39Production — SanKyuu Production"
       className={`group inline-flex items-center ${current.gap} ${className}`}
     >
-      {/* LOGO */}
+      {/* =========================================================
+          LOGO MARK
+      ========================================================== */}
+
       <div
         className={`
-          relative shrink-0
+          relative
+          shrink-0
+          overflow-visible
           ${current.image}
         `}
       >
-        {/* Glow */}
+        {/* Very subtle hover accent */}
         <div
           aria-hidden="true"
-          className="
+          className={`
+            pointer-events-none
             absolute
-            inset-0
-            rounded-xl
-            bg-brand-primary/20
+            inset-[10%]
+            ${current.radius}
+            bg-violet-500/10
             opacity-0
-            blur-xl
+            blur-lg
             transition-all
             duration-500
-            group-hover:scale-110
+            group-hover:scale-125
             group-hover:opacity-100
-          "
+          `}
         />
 
-        {/* Image */}
+        {/* Logo image */}
         <img
           src={logo39Production}
           alt="39Production"
-          className="
+          draggable={false}
+          className={`
             relative
+            z-10
             h-full
             w-full
             object-contain
-            transition-all
+            transition-transform
             duration-300
             ease-out
-            group-hover:scale-105
-          "
+            group-hover:scale-[1.04]
+          `}
         />
       </div>
 
-      {/* WORDMARK */}
+      {/* =========================================================
+          WORDMARK
+      ========================================================== */}
+
       <div className="flex min-w-0 flex-col">
         <span
           className={`
+            ${current.wordmark}
             font-display
             font-bold
             leading-none
-            tracking-[-0.04em]
-            text-text-primary
+            tracking-[-0.045em]
+            text-neutral-950
             transition-colors
             duration-300
-            group-hover:text-brand-primary
-            ${current.wordmark}
+            group-hover:text-violet-600
           `}
         >
           39Production
@@ -103,11 +117,16 @@ export function Logo({
         {showSubtext && (
           <span
             className={`
-              mt-1
-              font-medium
-              tracking-[0.16em]
-              text-text-muted
+              mt-1.5
               ${current.subtext}
+              font-medium
+              uppercase
+              leading-none
+              tracking-[0.18em]
+              text-neutral-400
+              transition-colors
+              duration-300
+              group-hover:text-neutral-500
             `}
           >
             SanKyuu Production

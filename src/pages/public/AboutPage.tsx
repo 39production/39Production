@@ -40,27 +40,28 @@ const values = [
 
 export function AboutPage() {
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero */}
-      <section className="relative overflow-hidden border-b border-border">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.12),transparent_35%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(236,72,153,0.08),transparent_30%)]" />
+    <div className="min-h-screen bg-white text-zinc-900">
+      {/* HERO */}
+      <section className="relative overflow-hidden border-b border-zinc-200">
+        <div className="pointer-events-none absolute -right-32 -top-32 h-[500px] w-[500px] rounded-full bg-purple-100/70 blur-[120px]" />
 
-        <div className="relative mx-auto max-w-7xl px-6 py-24 lg:px-8 lg:py-32">
+        <div className="pointer-events-none absolute -left-32 bottom-0 h-[400px] w-[400px] rounded-full bg-pink-100/50 blur-[120px]" />
+
+        <div className="relative mx-auto max-w-7xl px-6 py-20 sm:py-24 lg:px-8 lg:py-32">
           <div className="mx-auto max-w-4xl text-center">
-            <span className="inline-flex items-center rounded-full border border-brand-primary/20 bg-brand-primary/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-primary">
+            <span className="inline-flex items-center rounded-full border border-purple-200 bg-purple-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-purple-700">
               About 39Production
             </span>
 
-            <h1 className="mt-8 font-display text-4xl font-bold tracking-tight text-text-primary sm:text-5xl lg:text-7xl">
+            <h1 className="mt-8 text-4xl font-bold leading-tight tracking-tight text-zinc-950 sm:text-5xl lg:text-7xl">
               Where{' '}
-              <span className="gradient-text">
+              <span className="bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
                 Technology
               </span>{' '}
               Meets Creativity
             </h1>
 
-            <p className="mx-auto mt-7 max-w-3xl text-base leading-8 text-text-secondary sm:text-lg">
+            <p className="mx-auto mt-7 max-w-3xl text-base leading-8 text-zinc-600 sm:text-lg">
               39Production adalah creative technology dan entertainment
               production house yang menggabungkan teknologi, design,
               storytelling, dan music untuk mengubah ide menjadi digital
@@ -68,13 +69,13 @@ export function AboutPage() {
               yang meaningful.
             </p>
 
-            <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-text-muted">
+            <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-zinc-500">
               Nama{' '}
-              <span className="font-semibold text-text-primary">
+              <span className="font-semibold text-zinc-900">
                 "39"
               </span>{' '}
               dibaca sebagai{' '}
-              <span className="font-semibold text-brand-primary">
+              <span className="font-semibold text-purple-600">
                 "Sankyuu"
               </span>
               , terinspirasi dari ungkapan Jepang "Thank You".
@@ -87,25 +88,25 @@ export function AboutPage() {
         </div>
       </section>
 
-      {/* Mission */}
-      <section className="border-b border-border">
+      {/* MISSION */}
+      <section className="border-b border-zinc-200 bg-white">
         <div className="mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-24">
-          <div className="grid gap-10 lg:grid-cols-[1fr_1.5fr] lg:items-center">
+          <div className="grid gap-10 lg:grid-cols-[1fr_1.5fr] lg:items-center lg:gap-16">
             <div>
-              <span className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-primary">
+              <span className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-600">
                 Our Mission
               </span>
 
-              <h2 className="mt-4 font-display text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
+              <h2 className="mt-4 text-3xl font-bold leading-tight tracking-tight text-zinc-950 sm:text-4xl">
                 Creating work that is
-                <span className="gradient-text">
-                  {' '}useful, expressive, and memorable.
+                <span className="block bg-gradient-to-r from-violet-600 to-pink-500 bg-clip-text text-transparent">
+                  useful, expressive, and memorable.
                 </span>
               </h2>
             </div>
 
-            <div className="rounded-2xl border border-border-default bg-bg-surface p-7 sm:p-8">
-              <p className="text-base leading-8 text-text-secondary">
+            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-7 shadow-sm sm:p-8">
+              <p className="text-base leading-8 text-zinc-600">
                 Misi kami adalah menghubungkan technology dan creativity
                 untuk membangun products, experiences, dan entertainment
                 yang benar-benar dapat terhubung dengan penggunanya.
@@ -114,7 +115,7 @@ export function AboutPage() {
                 ide menjadi hasil yang meaningful.
               </p>
 
-              <p className="mt-5 text-base leading-8 text-text-muted">
+              <p className="mt-5 text-base leading-8 text-zinc-500">
                 Baik itu website, digital product, visual identity,
                 illustration, animation, game, original music, maupun
                 entertainment project, kami membawa prinsip yang sama:
@@ -126,8 +127,8 @@ export function AboutPage() {
         </div>
       </section>
 
-      {/* Values */}
-      <section>
+      {/* VALUES */}
+      <section className="bg-white">
         <div className="mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-24">
           <SectionHeading
             label="Our Values"
@@ -138,17 +139,17 @@ export function AboutPage() {
             {values.map((value) => (
               <div
                 key={value.title}
-                className="group rounded-2xl border border-border-default bg-bg-surface p-7 transition-all duration-300 hover:-translate-y-1 hover:border-brand-primary/40 hover:shadow-xl hover:shadow-brand-primary/5"
+                className="group rounded-2xl border border-zinc-200 bg-white p-7 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-purple-200 hover:shadow-xl hover:shadow-purple-100/30"
               >
-                <div className="inline-flex rounded-xl border border-brand-primary/10 bg-brand-primary/10 p-3 transition-colors group-hover:bg-brand-primary/15">
-                  <value.icon className="h-6 w-6 text-brand-primary" />
+                <div className="inline-flex rounded-xl border border-purple-100 bg-purple-50 p-3 transition-colors group-hover:bg-purple-100">
+                  <value.icon className="h-6 w-6 text-purple-600" />
                 </div>
 
-                <h3 className="mt-5 text-lg font-semibold text-text-primary">
+                <h3 className="mt-5 text-lg font-semibold text-zinc-900">
                   {value.title}
                 </h3>
 
-                <p className="mt-3 text-sm leading-7 text-text-muted">
+                <p className="mt-3 text-sm leading-7 text-zinc-500">
                   {value.description}
                 </p>
               </div>
@@ -157,8 +158,8 @@ export function AboutPage() {
         </div>
       </section>
 
-      {/* Divisions */}
-      <section className="border-y border-border bg-bg-surface/30">
+      {/* DIVISIONS */}
+      <section className="border-y border-zinc-200 bg-zinc-50/70">
         <div className="mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-24">
           <SectionHeading
             label="What We Do"
@@ -166,26 +167,26 @@ export function AboutPage() {
           />
 
           <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* Digital */}
-            <div className="group relative overflow-hidden rounded-3xl border border-border-default bg-bg-surface p-8 transition-all duration-300 hover:border-blue-400/30 hover:shadow-2xl hover:shadow-blue-500/5 sm:p-10">
-              <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-blue-500/5 blur-3xl transition-all duration-300 group-hover:bg-blue-500/10" />
+            {/* DIGITAL */}
+            <div className="group relative overflow-hidden rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-100/30 sm:p-10">
+              <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-blue-100/60 blur-3xl transition-all duration-300 group-hover:bg-blue-100" />
 
               <div className="relative">
-                <div className="flex items-center justify-between">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                     <Code2 className="h-6 w-6" />
                   </div>
 
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-400">
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
                     Division 01
                   </span>
                 </div>
 
-                <h3 className="mt-7 font-display text-2xl font-bold text-text-primary sm:text-3xl">
+                <h3 className="mt-7 text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">
                   Digital Creative Services
                 </h3>
 
-                <p className="mt-5 leading-8 text-text-muted">
+                <p className="mt-5 leading-8 text-zinc-600">
                   Kami menciptakan digital solutions yang menggabungkan
                   technology, usability, dan visual creativity. Capability
                   kami mencakup web dan application development, UI/UX
@@ -193,7 +194,7 @@ export function AboutPage() {
                   multimedia, hingga game development.
                 </p>
 
-                <p className="mt-4 leading-8 text-text-muted">
+                <p className="mt-4 leading-8 text-zinc-500">
                   Mulai dari early concept hingga menjadi finished digital
                   experience, kami fokus membangun solusi yang functional,
                   visually engaging, dan tetap sesuai dengan tujuan setiap
@@ -202,7 +203,7 @@ export function AboutPage() {
 
                 <Link
                   to="/services"
-                  className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-brand-primary transition-colors hover:text-brand-accent"
+                  className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-purple-600 transition-colors hover:text-purple-700"
                 >
                   Explore our services
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -210,26 +211,26 @@ export function AboutPage() {
               </div>
             </div>
 
-            {/* Idol */}
-            <div className="group relative overflow-hidden rounded-3xl border border-border-default bg-bg-surface p-8 transition-all duration-300 hover:border-brand-accent/30 hover:shadow-2xl hover:shadow-brand-accent/5 sm:p-10">
-              <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-pink-500/5 blur-3xl transition-all duration-300 group-hover:bg-pink-500/10" />
+            {/* ENTERTAINMENT */}
+            <div className="group relative overflow-hidden rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-pink-200 hover:shadow-xl hover:shadow-pink-100/30 sm:p-10">
+              <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-pink-100/60 blur-3xl transition-all duration-300 group-hover:bg-pink-100" />
 
               <div className="relative">
-                <div className="flex items-center justify-between">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-accent/10 text-brand-accent">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-pink-50 text-pink-600">
                     <Music2 className="h-6 w-6" />
                   </div>
 
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-accent">
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-pink-600">
                     Division 02
                   </span>
                 </div>
 
-                <h3 className="mt-7 font-display text-2xl font-bold text-text-primary sm:text-3xl">
+                <h3 className="mt-7 text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">
                   Entertainment Production
                 </h3>
 
-                <p className="mt-5 leading-8 text-text-muted">
+                <p className="mt-5 leading-8 text-zinc-600">
                   Kami mengembangkan original entertainment projects
                   melalui idola groups, original music, music videos,
                   live activities, dan creative content. Fokus kami adalah
@@ -238,7 +239,7 @@ export function AboutPage() {
                   dengan audience.
                 </p>
 
-                <p className="mt-4 leading-8 text-text-muted">
+                <p className="mt-4 leading-8 text-zinc-500">
                   Mulai dari artist concept dan music release hingga
                   visual content dan audience experience, division ini
                   menggabungkan storytelling, music, dan creative
@@ -247,7 +248,7 @@ export function AboutPage() {
 
                 <Link
                   to="/idol"
-                  className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-brand-primary transition-colors hover:text-brand-accent"
+                  className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-purple-600 transition-colors hover:text-pink-600"
                 >
                   Discover our Entertainment production
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -259,21 +260,21 @@ export function AboutPage() {
       </section>
 
       {/* CTA */}
-      <section>
+      <section className="bg-white">
         <div className="mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-28">
-          <div className="relative overflow-hidden rounded-3xl border border-brand-primary/20 bg-brand-primary/5 px-6 py-16 text-center sm:px-12">
-            <div className="absolute left-1/2 top-0 h-48 w-96 -translate-x-1/2 rounded-full bg-brand-primary/10 blur-3xl" />
+          <div className="relative overflow-hidden rounded-3xl border border-purple-200 bg-gradient-to-br from-purple-50 via-white to-pink-50 px-6 py-16 text-center shadow-sm sm:px-12">
+            <div className="pointer-events-none absolute left-1/2 top-0 h-48 w-96 -translate-x-1/2 rounded-full bg-purple-200/50 blur-3xl" />
 
             <div className="relative">
-              <span className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-primary">
+              <span className="text-sm font-semibold uppercase tracking-[0.18em] text-purple-600">
                 Let's Create Together
               </span>
 
-              <h2 className="mx-auto mt-4 max-w-2xl font-display text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
+              <h2 className="mx-auto mt-4 max-w-2xl text-3xl font-bold tracking-tight text-zinc-950 sm:text-4xl">
                 Punya ide yang siap diwujudkan?
               </h2>
 
-              <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-text-secondary">
+              <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-zinc-600">
                 Ceritakan apa yang sedang kamu bangun, ciptakan, atau
                 bayangkan. Whether it's a digital product, creative
                 service, entertainment project, atau sesuatu yang
@@ -283,7 +284,7 @@ export function AboutPage() {
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Link
                   to="/contact"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-primary px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-brand-primary/20 transition-all hover:-translate-y-0.5 hover:bg-brand-secondary"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 px-7 py-3.5 text-sm font-semibold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-zinc-800 sm:w-auto"
                 >
                   Start a Conversation
                   <ArrowRight className="h-4 w-4" />

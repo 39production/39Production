@@ -14,7 +14,8 @@ import {
 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 
-const API_BASE_URL = 'https://39production-api.39production.workers.dev'
+const API_BASE_URL =
+    'https://39production-api.39production.workers.dev'
 
 interface PublicQuote {
     id: string
@@ -160,19 +161,29 @@ function getPricingLabel(
 }
 
 export function QuotePage() {
-    const { token } = useParams<{ token: string }>()
+    const { token } =
+        useParams<{ token: string }>()
 
-    const [quote, setQuote] = useState<PublicQuote | null>(null)
+    const [quote, setQuote] =
+        useState<PublicQuote | null>(null)
 
-    const [loading, setLoading] = useState(true)
-    const [accepting, setAccepting] = useState(false)
-    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [loading, setLoading] =
+        useState(true)
 
-    const [error, setError] = useState('')
+    const [accepting, setAccepting] =
+        useState(false)
 
-    const [accepted, setAccepted] = useState(false)
+    const [isSubmitting, setIsSubmitting] =
+        useState(false)
 
-    const [showCheckout, setShowCheckout] = useState(false)
+    const [error, setError] =
+        useState('')
+
+    const [accepted, setAccepted] =
+        useState(false)
+
+    const [showCheckout, setShowCheckout] =
+        useState(false)
 
     const [paymentData, setPaymentData] =
         useState<PaymentData | null>(null)
@@ -222,7 +233,9 @@ export function QuotePage() {
 
                 setQuote(result.data)
 
-                if (result.data.status === 'Accepted') {
+                if (
+                    result.data.status === 'Accepted'
+                ) {
                     setAccepted(true)
                 }
             } catch (err) {
@@ -278,11 +291,8 @@ export function QuotePage() {
 
             setAccepted(true)
 
-            /*
-             * Backend dapat mengembalikan data quote
-             * terbaru setelah status berubah menjadi Accepted.
-             */
-            const acceptedQuote = result.data?.quote
+            const acceptedQuote =
+                result.data?.quote
 
             if (acceptedQuote) {
                 setQuote((current) => {
@@ -293,7 +303,9 @@ export function QuotePage() {
                     return {
                         ...current,
                         ...acceptedQuote,
-                        id: acceptedQuote.id || current.id,
+                        id:
+                            acceptedQuote.id ||
+                            current.id,
                         status: 'Accepted',
                     }
                 })
@@ -308,13 +320,6 @@ export function QuotePage() {
                 })
             }
 
-            /*
-             * LANGSUNG buka checkout modal.
-             *
-             * Tidak redirect ke:
-             * - ServiceDetailPage
-             * - /checkout
-             */
             setShowCheckout(true)
         } catch (err) {
             console.error(err)
@@ -392,14 +397,6 @@ export function QuotePage() {
                             quote.service_id,
                         ),
 
-                        /*
-                         * PENTING:
-                         * Payment menggunakan quote_id.
-                         *
-                         * Backend kemudian mengambil:
-                         * quote.proposed_price
-                         * sebagai harga final project.
-                         */
                         quote_id: Number(quote.id),
 
                         customer_name:
@@ -426,7 +423,9 @@ export function QuotePage() {
                 )
             }
 
-            if (!result.data?.payment_reference) {
+            if (
+                !result.data?.payment_reference
+            ) {
                 throw new Error(
                     'Payment reference tidak ditemukan.',
                 )
@@ -563,9 +562,11 @@ export function QuotePage() {
 
     if (loading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-[#09090B]">
+            <div className="flex min-h-screen items-center justify-center bg-white">
                 <div className="text-center">
-                    <Loader2 className="mx-auto h-8 w-8 animate-spin text-purple-400" />
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-purple-200 bg-purple-50">
+                        <Loader2 className="h-7 w-7 animate-spin text-purple-600" />
+                    </div>
 
                     <p className="mt-4 text-sm text-zinc-500">
                         Memuat quotation...
@@ -583,13 +584,13 @@ export function QuotePage() {
 
     if (error && !quote) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-[#09090B] px-6">
+            <div className="flex min-h-screen items-center justify-center bg-white px-6">
                 <div className="w-full max-w-lg text-center">
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10">
-                        <FileText className="h-7 w-7 text-red-400" />
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-red-200 bg-red-50">
+                        <FileText className="h-7 w-7 text-red-600" />
                     </div>
 
-                    <h1 className="mt-6 text-2xl font-semibold text-white">
+                    <h1 className="mt-6 text-2xl font-semibold text-zinc-950">
                         Quotation Tidak Ditemukan
                     </h1>
 
@@ -600,7 +601,7 @@ export function QuotePage() {
 
                     <Link
                         to="/"
-                        className="mt-7 inline-flex items-center gap-2 rounded-xl bg-purple-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-purple-500"
+                        className="mt-7 inline-flex items-center gap-2 rounded-xl bg-zinc-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
                     >
                         Kembali ke Website
                         <ArrowRight className="h-4 w-4" />
@@ -621,116 +622,107 @@ export function QuotePage() {
      */
 
     return (
-        <div className="min-h-screen bg-[#09090B] text-white">
-            {/* Background */}
-            <div className="pointer-events-none fixed inset-0 overflow-hidden">
-                <div className="absolute left-1/2 top-[-300px] h-[600px] w-[900px] -translate-x-1/2 rounded-full bg-purple-600/10 blur-[140px]" />
-
-                <div className="absolute bottom-[-250px] right-[-150px] h-[500px] w-[500px] rounded-full bg-pink-600/5 blur-[120px]" />
-            </div>
-
-            {/* Header */}
-            <header className="relative z-10 border-b border-white/[0.06]">
-                <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+        <div className="min-h-screen bg-white text-zinc-900">
+            {/* HEADER */}
+            <header className="border-b border-zinc-200 bg-white">
+                <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5 lg:px-8">
                     <Link
                         to="/"
-                        className="flex items-center gap-2 text-sm font-semibold text-white"
+                        className="flex items-center gap-2 text-sm font-semibold text-zinc-950"
                     >
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-950 text-white">
                             <Sparkles className="h-4 w-4" />
                         </div>
 
                         39Production
                     </Link>
 
-                    <div className="flex items-center gap-2 text-xs text-zinc-500">
-                        <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                    <div className="flex items-center gap-2 text-xs font-medium text-zinc-500">
+                        <ShieldCheck className="h-4 w-4 text-emerald-600" />
                         Secure Quotation
                     </div>
                 </div>
             </header>
 
-            <main className="relative z-10 mx-auto max-w-5xl px-6 py-10 lg:py-16">
-                {/* Back */}
+            <main className="mx-auto max-w-6xl px-6 py-10 lg:px-8 lg:py-16">
+                {/* BACK */}
                 <Link
                     to="/"
-                    className="inline-flex items-center gap-2 text-sm text-zinc-500 transition hover:text-white"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-zinc-500 transition hover:text-purple-600"
                 >
                     <ArrowLeft className="h-4 w-4" />
                     Back to 39Production
                 </Link>
 
-                {/* Heading */}
+                {/* HEADING */}
                 <div className="mt-8">
-                    <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+                    <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
                         <div>
-                            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-purple-500/20 bg-purple-500/10 px-3 py-1.5 text-xs font-medium text-purple-300">
+                            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-medium text-purple-700">
                                 <FileText className="h-3.5 w-3.5" />
                                 Quotation
                             </div>
 
-                            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+                            <h1 className="text-3xl font-bold tracking-tight text-zinc-950 md:text-4xl">
                                 Project Quotation
                             </h1>
 
-                            <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-500">
+                            <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
                                 Review the quotation details below. If
                                 everything is correct, you can accept the
                                 deal and continue to payment.
                             </p>
                         </div>
 
-                        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                            <p className="text-[11px] uppercase tracking-wider text-zinc-600">
+                        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+                            <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
                                 Quote Number
                             </p>
 
-                            <p className="mt-1 font-mono text-sm text-purple-300">
-                                {quote.quote_number ??
-                                    quote.id}
+                            <p className="mt-1 font-mono text-sm font-medium text-purple-700">
+                                {quote.quote_number ?? quote.id}
                             </p>
                         </div>
                     </div>
                 </div>
 
-                {/* Error */}
+                {/* ERROR */}
                 {error && (
-                    <div className="mt-6 rounded-2xl border border-red-500/20 bg-red-500/[0.06] p-4 text-sm text-red-300">
+                    <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
                         {error}
                     </div>
                 )}
 
-                {/* Status */}
+                {/* STATUS */}
                 <div className="mt-8">
                     {accepted ? (
-                        <div className="flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] p-5">
-                            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+                        <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
 
                             <div>
-                                <p className="text-sm font-semibold text-emerald-300">
+                                <p className="text-sm font-semibold text-emerald-700">
                                     Quotation Accepted
                                 </p>
 
-                                <p className="mt-1 text-sm leading-6 text-zinc-500">
+                                <p className="mt-1 text-sm leading-6 text-emerald-700/80">
                                     Deal telah disetujui. Kamu dapat
                                     melanjutkan ke proses pembayaran DP.
                                 </p>
                             </div>
                         </div>
                     ) : quote.status !== 'Quoted' ? (
-                        <div className="flex items-start gap-3 rounded-2xl border border-yellow-500/20 bg-yellow-500/[0.05] p-5">
-                            <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-yellow-400" />
+                        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                            <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
 
                             <div>
-                                <p className="text-sm font-semibold text-yellow-300">
+                                <p className="text-sm font-semibold text-amber-700">
                                     Quotation Belum Siap
                                 </p>
 
-                                <p className="mt-1 text-sm leading-6 text-zinc-500">
+                                <p className="mt-1 text-sm leading-6 text-amber-700/80">
                                     Status quotation saat ini:{' '}
-                                    <span className="text-zinc-300">
-                                        {quote.status ??
-                                            '-'}
+                                    <span className="font-medium">
+                                        {quote.status ?? '-'}
                                     </span>
                                 </p>
                             </div>
@@ -738,22 +730,22 @@ export function QuotePage() {
                     ) : null}
                 </div>
 
-                <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
-                    {/* Main */}
+                <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+                    {/* MAIN */}
                     <div className="space-y-6">
-                        {/* Customer */}
-                        <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+                        {/* CUSTOMER */}
+                        <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
                             <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04]">
-                                    <User className="h-5 w-5 text-purple-300" />
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-purple-100 bg-purple-50">
+                                    <User className="h-5 w-5 text-purple-600" />
                                 </div>
 
                                 <div>
-                                    <h2 className="text-sm font-semibold text-white">
+                                    <h2 className="text-sm font-semibold text-zinc-950">
                                         Customer
                                     </h2>
 
-                                    <p className="text-xs text-zinc-600">
+                                    <p className="text-xs text-zinc-400">
                                         Contact information
                                     </p>
                                 </div>
@@ -761,123 +753,112 @@ export function QuotePage() {
 
                             <div className="mt-6 grid gap-5 sm:grid-cols-3">
                                 <div>
-                                    <p className="text-xs text-zinc-600">
+                                    <p className="text-xs text-zinc-400">
                                         Name
                                     </p>
 
-                                    <p className="mt-1 text-sm text-zinc-200">
-                                        {quote.customer_name ??
-                                            '-'}
+                                    <p className="mt-1 text-sm font-medium text-zinc-800">
+                                        {quote.customer_name ?? '-'}
                                     </p>
                                 </div>
 
                                 <div>
-                                    <p className="text-xs text-zinc-600">
+                                    <p className="text-xs text-zinc-400">
                                         Email
                                     </p>
 
-                                    <div className="mt-1 flex items-center gap-2">
-                                        <Mail className="h-3.5 w-3.5 text-zinc-600" />
+                                    <div className="mt-1 flex items-start gap-2">
+                                        <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" />
 
-                                        <p className="break-all text-sm text-zinc-300">
-                                            {quote.customer_email ??
-                                                '-'}
+                                        <p className="break-all text-sm text-zinc-700">
+                                            {quote.customer_email ?? '-'}
                                         </p>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <p className="text-xs text-zinc-600">
+                                    <p className="text-xs text-zinc-400">
                                         WhatsApp
                                     </p>
 
-                                    <div className="mt-1 flex items-center gap-2">
-                                        <Phone className="h-3.5 w-3.5 text-zinc-600" />
+                                    <div className="mt-1 flex items-start gap-2">
+                                        <Phone className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" />
 
-                                        <p className="text-sm text-zinc-300">
-                                            {quote.customer_phone ??
-                                                '-'}
+                                        <p className="text-sm text-zinc-700">
+                                            {quote.customer_phone ?? '-'}
                                         </p>
                                     </div>
                                 </div>
                             </div>
                         </section>
 
-                        {/* Project */}
-                        <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+                        {/* PROJECT */}
+                        <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
                             <div>
-                                <p className="text-xs text-purple-300">
-                                    {quote.service_name ??
-                                        'Service'}
+                                <p className="text-xs font-medium text-purple-600">
+                                    {quote.service_name ?? 'Service'}
                                 </p>
 
-                                <h2 className="mt-1 text-xl font-semibold text-white">
-                                    {quote.project_name ??
-                                        'Project'}
+                                <h2 className="mt-1 text-xl font-semibold text-zinc-950">
+                                    {quote.project_name ?? 'Project'}
                                 </h2>
                             </div>
 
                             <div className="mt-6">
-                                <p className="text-xs uppercase tracking-wider text-zinc-600">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
                                     Project Description
                                 </p>
 
-                                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-zinc-400">
-                                    {quote.project_description ||
-                                        '-'}
+                                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-zinc-600">
+                                    {quote.project_description || '-'}
                                 </p>
                             </div>
 
                             {quote.additional_requirements && (
-                                <div className="mt-6 border-t border-white/[0.06] pt-6">
-                                    <p className="text-xs uppercase tracking-wider text-zinc-600">
+                                <div className="mt-6 border-t border-zinc-100 pt-6">
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
                                         Additional Requirements
                                     </p>
 
-                                    <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-zinc-400">
-                                        {
-                                            quote.additional_requirements
-                                        }
+                                    <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-zinc-600">
+                                        {quote.additional_requirements}
                                     </p>
                                 </div>
                             )}
 
-                            <div className="mt-6 grid gap-5 border-t border-white/[0.06] pt-6 sm:grid-cols-2">
+                            <div className="mt-6 grid gap-5 border-t border-zinc-100 pt-6 sm:grid-cols-2">
                                 <div>
-                                    <p className="text-xs text-zinc-600">
+                                    <p className="text-xs text-zinc-400">
                                         Deadline
                                     </p>
 
-                                    <p className="mt-1 text-sm text-zinc-300">
-                                        {quote.deadline ||
-                                            '-'}
+                                    <p className="mt-1 text-sm font-medium text-zinc-800">
+                                        {quote.deadline || '-'}
                                     </p>
                                 </div>
 
                                 <div>
-                                    <p className="text-xs text-zinc-600">
+                                    <p className="text-xs text-zinc-400">
                                         Quotation Created
                                     </p>
 
-                                    <p className="mt-1 text-sm text-zinc-300">
-                                        {formatDate(
-                                            quote.created_at,
-                                        )}
+                                    <p className="mt-1 text-sm font-medium text-zinc-800">
+                                        {formatDate(quote.created_at)}
                                     </p>
                                 </div>
                             </div>
                         </section>
                     </div>
 
-                    {/* Pricing */}
+                    {/* PRICING */}
                     <aside className="lg:sticky lg:top-6 lg:self-start">
-                        <div className="overflow-hidden rounded-3xl border border-purple-500/20 bg-white/[0.035]">
-                            <div className="border-b border-white/10 bg-purple-500/[0.06] p-6">
-                                <p className="text-xs uppercase tracking-wider text-purple-300">
+                        <div className="overflow-hidden rounded-3xl border border-purple-200 bg-white shadow-lg shadow-purple-100/40">
+                            <div className="border-b border-purple-100 bg-gradient-to-br from-purple-50 via-white to-pink-50 p-6">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-purple-600">
                                     Final Quotation
                                 </p>
 
-                                <p className="mt-3 text-3xl font-semibold tracking-tight text-white">
+                                <p className="mt-3 text-3xl font-bold tracking-tight text-zinc-950">
                                     {formatRupiah(
                                         quote.proposed_price,
                                     )}
@@ -896,7 +877,7 @@ export function QuotePage() {
                                         Total Project
                                     </span>
 
-                                    <span className="text-sm font-medium text-white">
+                                    <span className="text-sm font-semibold text-zinc-900">
                                         {formatRupiah(
                                             quote.proposed_price,
                                         )}
@@ -908,20 +889,20 @@ export function QuotePage() {
                                         DP
                                     </span>
 
-                                    <span className="text-sm font-medium text-white">
+                                    <span className="text-sm font-semibold text-zinc-900">
                                         {formatRupiah(
                                             quote.dp_amount,
                                         )}
                                     </span>
                                 </div>
 
-                                <div className="border-t border-white/[0.06] pt-5">
+                                <div className="border-t border-zinc-100 pt-5">
                                     <div className="flex items-center justify-between gap-4">
                                         <span className="text-sm text-zinc-500">
                                             Remaining
                                         </span>
 
-                                        <span className="text-base font-semibold text-white">
+                                        <span className="text-base font-bold text-zinc-950">
                                             {formatRupiah(
                                                 quote.remaining_amount,
                                             )}
@@ -930,16 +911,16 @@ export function QuotePage() {
                                 </div>
 
                                 {quote.expires_at && (
-                                    <div className="rounded-xl border border-white/[0.06] bg-black/20 p-3">
+                                    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
                                         <div className="flex items-center gap-2">
-                                            <Clock3 className="h-4 w-4 text-zinc-500" />
+                                            <Clock3 className="h-4 w-4 text-zinc-400" />
 
                                             <div>
-                                                <p className="text-[11px] text-zinc-600">
+                                                <p className="text-[11px] text-zinc-400">
                                                     Quotation expires
                                                 </p>
 
-                                                <p className="mt-0.5 text-xs text-zinc-300">
+                                                <p className="mt-0.5 text-xs font-medium text-zinc-700">
                                                     {formatDate(
                                                         quote.expires_at,
                                                     )}
@@ -950,17 +931,14 @@ export function QuotePage() {
                                 )}
 
                                 {!accepted &&
-                                    quote.status ===
-                                    'Quoted' && (
+                                    quote.status === 'Quoted' && (
                                         <button
                                             type="button"
                                             onClick={() =>
                                                 void handleAccept()
                                             }
-                                            disabled={
-                                                accepting
-                                            }
-                                            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 text-sm font-semibold text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                            disabled={accepting}
+                                            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             {accepting ? (
                                                 <>
@@ -983,22 +961,19 @@ export function QuotePage() {
                                             type="button"
                                             onClick={() => {
                                                 setError('')
-                                                setShowCheckout(
-                                                    true,
-                                                )
+                                                setShowCheckout(true)
                                             }}
-                                            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-500"
+                                            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 text-sm font-semibold text-white transition hover:bg-purple-700"
                                         >
                                             Continue to Checkout
                                             <ArrowRight className="h-4 w-4" />
                                         </button>
                                     )}
 
-                                <p className="text-center text-[11px] leading-5 text-zinc-600">
-                                    Dengan menerima quotation ini,
-                                    kamu menyetujui harga final yang
-                                    telah dinegosiasikan dengan
-                                    39Production.
+                                <p className="text-center text-[11px] leading-5 text-zinc-400">
+                                    Dengan menerima quotation ini, kamu
+                                    menyetujui harga final yang telah
+                                    dinegosiasikan dengan 39Production.
                                 </p>
                             </div>
                         </div>
@@ -1006,331 +981,314 @@ export function QuotePage() {
                 </div>
             </main>
 
-            {/* =====================================================
-                CHECKOUT MODAL
-            ====================================================== */}
+            {/* ============================================================
+          CHECKOUT MODAL
+      ============================================================ */}
 
             {showCheckout && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-md">
-                    <div
-                        className="fixed inset-0"
-                        onClick={() => {
-                            if (
-                                !isSubmitting &&
-                                !paymentData &&
-                                !createdOrder
-                            ) {
-                                setShowCheckout(false)
-                            }
-                        }}
-                    />
+                <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="flex min-h-full items-center justify-center">
+                        <div
+                            className="fixed inset-0"
+                            onClick={() => {
+                                if (
+                                    !isSubmitting &&
+                                    !paymentData &&
+                                    !createdOrder
+                                ) {
+                                    setShowCheckout(false)
+                                }
+                            }}
+                        />
 
-                    <div className="relative my-8 w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-[#111113] shadow-2xl">
-                        {/* Top line */}
-                        <div className="h-1 bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500" />
+                        <div className="relative my-4 w-full max-w-xl overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-2xl sm:my-8">
+                            {/* TOP ACCENT */}
+                            <div className="h-1 bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500" />
 
-                        {/* Modal Header */}
-                        <div className="border-b border-white/10 p-6">
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-wider text-purple-300">
-                                        DP Payment
-                                    </p>
+                            {/* HEADER */}
+                            <div className="border-b border-zinc-200 p-6">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-purple-600">
+                                            DP Payment
+                                        </p>
 
-                                    <h2 className="mt-2 text-2xl font-semibold text-white">
-                                        {createdOrder
-                                            ? 'Order Berhasil'
-                                            : paymentData
-                                                ? 'Scan QRIS'
-                                                : 'Checkout Quotation'}
-                                    </h2>
+                                        <h2 className="mt-2 text-2xl font-bold tracking-tight text-zinc-950">
+                                            {createdOrder
+                                                ? 'Order Berhasil'
+                                                : paymentData
+                                                    ? 'Scan QRIS'
+                                                    : 'Checkout Quotation'}
+                                        </h2>
+                                    </div>
+
+                                    {!paymentData &&
+                                        !createdOrder &&
+                                        !isSubmitting && (
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setShowCheckout(false)
+                                                }
+                                                className="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-900"
+                                            >
+                                                Close
+                                            </button>
+                                        )}
                                 </div>
-
-                                {!paymentData &&
-                                    !createdOrder &&
-                                    !isSubmitting && (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setShowCheckout(
-                                                    false,
-                                                )
-                                            }
-                                            className="rounded-xl border border-white/10 px-3 py-2 text-xs text-zinc-500 transition hover:border-white/20 hover:text-white"
-                                        >
-                                            Close
-                                        </button>
-                                    )}
                             </div>
-                        </div>
 
-                        {/* Modal Content */}
-                        <div className="p-6">
-                            {/* =====================================
-                                ORDER SUCCESS
-                            ====================================== */}
-
-                            {createdOrder ? (
-                                <div className="text-center">
-                                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10">
-                                        <CheckCircle2 className="h-8 w-8 text-emerald-400" />
-                                    </div>
-
-                                    <h3 className="mt-5 text-xl font-semibold text-white">
-                                        Pembayaran Berhasil
-                                    </h3>
-
-                                    <p className="mt-2 text-sm leading-6 text-zinc-500">
-                                        DP quotation berhasil
-                                        diverifikasi dan order kamu
-                                        sudah dibuat.
-                                    </p>
-
-                                    {createdOrder.order_number && (
-                                        <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                                            <p className="text-xs text-zinc-600">
-                                                Order Number
-                                            </p>
-
-                                            <p className="mt-1 font-mono text-sm text-purple-300">
-                                                {
-                                                    createdOrder.order_number
-                                                }
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    <div className="mt-5 grid grid-cols-2 gap-3">
-                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                                            <p className="text-xs text-zinc-600">
-                                                DP Paid
-                                            </p>
-
-                                            <p className="mt-1 text-sm font-semibold text-white">
-                                                {formatRupiah(
-                                                    createdOrder.paid_amount,
-                                                )}
-                                            </p>
+                            {/* CONTENT */}
+                            <div className="max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain p-6">
+                                {/* ORDER SUCCESS */}
+                                {createdOrder ? (
+                                    <div className="text-center">
+                                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50">
+                                            <CheckCircle2 className="h-8 w-8 text-emerald-600" />
                                         </div>
 
-                                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                                            <p className="text-xs text-zinc-600">
-                                                Remaining
-                                            </p>
+                                        <h3 className="mt-5 text-xl font-semibold text-zinc-950">
+                                            Pembayaran Berhasil
+                                        </h3>
 
-                                            <p className="mt-1 text-sm font-semibold text-white">
-                                                {formatRupiah(
-                                                    createdOrder.remaining_amount,
-                                                )}
-                                            </p>
-                                        </div>
-                                    </div>
+                                        <p className="mt-2 text-sm leading-6 text-zinc-500">
+                                            DP quotation berhasil diverifikasi
+                                            dan order kamu sudah dibuat.
+                                        </p>
 
-                                    {createdOrder.order_number && (
-                                        <a
-                                            href={`/39Production/order/${encodeURIComponent(
-                                                createdOrder.order_number,
-                                            )}`}
-                                            className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-purple-600 text-sm font-semibold text-white transition hover:bg-purple-500"
-                                        >
-                                            Track Order
-                                            <ArrowRight className="h-4 w-4" />
-                                        </a>
-                                    )}
-
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setShowCheckout(
-                                                false,
-                                            )
-                                        }
-                                        className="mt-3 flex h-12 w-full items-center justify-center rounded-xl border border-white/10 text-sm font-semibold text-zinc-300 transition hover:border-white/20 hover:text-white"
-                                    >
-                                        Selesai
-                                    </button>
-                                </div>
-                            ) : paymentData ? (
-                                /* =================================
-                                   QRIS PAYMENT
-                                ================================== */
-
-                                <div className="text-center">
-                                    <p className="text-sm text-zinc-400">
-                                        Scan QRIS berikut untuk
-                                        membayar DP quotation.
-                                    </p>
-
-                                    <div className="mt-6 flex justify-center">
-                                        {paymentData.qr_image ? (
-                                            <img
-                                                src={
-                                                    paymentData.qr_image
-                                                }
-                                                alt="QRIS Payment"
-                                                className="h-64 w-64 rounded-2xl bg-white p-3"
-                                            />
-                                        ) : paymentData.qr_url ? (
-                                            <img
-                                                src={
-                                                    paymentData.qr_url
-                                                }
-                                                alt="QRIS Payment"
-                                                className="h-64 w-64 rounded-2xl bg-white p-3"
-                                            />
-                                        ) : (
-                                            <div className="w-full rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-                                                <p className="text-xs text-zinc-500">
-                                                    QRIS Content
+                                        {createdOrder.order_number && (
+                                            <div className="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                                                <p className="text-xs text-zinc-400">
+                                                    Order Number
                                                 </p>
 
-                                                <p className="mt-3 break-all text-xs leading-5 text-zinc-300">
-                                                    {
-                                                        paymentData.qr_content
-                                                    }
+                                                <p className="mt-1 font-mono text-sm font-semibold text-purple-700">
+                                                    {createdOrder.order_number}
                                                 </p>
                                             </div>
                                         )}
-                                    </div>
 
-                                    <div className="mt-6 rounded-2xl border border-purple-500/20 bg-purple-500/5 p-5">
-                                        <p className="text-xs text-zinc-500">
-                                            Total Project
+                                        <div className="mt-5 grid grid-cols-2 gap-3">
+                                            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                                                <p className="text-xs text-zinc-400">
+                                                    DP Paid
+                                                </p>
+
+                                                <p className="mt-1 text-sm font-semibold text-zinc-900">
+                                                    {formatRupiah(
+                                                        createdOrder.paid_amount,
+                                                    )}
+                                                </p>
+                                            </div>
+
+                                            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                                                <p className="text-xs text-zinc-400">
+                                                    Remaining
+                                                </p>
+
+                                                <p className="mt-1 text-sm font-semibold text-zinc-900">
+                                                    {formatRupiah(
+                                                        createdOrder.remaining_amount,
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {createdOrder.order_number && (
+                                            <Link
+                                                to={`/order/${encodeURIComponent(
+                                                    createdOrder.order_number,
+                                                )}`}
+                                                className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                                            >
+                                                Track Order
+                                                <ArrowRight className="h-4 w-4" />
+                                            </Link>
+                                        )}
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setShowCheckout(false)
+                                            }
+                                            className="mt-3 flex h-12 w-full items-center justify-center rounded-xl border border-zinc-200 text-sm font-semibold text-zinc-700 transition hover:border-zinc-300 hover:text-zinc-950"
+                                        >
+                                            Selesai
+                                        </button>
+                                    </div>
+                                ) : paymentData ? (
+                                    /* QRIS */
+                                    <div className="text-center">
+                                        <p className="text-sm text-zinc-600">
+                                            Scan QRIS berikut untuk membayar
+                                            DP quotation.
                                         </p>
 
-                                        <p className="mt-1 text-lg font-semibold text-white">
-                                            {formatRupiah(
-                                                paymentData.final_amount ??
-                                                quote.proposed_price,
+                                        <div className="mt-6 flex justify-center">
+                                            {paymentData.qr_image ? (
+                                                <div className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm">
+                                                    <img
+                                                        src={paymentData.qr_image}
+                                                        alt="QRIS Payment"
+                                                        className="h-64 w-64 object-contain"
+                                                    />
+                                                </div>
+                                            ) : paymentData.qr_url ? (
+                                                <div className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm">
+                                                    <img
+                                                        src={paymentData.qr_url}
+                                                        alt="QRIS Payment"
+                                                        className="h-64 w-64 object-contain"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
+                                                    <p className="text-xs text-zinc-400">
+                                                        QRIS Content
+                                                    </p>
+
+                                                    <p className="mt-3 break-all text-xs leading-5 text-zinc-600">
+                                                        {paymentData.qr_content}
+                                                    </p>
+                                                </div>
                                             )}
-                                        </p>
-
-                                        <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-4">
-                                            <span className="text-sm text-zinc-500">
-                                                DP
-                                            </span>
-
-                                            <span className="text-lg font-bold text-emerald-400">
-                                                {formatRupiah(
-                                                    paymentData.dp_amount ??
-                                                    quote.dp_amount,
-                                                )}
-                                            </span>
                                         </div>
 
-                                        <div className="mt-3 flex items-center justify-between">
-                                            <span className="text-sm text-zinc-500">
-                                                Remaining
-                                            </span>
+                                        <div className="mt-6 rounded-2xl border border-purple-200 bg-purple-50 p-5">
+                                            <p className="text-xs text-zinc-500">
+                                                Total Project
+                                            </p>
 
-                                            <span className="text-sm font-medium text-zinc-300">
+                                            <p className="mt-1 text-lg font-semibold text-zinc-950">
                                                 {formatRupiah(
-                                                    paymentData.remaining_amount ??
-                                                    quote.remaining_amount,
-                                                )}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-5 flex items-center justify-center gap-2 text-xs text-zinc-600">
-                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                        Menunggu pembayaran...
-                                    </div>
-
-                                    <p className="mt-3 text-[11px] leading-5 text-zinc-700">
-                                        Jangan tutup halaman ini sampai
-                                        pembayaran selesai diverifikasi.
-                                    </p>
-                                </div>
-                            ) : (
-                                /* =================================
-                                   CHECKOUT CONFIRMATION
-                                ================================== */
-
-                                <div>
-                                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                                        <div className="flex items-center justify-between gap-4">
-                                            <span className="text-sm text-zinc-500">
-                                                Service
-                                            </span>
-
-                                            <span className="max-w-[60%] text-right text-sm font-medium text-white">
-                                                {quote.service_name ??
-                                                    '-'}
-                                            </span>
-                                        </div>
-
-                                        <div className="mt-4 flex items-center justify-between">
-                                            <span className="text-sm text-zinc-500">
-                                                Final Price
-                                            </span>
-
-                                            <span className="text-lg font-semibold text-white">
-                                                {formatRupiah(
+                                                    paymentData.final_amount ??
                                                     quote.proposed_price,
                                                 )}
-                                            </span>
+                                            </p>
+
+                                            <div className="mt-4 flex items-center justify-between border-t border-purple-200 pt-4">
+                                                <span className="text-sm text-zinc-600">
+                                                    DP
+                                                </span>
+
+                                                <span className="text-lg font-bold text-emerald-600">
+                                                    {formatRupiah(
+                                                        paymentData.dp_amount ??
+                                                        quote.dp_amount,
+                                                    )}
+                                                </span>
+                                            </div>
+
+                                            <div className="mt-3 flex items-center justify-between">
+                                                <span className="text-sm text-zinc-600">
+                                                    Remaining
+                                                </span>
+
+                                                <span className="text-sm font-medium text-zinc-800">
+                                                    {formatRupiah(
+                                                        paymentData.remaining_amount ??
+                                                        quote.remaining_amount,
+                                                    )}
+                                                </span>
+                                            </div>
                                         </div>
 
-                                        <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-4">
-                                            <span className="text-sm text-zinc-500">
-                                                DP Payment
-                                            </span>
-
-                                            <span className="text-lg font-bold text-emerald-400">
-                                                {formatRupiah(
-                                                    quote.dp_amount,
-                                                )}
-                                            </span>
+                                        <div className="mt-5 flex items-center justify-center gap-2 text-xs text-zinc-500">
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin text-purple-600" />
+                                            Menunggu pembayaran...
                                         </div>
 
-                                        <div className="mt-4 flex items-center justify-between">
-                                            <span className="text-sm text-zinc-500">
-                                                Remaining
-                                            </span>
-
-                                            <span className="text-sm font-medium text-zinc-300">
-                                                {formatRupiah(
-                                                    quote.remaining_amount,
-                                                )}
-                                            </span>
-                                        </div>
+                                        <p className="mt-3 text-[11px] leading-5 text-zinc-400">
+                                            Jangan tutup halaman ini sampai
+                                            pembayaran selesai diverifikasi.
+                                        </p>
                                     </div>
+                                ) : (
+                                    /* CHECKOUT CONFIRMATION */
+                                    <div>
+                                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
+                                            <div className="flex items-center justify-between gap-4">
+                                                <span className="text-sm text-zinc-500">
+                                                    Service
+                                                </span>
 
-                                    {error && (
-                                        <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-300">
-                                            {error}
+                                                <span className="max-w-[60%] text-right text-sm font-medium text-zinc-900">
+                                                    {quote.service_name ?? '-'}
+                                                </span>
+                                            </div>
+
+                                            <div className="mt-4 flex items-center justify-between">
+                                                <span className="text-sm text-zinc-500">
+                                                    Final Price
+                                                </span>
+
+                                                <span className="text-lg font-semibold text-zinc-950">
+                                                    {formatRupiah(
+                                                        quote.proposed_price,
+                                                    )}
+                                                </span>
+                                            </div>
+
+                                            <div className="mt-4 flex items-center justify-between border-t border-zinc-200 pt-4">
+                                                <span className="text-sm text-zinc-500">
+                                                    DP Payment
+                                                </span>
+
+                                                <span className="text-lg font-bold text-emerald-600">
+                                                    {formatRupiah(
+                                                        quote.dp_amount,
+                                                    )}
+                                                </span>
+                                            </div>
+
+                                            <div className="mt-4 flex items-center justify-between">
+                                                <span className="text-sm text-zinc-500">
+                                                    Remaining
+                                                </span>
+
+                                                <span className="text-sm font-medium text-zinc-700">
+                                                    {formatRupiah(
+                                                        quote.remaining_amount,
+                                                    )}
+                                                </span>
+                                            </div>
                                         </div>
-                                    )}
 
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            void handleCreatePayment()
-                                        }
-                                        disabled={isSubmitting}
-                                        className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-purple-600 text-sm font-semibold text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        {isSubmitting ? (
-                                            <>
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                                Membuat Pembayaran...
-                                            </>
-                                        ) : (
-                                            <>
-                                                Bayar DP
-                                                <ArrowRight className="h-4 w-4" />
-                                            </>
+                                        {error && (
+                                            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
+                                                {error}
+                                            </div>
                                         )}
-                                    </button>
 
-                                    <p className="mt-4 text-center text-[11px] leading-5 text-zinc-600">
-                                        Pembayaran DP menggunakan QRIS.
-                                        Order akan dibuat setelah
-                                        pembayaran berhasil diverifikasi.
-                                    </p>
-                                </div>
-                            )}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                void handleCreatePayment()
+                                            }
+                                            disabled={isSubmitting}
+                                            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-purple-600 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            {isSubmitting ? (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                    Membuat Pembayaran...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    Bayar DP
+                                                    <ArrowRight className="h-4 w-4" />
+                                                </>
+                                            )}
+                                        </button>
+
+                                        <p className="mt-4 text-center text-[11px] leading-5 text-zinc-400">
+                                            Pembayaran DP menggunakan QRIS.
+                                            Order akan dibuat setelah pembayaran
+                                            berhasil diverifikasi.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

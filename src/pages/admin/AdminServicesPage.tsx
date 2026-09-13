@@ -936,9 +936,9 @@ export function AdminServicesPage() {
                         <td className="px-6 py-4">
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-medium ${service.status ===
-                                'Active'
-                                ? 'bg-green-400/10 text-green-400'
-                                : 'bg-yellow-400/10 text-yellow-400'
+                              'Active'
+                              ? 'bg-green-400/10 text-green-400'
+                              : 'bg-yellow-400/10 text-yellow-400'
                               }`}
                           >
                             {service.status}
