@@ -30,3 +30,6 @@ dist-ssr
 
 # Cloudflare Wrangler
 .wrangler/
+
+# Local database backups and security audit SQL
+*.sql

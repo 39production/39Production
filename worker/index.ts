@@ -5,6 +5,8 @@ interface Env {
     // Store ADMIN_PASSWORD as a Cloudflare Secret.
     ADMIN_EMAIL?: string
     ADMIN_PASSWORD?: string
+    // Optional comma-separated browser origins. Defaults to production + local Vite origins.
+    ALLOWED_ORIGINS?: string
 
     // Resend transactional email
     RESEND_API_KEY?: string
@@ -28,32 +30,288 @@ interface Env {
    CORS
 ========================= */
 
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods':
-        'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers':
-        'Content-Type, Authorization',
+const DEFAULT_ALLOWED_ORIGINS = [
+    'https://39production.github.io',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]
+
+const MAX_REQUEST_BODY_BYTES = 2 * 1024 * 1024
+const LOGIN_WINDOW_MS = 15 * 60 * 1000
+const LOGIN_MAX_ATTEMPTS = 5
+
+// Best-effort per-isolate protection. For production-wide/distributed rate
+// limiting, also configure Cloudflare WAF/Rate Limiting at the zone level.
+const loginAttempts = new Map<string, { count: number; resetAt: number }>()
+
+const publicRateLimits = new Map<string, { count: number; resetAt: number }>()
+
+function consumePublicRateLimit(request: Request, bucket: string, limit: number, windowMs: number) {
+    const now = Date.now()
+    const key = `${bucket}:${getClientIp(request)}`
+    const current = publicRateLimits.get(key)
+
+    if (!current || current.resetAt <= now) {
+        publicRateLimits.set(key, { count: 1, resetAt: now + windowMs })
+        return { allowed: true, retryAfter: 0 }
+    }
+
+    if (current.count >= limit) {
+        return { allowed: false, retryAfter: Math.max(1, Math.ceil((current.resetAt - now) / 1000)) }
+    }
+
+    current.count += 1
+    return { allowed: true, retryAfter: 0 }
 }
 
-/* =========================
-   HELPERS
-========================= */
+function rateLimitResponse(retryAfter: number, request?: Request, env?: Env) {
+    return new Response(JSON.stringify({ success: false, message: 'Too many requests. Please try again later.' }), {
+        status: 429,
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Retry-After': String(retryAfter),
+            ...getCorsHeaders(request?.headers.get('Origin') || undefined, env),
+            ...securityHeaders(),
+        },
+    })
+}
+
+
+
+function getAllowedOrigins(env?: Env) {
+    const configured = env?.ALLOWED_ORIGINS?.split(',').map((value) => value.trim()).filter(Boolean) || []
+    return configured.length > 0 ? configured : DEFAULT_ALLOWED_ORIGINS
+}
+
+function getCorsHeaders(origin?: string, env?: Env) {
+    const allowed = getAllowedOrigins(env)
+
+    // If the browser supplied an Origin, only echo it when it is explicitly
+    // allowlisted. Do not emit an arbitrary fallback ACAO value for a denied
+    // origin; that makes security testing and browser behavior unambiguous.
+    if (origin) {
+        if (!allowed.includes(origin)) {
+            return {
+                'Vary': 'Origin',
+            }
+        }
+
+        return {
+            'Access-Control-Allow-Origin': origin,
+            'Vary': 'Origin',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Access-Control-Max-Age': '86400',
+        }
+    }
+
+    return {
+        'Access-Control-Allow-Origin': allowed[0],
+        'Vary': 'Origin',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Max-Age': '86400',
+    }
+}
+
+function securityHeaders() {
+    return {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+        'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+        'Cache-Control': 'no-store',
+    }
+}
 
 function json(
     data: unknown,
     status = 200,
+    origin?: string,
+    env?: Env,
 ) {
     return new Response(
         JSON.stringify(data),
         {
             status,
             headers: {
-                'Content-Type': 'application/json',
-                ...corsHeaders,
+                'Content-Type': 'application/json; charset=utf-8',
+                ...getCorsHeaders(origin, env),
+                ...securityHeaders(),
             },
         },
     )
+}
+
+function getClientIp(request: Request) {
+    return request.headers.get('CF-Connecting-IP')
+        || request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim()
+        || 'unknown'
+}
+
+function consumeLoginAttempt(request: Request, email: string) {
+    const now = Date.now()
+    const key = `${getClientIp(request)}:${email}`
+    const current = loginAttempts.get(key)
+
+    if (!current || current.resetAt <= now) {
+        loginAttempts.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS })
+        return { allowed: true, retryAfter: 0 }
+    }
+
+    if (current.count >= LOGIN_MAX_ATTEMPTS) {
+        return {
+            allowed: false,
+            retryAfter: Math.ceil((current.resetAt - now) / 1000),
+        }
+    }
+
+    current.count += 1
+    return { allowed: true, retryAfter: 0 }
+}
+
+function resetLoginAttempts(request: Request, email: string) {
+    loginAttempts.delete(`${getClientIp(request)}:${email}`)
+}
+
+async function checkRequestBodySize(request: Request) {
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) return null
+
+    const contentLength = request.headers.get('content-length')
+    if (contentLength) {
+        const size = Number(contentLength)
+        if (!Number.isFinite(size) || size < 0) return json({ success: false, message: 'Invalid Content-Length.' }, 400)
+        if (size > MAX_REQUEST_BODY_BYTES) {
+            return json({ success: false, message: 'Request body is too large.' }, 413)
+        }
+        return null
+    }
+
+    // Chunked requests may omit Content-Length. Inspect a clone so the actual
+    // request body remains available to request.json()/formData().
+    if (request.body) {
+        const bytes = new Uint8Array(await request.clone().arrayBuffer())
+        if (bytes.byteLength > MAX_REQUEST_BODY_BYTES) {
+            return json({ success: false, message: 'Request body is too large.' }, 413)
+        }
+    }
+
+    return null
+}
+
+/* =========================
+   SECURITY SCHEMA / RBAC
+========================= */
+
+let securitySchemaReady = false
+
+async function backfillLegacyPublicPaymentTokenHashes(env: Env) {
+    // Legacy orders may still contain a raw public token. Convert a bounded
+    // batch at startup so new code never needs to depend on plaintext tokens.
+    // The hash is sufficient for all subsequent authorization checks.
+    const rows = await env.DB.prepare(`
+        SELECT id, public_payment_token
+        FROM orders
+        WHERE public_payment_token IS NOT NULL
+          AND public_payment_token != ''
+          AND (public_payment_token_hash IS NULL OR public_payment_token_hash = '')
+        LIMIT 100
+    `).all<{ id: number; public_payment_token: string }>()
+
+    if (!rows.results.length) return
+
+    const statements = []
+    for (const row of rows.results) {
+        const tokenHash = await sha256(row.public_payment_token)
+        statements.push(
+            env.DB.prepare(`
+                UPDATE orders
+                SET public_payment_token_hash = ?, public_payment_token = NULL, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND public_payment_token = ?
+            `).bind(tokenHash, row.id, row.public_payment_token),
+        )
+    }
+
+    if (statements.length) {
+        await env.DB.batch(statements)
+    }
+}
+
+async function ensureSecuritySchema(env: Env) {
+    if (securitySchemaReady) return
+
+    // These are additive compatibility checks. Production schema changes
+    // should be applied through the committed D1 migration as well.
+    try {
+        await env.DB.prepare(`ALTER TABLE admin_users ADD COLUMN role TEXT NOT NULL DEFAULT 'Founder'`).run()
+    } catch (error) {
+        const message = error instanceof Error ? error.message.toLowerCase() : ''
+        if (!message.includes('duplicate column') && !message.includes('already exists')) throw error
+    }
+
+    try {
+        await env.DB.prepare(`ALTER TABLE payment_transactions ADD COLUMN public_access_token_hash TEXT`).run()
+    } catch (error) {
+        const message = error instanceof Error ? error.message.toLowerCase() : ''
+        if (!message.includes('duplicate column') && !message.includes('already exists')) throw error
+    }
+
+    try {
+        await env.DB.prepare(`ALTER TABLE orders ADD COLUMN public_payment_token_hash TEXT`).run()
+    } catch (error) {
+        const message = error instanceof Error ? error.message.toLowerCase() : ''
+        if (!message.includes('duplicate column') && !message.includes('already exists')) throw error
+    }
+
+    await env.DB.batch([
+        env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_admin_sessions_token_hash ON admin_sessions(token_hash)`),
+        env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_orders_public_payment_token_hash ON orders(public_payment_token_hash)`),
+        env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_payment_transactions_access_token_hash ON payment_transactions(public_access_token_hash)`),
+        env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_payment_transactions_reference ON payment_transactions(payment_reference)`),
+    ])
+
+    await backfillLegacyPublicPaymentTokenHashes(env)
+    securitySchemaReady = true
+}
+
+type AdminRole = 'Founder' | 'Co-Founder' | 'Admin' | 'Viewer'
+
+const ADMIN_PERMISSIONS: Record<AdminRole, Set<string>> = {
+    Founder: new Set(['*']),
+    'Co-Founder': new Set([
+        'dashboard:read', 'members:read', 'members:write',
+        'projects:read', 'projects:write', 'finance:read', 'finance:write',
+        'revenue:read', 'revenue:write', 'documents:read', 'documents:write',
+        'audit:read', 'content:read', 'content:write', 'orders:read', 'settings:write', 'notifications:read', 'notifications:write',
+    ]),
+    Admin: new Set([
+        'dashboard:read', 'members:read', 'projects:read', 'projects:write',
+        'finance:read', 'finance:write', 'documents:read', 'documents:write', 'settings:write', 'notifications:read', 'notifications:write',
+        'content:read', 'content:write', 'orders:read',
+    ]),
+    Viewer: new Set(['dashboard:read', 'members:read', 'projects:read', 'finance:read', 'documents:read', 'orders:read']),
+}
+
+function hasPermission(role: string, permission: string) {
+    const permissions = ADMIN_PERMISSIONS[role as AdminRole]
+    return !!permissions && (permissions.has('*') || permissions.has(permission))
+}
+
+async function requirePermission(
+    request: Request,
+    env: Env,
+    permission: string,
+) {
+    const auth = await requireAuth(request, env)
+    if (auth instanceof Response) return auth
+
+    if (!hasPermission(auth.user.role || 'Viewer', permission)) {
+        return json({ success: false, message: 'Forbidden.' }, 403)
+    }
+
+    return auth
 }
 
 /* =========================
@@ -65,6 +323,7 @@ type AuthUser = {
     name: string
     email: string
     status: string
+    role: string
 }
 
 interface LoginPayload {
@@ -275,7 +534,8 @@ async function getAuthUser(
       u.id,
       u.name,
       u.email,
-      u.status
+      u.status,
+      COALESCE(u.role, 'Founder') AS role
     FROM admin_sessions s
     INNER JOIN admin_users u
       ON u.id = s.user_id
@@ -341,9 +601,9 @@ async function ensureAdminUser(env: Env) {
         throw new Error('ADMIN_EMAIL is invalid.')
     }
 
-    if (password.length < 6) {
+    if (password.length < 12) {
         throw new Error(
-            'ADMIN_PASSWORD must be at least 6 characters.',
+            'ADMIN_PASSWORD must be at least 12 characters.',
         )
     }
 
@@ -370,6 +630,7 @@ async function ensureAdminUser(env: Env) {
 }
 
 async function loginAdmin(
+    request: Request,
     env: Env,
     body: LoginPayload,
 ) {
@@ -403,6 +664,22 @@ async function loginAdmin(
         )
     }
 
+    const loginLimit = consumeLoginAttempt(request, email)
+    if (!loginLimit.allowed) {
+        return new Response(
+            JSON.stringify({ success: false, message: 'Too many login attempts. Please try again later.' }),
+            {
+                status: 429,
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'Retry-After': String(loginLimit.retryAfter),
+                    ...getCorsHeaders(request.headers.get('Origin') || undefined, env),
+                    ...securityHeaders(),
+                },
+            },
+        )
+    }
+
     try {
         await ensureAdminUser(env)
 
@@ -412,7 +689,8 @@ async function loginAdmin(
         name,
         email,
         password_hash,
-        status
+        status,
+        COALESCE(role, 'Founder') AS role
       FROM admin_users
       WHERE lower(email) = ?
       LIMIT 1
@@ -451,6 +729,8 @@ async function loginAdmin(
             )
         }
 
+        resetLoginAttempts(request, email)
+
         const session = await createSession(
             env,
             user.id,
@@ -467,6 +747,7 @@ async function loginAdmin(
                     name: user.name,
                     email: user.email,
                     status: user.status,
+                    role: user.role || 'Founder',
                 },
             },
         })
@@ -573,12 +854,12 @@ async function changeAdminPassword(
         )
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 12) {
         return json(
             {
                 success: false,
                 message:
-                    'New password must be at least 6 characters.',
+                    'New password must be at least 12 characters.',
             },
             400,
         )
@@ -1114,6 +1395,7 @@ async function getServices(env: Env) {
         created_at,
         updated_at
       FROM services
+      WHERE status = 'Active'
       ORDER BY id DESC
     `).all()
 
@@ -1150,7 +1432,7 @@ async function getService(env: Env, id: number) {
         created_at,
         updated_at
       FROM services
-      WHERE id = ?
+      WHERE id = ? AND status = 'Active'
     `)
             .bind(id)
             .first()
@@ -1392,7 +1674,7 @@ async function updateService(
         return json(
             {
                 success: false,
-                message: `Failed to update service: ${message}`,
+                message: 'Failed to update service.',
             },
             500,
         )
@@ -2251,6 +2533,7 @@ async function saveProductImage(image: File) {
         throw new Error('Product image must not exceed 150 KB. Please upload a compressed JPG, PNG, or WEBP image.')
     }
 
+    const normalizedType = image.type.toLowerCase()
     const allowedTypes = [
         'image/jpeg',
         'image/png',
@@ -2258,11 +2541,28 @@ async function saveProductImage(image: File) {
         'image/gif',
     ]
 
-    if (!allowedTypes.includes(image.type.toLowerCase())) {
+    if (!allowedTypes.includes(normalizedType)) {
         throw new Error('Product image must be JPG, PNG, WEBP, or GIF.')
     }
 
     const bytes = new Uint8Array(await image.arrayBuffer())
+
+    // Never trust the browser-supplied MIME type alone. Verify file signatures
+    // before embedding the upload into a data URL.
+    const isJpeg = bytes.length >= 3 && bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF
+    const isPng = bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47 && bytes[4] === 0x0D && bytes[5] === 0x0A && bytes[6] === 0x1A && bytes[7] === 0x0A
+    const isWebp = bytes.length >= 12 && String.fromCharCode(...bytes.slice(0, 4)) === 'RIFF' && String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP'
+    const isGif = bytes.length >= 6 && (String.fromCharCode(...bytes.slice(0, 6)) === 'GIF87a' || String.fromCharCode(...bytes.slice(0, 6)) === 'GIF89a')
+
+    const signatureMatches =
+        (normalizedType === 'image/jpeg' && isJpeg)
+        || (normalizedType === 'image/png' && isPng)
+        || (normalizedType === 'image/webp' && isWebp)
+        || (normalizedType === 'image/gif' && isGif)
+
+    if (!signatureMatches) {
+        throw new Error('The uploaded image content does not match its declared file type.')
+    }
     let binary = ''
     const chunkSize = 0x8000
 
@@ -2272,7 +2572,7 @@ async function saveProductImage(image: File) {
         )
     }
 
-    return `data:${image.type};base64,${btoa(binary)}`
+    return `data:${normalizedType};base64,${btoa(binary)}`
 }
 
 function validateProductPayload(
@@ -2389,6 +2689,7 @@ async function getProducts(
         created_at,
         updated_at
       FROM products
+      WHERE status = 'Published'
       ORDER BY id DESC
       `,
         ).all()
@@ -2432,7 +2733,7 @@ async function getProduct(
         created_at,
         updated_at
       FROM products
-      WHERE id = ?
+      WHERE id = ? AND status = 'Published'
       `,
         )
             .bind(id)
@@ -2576,7 +2877,7 @@ async function createProduct(
         return json(
             {
                 success: false,
-                message: `Failed to create product: ${message}`,
+                message: 'Failed to create product.',
             },
             500,
         )
@@ -2698,7 +2999,7 @@ async function updateProduct(
         return json(
             {
                 success: false,
-                message: `Failed to update product: ${message}`,
+                message: 'Failed to update product.',
             },
             500,
         )
@@ -2908,6 +3209,7 @@ async function getPortfolios(
         created_at,
         updated_at
       FROM portfolio
+      WHERE status = 'Published'
       ORDER BY id DESC
       `,
         ).all()
@@ -2952,7 +3254,7 @@ async function getPortfolio(
         created_at,
         updated_at
       FROM portfolio
-      WHERE id = ?
+      WHERE id = ? AND status = 'Published'
       `,
         )
             .bind(id)
@@ -3547,6 +3849,7 @@ interface PaymentTransaction {
     final_amount: number
     promotion_id: number | null
     promotion_code: string | null
+    public_access_token_hash: string | null
     dana_reference_no: string | null
     qr_content: string | null
     qr_url: string | null
@@ -4395,6 +4698,8 @@ async function createPayment(
 
         const paymentReference =
             randomReference('SKYPAY')
+        const publicAccessToken = await createPublicPaymentToken()
+        const publicAccessTokenHash = await sha256(publicAccessToken)
         const partnerReferenceNo =
             paymentReference
         const expiresAt =
@@ -4432,6 +4737,7 @@ async function createPayment(
           final_amount,
           promotion_id,
           promotion_code,
+          public_access_token_hash,
           expires_at,
           created_at,
           updated_at
@@ -4439,7 +4745,7 @@ async function createPayment(
         VALUES (
           ?, ?, NULL, 'DP', 'DANA_QRIS', ?, ?,
           'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-          ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+          ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         )
       `)
                 .bind(
@@ -4460,6 +4766,7 @@ async function createPayment(
                     finalAmount,
                     promotion?.id ?? null,
                     promotion?.code ?? null,
+                    publicAccessTokenHash,
                     expiresAt,
                 )
                 .run()
@@ -4526,6 +4833,7 @@ async function createPayment(
                     data: {
                         payment_reference:
                             paymentReference,
+                        access_token: publicAccessToken,
                         partner_reference_no:
                             partnerReferenceNo,
                         payment_method:
@@ -4584,10 +4892,7 @@ async function createPayment(
         return json(
             {
                 success: false,
-                message:
-                    error instanceof Error
-                        ? error.message
-                        : 'Failed to create payment.',
+                message: 'Failed to create payment.',
             },
             500,
         )
@@ -5002,7 +5307,7 @@ async function finalizePaidPayment(
     }
 
     const orderNumber = generateOrderNumber()
-    const publicToken = await createPublicPaymentToken()
+    const publicTokenHash = current.public_access_token_hash || await sha256(await createPublicPaymentToken())
     const dpAmount = Number(current.amount)
     const finalAmount = Number(current.final_amount)
     const remainingAmount = Math.max(0, finalAmount - dpAmount)
@@ -5031,7 +5336,8 @@ async function finalizePaidPayment(
       payment_status,
       type,
       status,
-      public_payment_token
+      public_payment_token,
+      public_payment_token_hash
     )
     VALUES (
       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
@@ -5059,7 +5365,8 @@ async function finalizePaidPayment(
             remainingAmount,
             dpAmount,
             current.type,
-            publicToken,
+            null,
+            publicTokenHash,
         )
         .run()
 
@@ -5363,9 +5670,11 @@ async function createFinalPayment(
     const orderNumber = typeof body.order_number === 'string' ? body.order_number.trim() : ''
     const paymentToken = typeof body.payment_token === 'string' ? body.payment_token.trim() : ''
 
-    if (!orderNumber || !paymentToken) {
-        return json({ success: false, message: 'Order number and payment token are required.' }, 400)
+    if (!orderNumber || !paymentToken || paymentToken.length < 32 || paymentToken.length > 256) {
+        return json({ success: false, message: 'Invalid order credentials.' }, 400)
     }
+
+    const paymentTokenHash = await sha256(paymentToken)
 
     const configResult = requireDanaConfig(env)
     if ('error' in configResult) {
@@ -5375,10 +5684,10 @@ async function createFinalPayment(
     const order = await env.DB.prepare(`
     SELECT * FROM orders
     WHERE order_number = ?
-      AND public_payment_token = ?
+      AND (public_payment_token = ? OR public_payment_token_hash = ?)
     LIMIT 1
   `)
-        .bind(orderNumber, paymentToken)
+        .bind(orderNumber, paymentToken, paymentTokenHash)
         .first<any>()
 
     if (!order) return json({ success: false, message: 'Order not found.' }, 404)
@@ -5757,10 +6066,7 @@ async function syncPaymentStatus(
             transaction,
             order: null,
             dana_status: null,
-            warning:
-                error instanceof Error
-                    ? error.message
-                    : 'Unable to query DANA payment status.',
+            warning: 'Unable to query DANA payment status.',
         }
     }
 }
@@ -5786,6 +6092,19 @@ async function handleDanaWebhook(
                     'Missing DANA signature headers.',
             },
             400,
+        )
+    }
+
+    // Signature verification alone does not prevent replay of an old, valid
+    // webhook. Reject timestamps outside a short tolerance window.
+    const webhookTime = Date.parse(timestamp)
+    if (!Number.isFinite(webhookTime) || Math.abs(Date.now() - webhookTime) > 5 * 60 * 1000) {
+        return json(
+            {
+                responseCode: '4015600',
+                responseMessage: 'Expired or invalid DANA webhook timestamp.',
+            },
+            401,
         )
     }
 
@@ -5853,7 +6172,8 @@ async function handleDanaWebhook(
             )
 
         if (
-            amount > 0 &&
+            !Number.isFinite(amount) ||
+            amount <= 0 ||
             Math.round(amount) !==
             Math.round(transaction.amount)
         ) {
@@ -5869,6 +6189,14 @@ async function handleDanaWebhook(
 
         const status =
             payload?.latestTransactionStatus
+        const callbackReference = payload?.originalReferenceNo
+        if (callbackReference && transaction.dana_reference_no && callbackReference !== transaction.dana_reference_no) {
+            return json({ responseCode: '4005601', responseMessage: 'Payment reference mismatch.' }, 400)
+        }
+
+        if (transaction.status === 'PAID' && (status === '00' || status === '02')) {
+            return json({ responseCode: '2005600', responseMessage: 'Successful' })
+        }
 
         if (
             status === '00' ||
@@ -5927,7 +6255,39 @@ async function handleDanaWebhook(
 async function getPaymentStatus(
     env: Env,
     paymentReference: string,
+    paymentToken = '',
 ) {
+    const transaction = await getPaymentTransaction(env, paymentReference)
+
+    if (!transaction) {
+        return json({ success: false, message: 'Payment not found.' }, 404)
+    }
+
+    if (!paymentToken || paymentToken.length < 32 || paymentToken.length > 256) {
+        return json({ success: false, message: 'Payment credentials are required.' }, 401)
+    }
+
+    const suppliedTokenHash = await sha256(paymentToken)
+    let tokenAuthorized = transaction.public_access_token_hash === suppliedTokenHash
+
+    if (!tokenAuthorized && transaction.order_id) {
+        const orderCredential = await env.DB.prepare(`
+            SELECT public_payment_token_hash, public_payment_token
+            FROM orders
+            WHERE id = ?
+            LIMIT 1
+        `).bind(transaction.order_id).first<{ public_payment_token_hash: string | null; public_payment_token: string | null }>()
+
+        tokenAuthorized = !!orderCredential && (
+            (orderCredential.public_payment_token_hash && orderCredential.public_payment_token_hash === suppliedTokenHash) ||
+            (orderCredential.public_payment_token && orderCredential.public_payment_token === paymentToken)
+        )
+    }
+
+    if (!tokenAuthorized) {
+        return json({ success: false, message: 'Payment credentials are invalid.' }, 401)
+    }
+
     const result =
         await syncPaymentStatus(
             env,
@@ -5944,8 +6304,14 @@ async function getPaymentStatus(
         )
     }
 
+    const authorizedOrder = result.order && paymentToken
+        ? (result.order.public_payment_token_hash
+            ? result.order.public_payment_token_hash === await sha256(paymentToken)
+            : result.order.public_payment_token === paymentToken)
+        : false
+
     const publicOrder =
-        result.order
+        result.order && authorizedOrder
             ? {
                 id: result.order.id,
                 order_number:
@@ -5982,8 +6348,6 @@ async function getPaymentStatus(
                     result.transaction.payment_stage,
                 business_project_id:
                     result.order.business_project_id,
-                public_payment_token:
-                    result.order.public_payment_token,
                 dp_amount:
                     result.order.dp_amount,
                 dp_paid_at:
@@ -6044,8 +6408,7 @@ async function getPaymentStatus(
                 result.transaction.qr_url,
             qr_image:
                 result.transaction.qr_image,
-            warning:
-                result.warning ?? null,
+            warning: null,
         },
     })
 }
@@ -6468,6 +6831,7 @@ async function deleteOrder(
 async function trackOrder(
     env: Env,
     orderNumber: string,
+    paymentToken: string,
 ) {
     try {
         const order = await env.DB.prepare(`
@@ -6494,13 +6858,15 @@ async function trackOrder(
         status,
         business_project_id,
         public_payment_token,
+        public_payment_token_hash,
         created_at,
         updated_at
       FROM orders
       WHERE order_number = ?
+        AND (public_payment_token = ? OR public_payment_token_hash = ?)
       LIMIT 1
     `)
-            .bind(orderNumber)
+            .bind(orderNumber, paymentToken, await sha256(paymentToken))
             .first<any>()
 
         if (!order) return json({ success: false, message: 'Order not found.' }, 404)
@@ -6554,7 +6920,7 @@ async function trackOrder(
         console.error('Track order error:', error)
         return json({
             success: false,
-            message: error instanceof Error ? error.message : 'Failed to track order.',
+            message: 'Failed to track order.',
         }, 500)
     }
 }
@@ -6661,6 +7027,7 @@ async function getIdolGroups(
             SELECT COUNT(*)
             FROM idol_members m
             WHERE m.group_id = g.id
+              AND m.status = 'Active'
           ) AS member_count,
           (
             SELECT COUNT(*)
@@ -6679,6 +7046,7 @@ async function getIdolGroups(
             WHERE v.group_id = g.id
           ) AS music_video_count
         FROM idol_groups g
+        WHERE g.status IN ('Active', 'Hiatus')
         ORDER BY g.id DESC
         `,
             )
@@ -6722,7 +7090,7 @@ async function getIdolGroup(
           created_at,
           updated_at
         FROM idol_groups
-        WHERE id = ?
+        WHERE id = ? AND status IN ('Active', 'Hiatus')
         `,
             )
                 .bind(id)
@@ -6748,14 +7116,13 @@ async function getIdolGroup(
           stage_name,
           position,
           birth_date,
-          email,
           bio,
           image_url,
           status,
           created_at,
           updated_at
         FROM idol_members
-        WHERE group_id = ?
+        WHERE group_id = ? AND status = 'Active'
         ORDER BY id ASC
         `,
             )
@@ -6780,7 +7147,7 @@ async function getIdolGroup(
           created_at,
           updated_at
         FROM idol_releases
-        WHERE group_id = ?
+        WHERE group_id = ? AND status IN ('Released', 'Upcoming')
         ORDER BY release_date DESC, id DESC
         `,
             )
@@ -6804,7 +7171,7 @@ async function getIdolGroup(
           created_at,
           updated_at
         FROM idol_music_videos
-        WHERE group_id = ?
+        WHERE group_id = ? AND status IN ('Published', 'Upcoming')
         ORDER BY release_date DESC, id DESC
         `,
             )
@@ -6827,7 +7194,7 @@ async function getIdolGroup(
           created_at,
           updated_at
         FROM idol_activities
-        WHERE group_id = ?
+        WHERE group_id = ? AND status IN ('Upcoming', 'Completed')
         ORDER BY date ASC, id ASC
         `,
             )
@@ -7279,7 +7646,6 @@ function validateIdolMemberPayload(
             stage_name,
             position,
             birth_date,
-            email,
             bio,
             image_url,
             status,
@@ -7323,7 +7689,6 @@ async function getIdolMembers(
           stage_name,
           position,
           birth_date,
-          email,
           bio,
           image_url,
           status,
@@ -7375,7 +7740,6 @@ async function getIdolMember(
           m.stage_name,
           m.position,
           m.birth_date,
-          m.email,
           m.bio,
           m.image_url,
           m.status,
@@ -7384,7 +7748,7 @@ async function getIdolMember(
         FROM idol_members m
         INNER JOIN idol_groups g
           ON g.id = m.group_id
-        WHERE m.id = ?
+        WHERE m.id = ? AND m.status = 'Active'
         `,
             )
                 .bind(id)
@@ -7485,7 +7849,6 @@ async function createIdolMember(
           stage_name,
           position,
           birth_date,
-          email,
           bio,
           image_url,
           status
@@ -7881,7 +8244,7 @@ async function getIdolReleases(
         FROM idol_releases r
         INNER JOIN idol_groups g
           ON g.id = r.group_id
-        WHERE r.group_id = ?
+        WHERE r.group_id = ? AND r.status IN ('Released', 'Upcoming')
         ORDER BY r.release_date DESC, r.id DESC
         `,
             )
@@ -7935,6 +8298,7 @@ async function getAllIdolReleases(
         FROM idol_releases r
         INNER JOIN idol_groups g
           ON g.id = r.group_id
+        WHERE r.status IN ('Released', 'Upcoming')
         ORDER BY r.release_date DESC, r.id DESC
         `,
             )
@@ -8188,7 +8552,7 @@ async function updateIdolRelease(
                 `
         SELECT id, cover_url
         FROM idol_releases
-        WHERE id = ?
+        WHERE id = ? AND status IN ('Released', 'Upcoming')
         `,
             )
                 .bind(id)
@@ -8498,6 +8862,7 @@ async function getIdolMusicVideos(
           ON g.id = v.group_id
         LEFT JOIN idol_releases r
           ON r.id = v.release_id
+        WHERE v.status IN ('Published', 'Upcoming')
         ORDER BY v.release_date DESC, v.id DESC
         `,
             )
@@ -8553,7 +8918,7 @@ async function getIdolMusicVideo(
           ON g.id = v.group_id
         LEFT JOIN idol_releases r
           ON r.id = v.release_id
-        WHERE v.id = ?
+        WHERE v.id = ? AND v.status IN ('Published', 'Upcoming')
         `,
             )
                 .bind(id)
@@ -8846,7 +9211,7 @@ async function updateIdolMusicVideo(
                 `
         SELECT id, thumbnail_url
         FROM idol_music_videos
-        WHERE id = ?
+        WHERE id = ? AND status IN ('Published', 'Upcoming')
         `,
             )
                 .bind(id)
@@ -9205,7 +9570,7 @@ async function getIdolActivities(
         FROM idol_activities a
         INNER JOIN idol_groups g
           ON g.id = a.group_id
-        WHERE a.group_id = ?
+        WHERE a.group_id = ? AND a.status IN ('Upcoming', 'Completed')
         ORDER BY a.date ASC, a.id ASC
         `,
             )
@@ -9257,6 +9622,7 @@ async function getAllIdolActivities(
         FROM idol_activities a
         INNER JOIN idol_groups g
           ON g.id = a.group_id
+        WHERE a.status IN ('Upcoming', 'Completed')
         ORDER BY a.date ASC, a.id ASC
         `,
             )
@@ -9308,7 +9674,7 @@ async function getIdolActivity(
         FROM idol_activities a
         INNER JOIN idol_groups g
           ON g.id = a.group_id
-        WHERE a.id = ?
+        WHERE a.id = ? AND a.status IN ('Upcoming', 'Completed')
         `,
             )
                 .bind(id)
@@ -9918,6 +10284,7 @@ async function getPromotions(env: Env) {
         ON products.id = p.product_id
       LEFT JOIN services
         ON services.id = p.service_id
+      WHERE p.status <> 'Draft'
       ORDER BY p.id DESC
     `).all()
 
@@ -9966,7 +10333,7 @@ async function getPromotion(
         ON products.id = p.product_id
       LEFT JOIN services
         ON services.id = p.service_id
-      WHERE p.id = ?
+      WHERE p.id = ? AND p.status <> 'Draft'
     `)
             .bind(id)
             .first()
@@ -10476,7 +10843,7 @@ async function getNews(env: Env, includeDraft = false) {
       created_at,
       updated_at
     FROM news
-    ${includeDraft ? '' : "WHERE status = 'Published'"}
+    WHERE status = 'Published'
     ORDER BY date DESC, id DESC
   `).all()
 
@@ -10498,7 +10865,7 @@ async function getNewsItem(env: Env, id: number) {
       created_at,
       updated_at
     FROM news
-    WHERE id = ?
+    WHERE id = ? AND status = 'Published'
     LIMIT 1
   `).bind(id).first()
 }
@@ -11195,9 +11562,7 @@ async function getBusinessProjects(env: Env) {
 
         return json({
             success: false,
-            message: error instanceof Error
-                ? `Failed to fetch projects: ${error.message}`
-                : 'Failed to fetch projects.',
+            message: 'Failed to fetch projects.',
         }, 500)
     }
 }
@@ -11227,18 +11592,57 @@ async function getBusinessProjectById(env: Env, id: number) {
 }
 
 async function saveProjectMembers(env: Env, projectId: number, memberIds: unknown, contributions: unknown) {
-    await env.DB.prepare(`DELETE FROM project_members WHERE project_id=?`).bind(projectId).run()
-    const ids = Array.isArray(memberIds) ? memberIds.map(Number).filter(n => Number.isInteger(n) && n > 0) : []
-    const contrib = Array.isArray(contributions) ? contributions.map(Number) : []
-    if (ids.length === 0) return
-    const total = ids.reduce((sum, _, i) => sum + Math.max(0, Number(contrib[i] || 0)), 0)
-    if (total <= 0) throw new Error('Project contribution percentages must be greater than zero.')
-    if (Math.abs(total - 100) > 0.001) throw new Error('Project contribution percentages must total exactly 100%.')
-    for (let i = 0; i < ids.length; i++) {
-        const member = await env.DB.prepare(`SELECT id,status FROM business_members WHERE id=?`).bind(ids[i]).first<any>()
-        if (!member || member.status !== 'Active') throw new Error('All assigned members must exist and be active.')
-        await env.DB.prepare(`INSERT INTO project_members(project_id,member_id,contribution_percentage) VALUES(?,?,?)`).bind(projectId, ids[i], Number(contrib[i] || 0)).run()
+    const ids = Array.isArray(memberIds)
+        ? memberIds.map(Number)
+        : []
+    const contrib = Array.isArray(contributions)
+        ? contributions.map(Number)
+        : []
+
+    if (!Number.isInteger(projectId) || projectId <= 0) {
+        throw new Error('Invalid project ID.')
     }
+
+    if (ids.length === 0 || ids.length !== contrib.length) {
+        throw new Error('Assigned members and contribution values must match.')
+    }
+
+    if (new Set(ids).size !== ids.length) {
+        throw new Error('A project member cannot be assigned more than once.')
+    }
+
+    if (contrib.some((value) => !Number.isFinite(value) || value < 0 || value > 100)) {
+        throw new Error('Contribution percentages must be between 0 and 100.')
+    }
+
+    const total = contrib.reduce((sum, value) => sum + value, 0)
+    if (total <= 0 || Math.abs(total - 100) > 0.001) {
+        throw new Error('Project contribution percentages must total exactly 100%.')
+    }
+
+    // Validate every referenced member before deleting the current assignment.
+    // This prevents a bad request from leaving the project with no members.
+    const memberRows = await Promise.all(
+        ids.map((id) => env.DB.prepare(`SELECT id,status FROM business_members WHERE id=?`).bind(id).first<any>()),
+    )
+
+    if (memberRows.some((member) => !member || member.status !== 'Active')) {
+        throw new Error('All assigned members must exist and be active.')
+    }
+
+    const statements = [
+        env.DB.prepare(`DELETE FROM project_members WHERE project_id=?`).bind(projectId),
+        ...ids.map((memberId, index) =>
+            env.DB.prepare(`
+                INSERT INTO project_members(project_id,member_id,contribution_percentage)
+                VALUES(?,?,?)
+            `).bind(projectId, memberId, contrib[index]),
+        ),
+    ]
+
+    // D1 batch execution keeps the delete + replacement set together instead
+    // of exposing an intermediate half-assigned project to another request.
+    await env.DB.batch(statements)
 }
 
 async function updateBusinessProject(env: Env, id: number, body: BusinessProjectPayload, actorId: number) {
@@ -11555,10 +11959,7 @@ async function getRevenueSharings(env: Env) {
         return json(
             {
                 success: false,
-                message:
-                    error instanceof Error
-                        ? error.message
-                        : 'Failed to fetch revenue sharing.',
+                message: 'Failed to fetch revenue sharing.',
             },
             500,
         )
@@ -11696,7 +12097,7 @@ async function getBusinessDocuments(env: Env) {
         console.error('Get business documents error:', error)
         return json({
             success: false,
-            message: error instanceof Error ? `Failed to fetch documents: ${error.message}` : 'Failed to fetch documents.',
+            message: 'Failed to fetch documents.',
         }, 500)
     }
 }
@@ -11775,14 +12176,38 @@ export default {
            CORS PREFLIGHT
         ========================= */
 
+        const bodySizeError = await checkRequestBodySize(request)
+        if (bodySizeError) return bodySizeError
+
         if (method === 'OPTIONS') {
             return new Response(null, {
                 status: 204,
-                headers: corsHeaders,
+                headers: {
+                    ...getCorsHeaders(request.headers.get('Origin') || undefined, env),
+                    ...securityHeaders(),
+                },
             })
         }
 
+        const publicRateLimitBucket =
+            pathname === '/api/auth/login' ? 'login' :
+                pathname === '/api/payments/create' ? 'payment-create' :
+                    pathname === '/api/payments/final/create' ? 'payment-final' :
+                        pathname === '/api/quotes' ? 'quote-create' :
+                            pathname.startsWith('/api/quotes/public/') ? 'quote-public' :
+                                pathname.startsWith('/api/orders/track/') ? 'order-track' :
+                                    /^\/api\/payments\/[^/]+\/status$/.test(pathname) ? 'payment-status' :
+                                        (pathname === '/api/payments/webhook' || pathname === '/v1.0/debit/notify') ? 'payment-webhook' :
+                                            null
+
+        if (publicRateLimitBucket) {
+            const limit = publicRateLimitBucket === 'payment-webhook' ? 120 : publicRateLimitBucket === 'order-track' ? 30 : publicRateLimitBucket === 'quote-public' ? 30 : 20
+            const rate = consumePublicRateLimit(request, publicRateLimitBucket, limit, 60 * 1000)
+            if (!rate.allowed) return rateLimitResponse(rate.retryAfter, request, env)
+        }
+
         try {
+            await ensureSecuritySchema(env)
             await cleanupExpiredSessions(env)
 
             /* =========================
@@ -11804,7 +12229,7 @@ export default {
                     )
                 }
 
-                return await loginAdmin(env, body)
+                return await loginAdmin(request, env, body)
             }
 
             if (pathname === '/api/auth/me' && method === 'GET') {
@@ -11834,6 +12259,8 @@ export default {
             ========================= */
 
             if (pathname === '/api/admin/notifications' && method === 'GET') {
+                const auth = await requirePermission(request, env, 'notifications:read')
+                if (auth instanceof Response) return auth
                 return await getAdminNotifications(request, env)
             }
 
@@ -11841,6 +12268,8 @@ export default {
                 pathname.match(/^\/api\/admin\/notifications\/(\d+)\/read$/)
 
             if (notificationReadMatch && method === 'PUT') {
+                const auth = await requirePermission(request, env, 'notifications:write')
+                if (auth instanceof Response) return auth
                 return await markAdminNotificationRead(
                     request,
                     env,
@@ -11849,6 +12278,8 @@ export default {
             }
 
             if (pathname === '/api/admin/notifications/read-all' && method === 'PUT') {
+                const auth = await requirePermission(request, env, 'notifications:write')
+                if (auth instanceof Response) return auth
                 return await markAllAdminNotificationsRead(request, env)
             }
 
@@ -11898,11 +12329,19 @@ export default {
                 (pathname.startsWith('/api/idol/') && method === 'GET')
 
             if (!isPublicRoute) {
-                const auth = await requireAuth(request, env)
+                const permission =
+                    pathname === '/api/settings' && method === 'GET' ? 'dashboard:read' :
+                        pathname === '/api/settings' && method === 'PUT' ? 'settings:write' :
+                            pathname.startsWith('/api/admin/') && pathname.includes('/notifications') ? 'dashboard:read' :
+                                pathname.startsWith('/api/services') || pathname.startsWith('/api/products') ||
+                                    pathname.startsWith('/api/portfolio') || pathname.startsWith('/api/news') ||
+                                    pathname.startsWith('/api/promotions') || pathname.startsWith('/api/idol/') ?
+                                    (method === 'GET' ? 'content:read' : 'content:write') :
+                                    pathname.startsWith('/api/orders') ? 'orders:read' :
+                                        'dashboard:read'
 
-                if (auth instanceof Response) {
-                    return auth
-                }
+                const auth = await requirePermission(request, env, permission)
+                if (auth instanceof Response) return auth
             }
 
             /* =========================
@@ -11915,7 +12354,7 @@ export default {
                 }
 
                 if (method === 'PUT') {
-                    const auth = await requireAuth(request, env)
+                    const auth = await requirePermission(request, env, 'settings:write')
 
                     if (auth instanceof Response) {
                         return auth
@@ -12529,10 +12968,14 @@ export default {
                     decodeURIComponent(
                         paymentStatusMatch[1],
                     )
+                if (!/^[A-Za-z0-9_-]{8,64}$/.test(paymentReference)) {
+                    return json({ success: false, message: 'Invalid payment reference.' }, 400)
+                }
 
                 return await getPaymentStatus(
                     env,
                     paymentReference,
+                    (url.searchParams.get('token') || '').trim(),
                 )
             }
 
@@ -12558,8 +13001,9 @@ export default {
                             trackingPrefix.length,
                         ),
                     )
+                const paymentToken = (url.searchParams.get('token') || '').trim()
 
-                if (!orderNumber) {
+                if (!/^[A-Za-z0-9_-]{6,64}$/.test(orderNumber) || !paymentToken || paymentToken.length < 32 || paymentToken.length > 256) {
                     return json(
                         {
                             success: false,
@@ -12573,6 +13017,7 @@ export default {
                 return await trackOrder(
                     env,
                     orderNumber,
+                    paymentToken,
                 )
             }
 
@@ -12731,66 +13176,66 @@ export default {
             await ensureBusinessSchema(env)
 
             if (pathname === '/api/admin/members') {
-                const auth = await requireAuth(request, env); if (auth instanceof Response) return auth
+                const auth = await requirePermission(request, env, 'members:read'); if (auth instanceof Response) return auth
                 if (method === 'GET') return await getBusinessMembers(env)
                 if (method === 'POST') return await createBusinessMember(env, await request.json<BusinessMemberPayload>(), auth.user.id)
             }
             const memberId = businessId(pathname, /^\/api\/admin\/members\/(\d+)$/)
             if (memberId !== null) {
-                const auth = await requireAuth(request, env); if (auth instanceof Response) return auth
+                const auth = await requirePermission(request, env, 'members:write'); if (auth instanceof Response) return auth
                 if (method === 'PUT') return await updateBusinessMember(env, memberId, await request.json<BusinessMemberPayload>(), auth.user.id)
                 if (method === 'DELETE') return await deleteBusinessMember(env, memberId, auth.user.id)
             }
 
             if (pathname === '/api/admin/projects') {
-                const auth = await requireAuth(request, env); if (auth instanceof Response) return auth
+                const auth = await requirePermission(request, env, method === 'GET' ? 'projects:read' : 'projects:write'); if (auth instanceof Response) return auth
                 if (method === 'GET') return await getBusinessProjects(env)
                 if (method === 'POST') return await createBusinessProject(env, await request.json<BusinessProjectPayload>(), auth.user.id)
             }
 
             const projectCostsMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)\/costs$/)
             if (projectCostsMatch) {
-                const auth = await requireAuth(request, env); if (auth instanceof Response) return auth
+                const auth = await requirePermission(request, env, method === 'GET' ? 'finance:read' : 'finance:write'); if (auth instanceof Response) return auth
                 const pid = Number(projectCostsMatch[1])
                 if (method === 'GET') return await getProjectCosts(env, pid)
                 if (method === 'POST') return await createProjectCost(env, pid, await request.json<ProjectCostPayload>(), auth.user.id)
             }
             const projectCostDeleteMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)\/costs\/(\d+)$/)
             if (projectCostDeleteMatch && method === 'DELETE') {
-                const auth = await requireAuth(request, env); if (auth instanceof Response) return auth
+                const auth = await requirePermission(request, env, 'finance:write'); if (auth instanceof Response) return auth
                 return await deleteProjectCost(env, Number(projectCostDeleteMatch[1]), Number(projectCostDeleteMatch[2]), auth.user.id)
             }
 
             const projectMembersMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)\/members$/)
             if (projectMembersMatch) {
-                const auth = await requireAuth(request, env); if (auth instanceof Response) return auth
+                const auth = await requirePermission(request, env, 'projects:write'); if (auth instanceof Response) return auth
                 if (method === 'PUT') return await assignBusinessProjectMembers(env, Number(projectMembersMatch[1]), await request.json<BusinessProjectPayload>(), auth.user.id)
             }
             const projectIdBusiness = businessId(pathname, /^\/api\/admin\/projects\/(\d+)$/)
             if (projectIdBusiness !== null) {
-                const auth = await requireAuth(request, env); if (auth instanceof Response) return auth
+                const auth = await requirePermission(request, env, method === 'GET' ? 'projects:read' : 'projects:write'); if (auth instanceof Response) return auth
                 if (method === 'GET') { const p = await getBusinessProjectById(env, projectIdBusiness); return p ? json({ success: true, data: p }) : json({ success: false, message: 'Project not found.' }, 404) }
                 if (method === 'PUT') return await updateBusinessProject(env, projectIdBusiness, await request.json<BusinessProjectPayload>(), auth.user.id)
             }
 
-            if (pathname === '/api/admin/finance/summary' && method === 'GET') { const auth = await requireAuth(request, env); if (auth instanceof Response) return auth; return await getFinanceSummary(env) }
+            if (pathname === '/api/admin/finance/summary' && method === 'GET') { const auth = await requirePermission(request, env, 'finance:read'); if (auth instanceof Response) return auth; return await getFinanceSummary(env) }
             if (pathname === '/api/admin/finance/transactions') {
-                const auth = await requireAuth(request, env); if (auth instanceof Response) return auth
+                const auth = await requirePermission(request, env, method === 'GET' ? 'finance:read' : 'finance:write'); if (auth instanceof Response) return auth
                 if (method === 'GET') return await getFinanceTransactions(env)
                 if (method === 'POST') return await createFinanceTransaction(env, await request.json<BusinessTransactionPayload>(), auth.user.id)
             }
             const transactionId = businessId(pathname, /^\/api\/admin\/finance\/transactions\/(\d+)$/)
-            if (transactionId !== null) { const auth = await requireAuth(request, env); if (auth instanceof Response) return auth; if (method === 'PUT') return await updateFinanceTransaction(env, transactionId, await request.json<BusinessTransactionPayload>(), auth.user.id); if (method === 'DELETE') return await deleteFinanceTransaction(env, transactionId, auth.user.id) }
+            if (transactionId !== null) { const auth = await requirePermission(request, env, 'finance:write'); if (auth instanceof Response) return auth; if (method === 'PUT') return await updateFinanceTransaction(env, transactionId, await request.json<BusinessTransactionPayload>(), auth.user.id); if (method === 'DELETE') return await deleteFinanceTransaction(env, transactionId, auth.user.id) }
 
-            if (pathname === '/api/admin/revenue-sharing') { const auth = await requireAuth(request, env); if (auth instanceof Response) return auth; if (method === 'GET') return await getRevenueSharings(env); if (method === 'POST') return await createRevenueSharing(env, await request.json<BusinessDistributionPayload>(), auth.user.id) }
+            if (pathname === '/api/admin/revenue-sharing') { const auth = await requirePermission(request, env, method === 'GET' ? 'revenue:read' : 'revenue:write'); if (auth instanceof Response) return auth; if (method === 'GET') return await getRevenueSharings(env); if (method === 'POST') return await createRevenueSharing(env, await request.json<BusinessDistributionPayload>(), auth.user.id) }
             const distributionId = businessId(pathname, /^\/api\/admin\/revenue-sharing\/(\d+)$/)
-            if (distributionId !== null) { const auth = await requireAuth(request, env); if (auth instanceof Response) return auth; if (method === 'PUT' && url.searchParams.get('action') === 'approve') return await approveRevenueSharing(env, distributionId, auth.user.id); if (method === 'PUT' && url.searchParams.get('action') === 'pay') return await payRevenueSharing(env, distributionId, auth.user.id) }
+            if (distributionId !== null) { const auth = await requirePermission(request, env, 'revenue:write'); if (auth instanceof Response) return auth; if (method === 'PUT' && url.searchParams.get('action') === 'approve') return await approveRevenueSharing(env, distributionId, auth.user.id); if (method === 'PUT' && url.searchParams.get('action') === 'pay') return await payRevenueSharing(env, distributionId, auth.user.id) }
 
-            if (pathname === '/api/admin/documents') { const auth = await requireAuth(request, env); if (auth instanceof Response) return auth; if (method === 'GET') return await getBusinessDocuments(env); if (method === 'POST') return await createBusinessDocument(env, await request.json<BusinessDocumentPayload>(), auth.user.id) }
+            if (pathname === '/api/admin/documents') { const auth = await requirePermission(request, env, method === 'GET' ? 'documents:read' : 'documents:write'); if (auth instanceof Response) return auth; if (method === 'GET') return await getBusinessDocuments(env); if (method === 'POST') return await createBusinessDocument(env, await request.json<BusinessDocumentPayload>(), auth.user.id) }
             const documentId = businessId(pathname, /^\/api\/admin\/documents\/(\d+)$/)
-            if (documentId !== null) { const auth = await requireAuth(request, env); if (auth instanceof Response) return auth; if (method === 'GET') return await getBusinessDocument(env, documentId) }
+            if (documentId !== null) { const auth = await requirePermission(request, env, 'documents:read'); if (auth instanceof Response) return auth; if (method === 'GET') return await getBusinessDocument(env, documentId) }
 
-            if (pathname === '/api/admin/audit-logs' && method === 'GET') { const auth = await requireAuth(request, env); if (auth instanceof Response) return auth; return await getAuditLogs(env) }
+            if (pathname === '/api/admin/audit-logs' && method === 'GET') { const auth = await requirePermission(request, env, 'audit:read'); if (auth instanceof Response) return auth; return await getAuditLogs(env) }
 
             /* =========================
                NOT FOUND
@@ -12812,9 +13257,7 @@ export default {
             return json(
                 {
                     success: false,
-                    message: error instanceof Error
-                        ? error.message
-                        : 'Internal server error.',
+                    message: 'Internal server error.',
                 },
                 500,
             )
