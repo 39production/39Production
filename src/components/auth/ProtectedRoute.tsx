@@ -70,7 +70,7 @@ export function ProtectedRoute() {
     if (!authenticated) {
         return (
             <Navigate
-                to="/login"
+                to='/admin/access'
                 replace
                 state={{
                     from: location.pathname,

@@ -218,7 +218,7 @@ export function AppRoutes() {
             ====================================================== */}
 
             <Route
-                path="/login"
+                path='/admin/access'
                 element={<LoginPage />}
             />
 

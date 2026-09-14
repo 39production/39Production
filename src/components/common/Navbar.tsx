@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import {
+  Link,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom'
 import {
   ArrowRight,
   Menu,
@@ -16,6 +20,7 @@ export function Navbar() {
     useState(false)
 
   const location = useLocation()
+  const navigate = useNavigate()
 
   /* =========================================================
      SCROLL STATE
@@ -67,6 +72,137 @@ export function Navbar() {
       document.body.style.overflow = ''
     }
   }, [isOpen])
+
+  /* =========================================================
+     SECRET ADMIN ACCESS
+     
+     Type:
+       3 → 9
+
+     Rules:
+     - No Enter required
+     - Maximum 1.5 seconds between keys
+     - Disabled while typing in form fields
+     - Redirects to /admin/access
+  ========================================================== */
+
+  useEffect(() => {
+    let secretSequence = ''
+    let resetTimer: ReturnType<
+      typeof setTimeout
+    > | null = null
+
+    const resetSequence = () => {
+      secretSequence = ''
+
+      if (resetTimer) {
+        clearTimeout(resetTimer)
+        resetTimer = null
+      }
+    }
+
+    const handleKeyDown = (
+      event: KeyboardEvent,
+    ) => {
+      const target =
+        event.target as HTMLElement | null
+
+      /*
+       * Jangan aktifkan secret shortcut
+       * ketika user sedang mengetik di form.
+       */
+      if (
+        target &&
+        (
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable
+        )
+      ) {
+        resetSequence()
+        return
+      }
+
+      /*
+       * Hanya menerima angka 3 dan 9.
+       */
+      if (
+        event.key !== '3' &&
+        event.key !== '9'
+      ) {
+        resetSequence()
+        return
+      }
+
+      /*
+       * Angka pertama harus 3.
+       */
+      if (
+        secretSequence === '' &&
+        event.key === '3'
+      ) {
+        secretSequence = '3'
+
+        if (resetTimer) {
+          clearTimeout(resetTimer)
+        }
+
+        resetTimer = setTimeout(() => {
+          resetSequence()
+        }, 1500)
+
+        return
+      }
+
+      /*
+       * Setelah 3, angka berikutnya harus 9.
+       */
+      if (
+        secretSequence === '3' &&
+        event.key === '9'
+      ) {
+        resetSequence()
+
+        /*
+         * Jangan redirect kalau sudah
+         * berada di halaman admin access.
+         */
+        if (
+          location.pathname !==
+          '/admin/access'
+        ) {
+          navigate('/admin/access')
+        }
+
+        return
+      }
+
+      /*
+       * Sequence tidak valid.
+       */
+      resetSequence()
+    }
+
+    window.addEventListener(
+      'keydown',
+      handleKeyDown,
+    )
+
+    return () => {
+      window.removeEventListener(
+        'keydown',
+        handleKeyDown,
+      )
+
+      if (resetTimer) {
+        clearTimeout(resetTimer)
+      }
+    }
+  }, [
+    location.pathname,
+    navigate,
+  ])
 
   /* =========================================================
      ACTIVE LINK
@@ -247,32 +383,6 @@ export function Navbar() {
         ======================================================== */}
 
         <div className="hidden items-center gap-1.5 lg:flex">
-          {/* Admin */}
-          <Link
-            to="/login"
-            className="
-              inline-flex
-              min-h-10
-              items-center
-              rounded-xl
-              px-4
-              py-2
-              text-sm
-              font-medium
-              text-neutral-500
-              outline-none
-              transition-all
-              duration-300
-              hover:bg-neutral-50
-              hover:text-neutral-900
-              focus-visible:ring-2
-              focus-visible:ring-violet-500
-              focus-visible:ring-offset-2
-            "
-          >
-            Admin
-          </Link>
-
           {/* CTA */}
           <Link
             to="/contact"
@@ -567,39 +677,9 @@ export function Navbar() {
 
           <div className="mt-4 border-t border-neutral-200 pt-4">
             <Link
-              to="/login"
-              className="
-                flex
-                min-h-12
-                items-center
-                justify-center
-                rounded-xl
-                border
-                border-neutral-200
-                bg-white
-                px-4
-                py-3
-                text-sm
-                font-medium
-                text-neutral-600
-                outline-none
-                transition-all
-                duration-300
-                hover:border-violet-200
-                hover:bg-violet-50
-                hover:text-violet-700
-                focus-visible:ring-2
-                focus-visible:ring-violet-500
-              "
-            >
-              Admin
-            </Link>
-
-            <Link
               to="/contact"
               className="
                 group
-                mt-2
                 flex
                 min-h-12
                 items-center

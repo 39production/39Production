@@ -369,7 +369,7 @@ export function AdminSettingsPage() {
       if (
         response.status === 401
       ) {
-        navigate('/login', {
+        navigate('/admin/access', {
           replace: true,
         })
         return
@@ -525,7 +525,7 @@ export function AdminSettingsPage() {
 
       closePasswordModal(true)
 
-      navigate('/login', {
+      navigate('/admin/access', {
         replace: true,
         state: {
           message:
@@ -549,11 +549,11 @@ export function AdminSettingsPage() {
 
       await logout()
 
-      navigate('/login', {
+      navigate('/admin/access', {
         replace: true,
       })
     } catch {
-      navigate('/login', {
+      navigate('/admin/access', {
         replace: true,
       })
     } finally {
