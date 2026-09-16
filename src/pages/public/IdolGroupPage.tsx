@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Disc3,
   Loader2,
+  MapPin,
   Music,
   Play,
   User,
@@ -107,6 +108,58 @@ function formatDate(date: string) {
   }).format(parsed)
 }
 
+function getShortDate(date: string) {
+  if (!date) return '-'
+
+  const parsed = new Date(date)
+
+  if (Number.isNaN(parsed.getTime())) {
+    return date
+  }
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(parsed)
+}
+
+function getYear(date: string) {
+  if (!date) return '-'
+
+  const parsed = new Date(date)
+
+  if (Number.isNaN(parsed.getTime())) {
+    return date.slice(0, 4)
+  }
+
+  return parsed.getFullYear().toString()
+}
+
+function toYoutubeEmbed(url: string) {
+  try {
+    const parsed = new URL(url)
+
+    if (parsed.hostname.includes('youtu.be')) {
+      const videoId = parsed.pathname.replace('/', '')
+
+      return `https://www.youtube.com/embed/${videoId}`
+    }
+
+    if (parsed.hostname.includes('youtube.com')) {
+      const videoId = parsed.searchParams.get('v')
+
+      if (videoId) {
+        return `https://www.youtube.com/embed/${videoId}`
+      }
+    }
+  } catch {
+    return url
+  }
+
+  return url
+}
+
 export function IdolGroupPage() {
   const { id } = useParams()
 
@@ -152,16 +205,30 @@ export function IdolGroupPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
-        <Loader2 className="h-9 w-9 animate-spin text-violet-600" />
+        <Loader2 className="h-7 w-7 animate-spin text-violet-600" />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white px-6 py-20">
-        <div className="mx-auto max-w-3xl rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-sm text-red-600">
-          {error}
+      <div className="min-h-screen bg-white px-6 py-20 text-zinc-900">
+        <div className="mx-auto max-w-4xl border border-red-200 bg-red-50 p-8">
+          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-red-500">
+            39Production / Error
+          </p>
+
+          <p className="mt-3 text-sm text-red-700">
+            {error}
+          </p>
+
+          <Link
+            to="/idol/groups"
+            className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-zinc-800 transition hover:text-violet-600"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Groups
+          </Link>
         </div>
       </div>
     )
@@ -169,103 +236,181 @@ export function IdolGroupPage() {
 
   /*
    * ============================================================
-   * GROUP LIST
+   * GROUP DIRECTORY
    * ============================================================
    */
 
   if (!id) {
     return (
-      <div className="min-h-screen bg-white text-zinc-900">
-        <section className="relative overflow-hidden border-b border-zinc-200">
-          <div className="pointer-events-none absolute -right-28 -top-28 h-80 w-80 rounded-full bg-purple-100/70 blur-3xl" />
+      <div
+        className="min-h-screen bg-white text-zinc-900"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, #111 1px, transparent 1px),
+            linear-gradient(to bottom, #111 1px, transparent 1px)
+          `,
+          backgroundSize: '72px 72px',
+        }}
+      >
+        <div className="pointer-events-none fixed -right-40 top-10 h-96 w-96 rounded-full bg-violet-100/50 blur-3xl" />
+        <div className="pointer-events-none fixed -left-40 bottom-0 h-96 w-96 rounded-full bg-fuchsia-100/40 blur-3xl" />
 
-          <div className="pointer-events-none absolute -bottom-32 left-1/4 h-72 w-72 rounded-full bg-pink-100/50 blur-3xl" />
+        {/* HERO */}
+        <section className="relative border-b border-zinc-200 bg-white/90 backdrop-blur-sm">
+          <div className="mx-auto max-w-7xl px-6 py-14 lg:px-8 lg:py-20">
+            <div className="flex items-end justify-between gap-10">
+              <div className="max-w-3xl">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-zinc-400">
+                    39Production
+                  </span>
 
-          <div className="relative mx-auto max-w-7xl px-6 py-16 sm:py-20 lg:px-8 lg:py-24">
-            <div className="max-w-2xl">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-600">
-                39Production
-              </p>
+                  <span className="h-px w-8 bg-zinc-300" />
 
-              <h1 className="mt-3 text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">
-                Idol Groups
-              </h1>
+                  <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-violet-600">
+                    Entertainment / Groups
+                  </span>
+                </div>
 
-              <p className="mt-4 text-base leading-7 text-zinc-600">
-                Discover all idol groups managed by 39Production.
-              </p>
+                <h1 className="mt-7 text-5xl font-semibold leading-[0.9] tracking-[-0.06em] text-zinc-950 sm:text-6xl lg:text-7xl">
+                  Artists become
+                  <br />
+                  <span className="text-violet-600">a story.</span>
+                </h1>
+
+                <p className="mt-7 max-w-xl text-sm leading-7 text-zinc-500 sm:text-base">
+                  Discover the idol groups developed, managed, and
+                  produced through the 39Production entertainment
+                  platform.
+                </p>
+              </div>
+
+              <div className="hidden text-right lg:block">
+                <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-400">
+                  Active roster
+                </p>
+
+                <p className="mt-2 font-mono text-5xl tracking-[-0.06em] text-zinc-950">
+                  {String(groups.length).padStart(2, '0')}
+                </p>
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
-          {groups.length === 0 ? (
-            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-10 text-center sm:p-12">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-50">
-                <Music className="h-7 w-7 text-purple-500" />
+        {/* GROUP DIRECTORY */}
+        <section className="relative bg-white">
+          <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8 lg:py-16">
+            {groups.length === 0 ? (
+              <div className="border border-zinc-200 bg-zinc-50 px-6 py-16 text-center">
+                <Music className="mx-auto h-8 w-8 text-zinc-300" />
+
+                <p className="mt-5 text-sm font-medium text-zinc-700">
+                  Belum ada idol group.
+                </p>
+
+                <p className="mt-2 text-xs leading-6 text-zinc-400">
+                  Artist projects will appear here as they are published.
+                </p>
               </div>
+            ) : (
+              <div className="border-t border-zinc-200">
+                {groups.map((item, index) => (
+                  <Link
+                    key={item.id}
+                    to={`/idol/groups/${item.id}`}
+                    className="group grid border-b border-zinc-200 transition hover:bg-zinc-50 lg:grid-cols-[72px_280px_1fr_auto] lg:items-center"
+                  >
+                    {/* INDEX */}
+                    <div className="hidden h-full items-center border-r border-zinc-200 px-5 lg:flex">
+                      <span className="font-mono text-[10px] text-zinc-400">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                    </div>
 
-              <p className="mt-5 font-medium text-zinc-700">
-                Belum ada idol group.
-              </p>
+                    {/* IMAGE */}
+                    <div className="relative m-4 aspect-video overflow-hidden bg-zinc-100 sm:m-5 lg:m-0 lg:aspect-[1.5] lg:h-[170px]">
+                      {item.image_url ? (
+                        <img
+                          src={item.image_url}
+                          alt={item.name}
+                          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-zinc-100 via-white to-violet-50">
+                          <Music className="h-10 w-10 text-zinc-200" />
+                        </div>
+                      )}
 
-              <p className="mt-2 text-sm leading-6 text-zinc-500">
-                Artist projects will appear here as they are published.
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {groups.map((item) => (
-                <Link
-                  key={item.id}
-                  to={`/idol/groups/${item.id}`}
-                  className="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-purple-200 hover:shadow-xl hover:shadow-purple-100/40"
-                >
-                  <div className="relative aspect-video overflow-hidden bg-zinc-100">
-                    {item.image_url ? (
-                      <img
-                        src={item.image_url}
-                        alt={item.name}
-                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center bg-gradient-to-br from-purple-50 via-white to-pink-50">
-                        <Music className="h-14 w-14 text-purple-200" />
-                      </div>
-                    )}
-
-                    <div className="absolute left-4 top-4">
                       <span
-                        className={`rounded-full border bg-white/95 px-3 py-1 text-xs font-medium shadow-sm ${item.status === 'Active'
-                            ? 'border-emerald-200 text-emerald-700'
-                            : 'border-amber-200 text-amber-700'
+                        className={`absolute left-3 top-3 border bg-white/95 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.15em] ${item.status === 'Active'
+                            ? 'border-violet-200 text-violet-600'
+                            : 'border-amber-200 text-amber-600'
                           }`}
                       >
                         {item.status}
                       </span>
                     </div>
-                  </div>
 
-                  <div className="p-5 sm:p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <h2 className="text-xl font-bold tracking-tight text-zinc-900 transition group-hover:text-purple-600">
-                          {item.name}
-                        </h2>
+                    {/* INFO */}
+                    <div className="px-5 pb-6 lg:px-8 lg:py-7">
+                      <div className="flex items-center gap-3 lg:hidden">
+                        <span className="font-mono text-[9px] text-zinc-400">
+                          {String(index + 1).padStart(2, '0')}
+                        </span>
 
-                        <p className="mt-2 line-clamp-2 text-sm leading-6 text-zinc-500">
-                          {item.description ||
-                            'Idol group 39Production.'}
-                        </p>
+                        <span className="h-px w-6 bg-zinc-300" />
                       </div>
 
-                      <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-zinc-300 transition group-hover:translate-x-1 group-hover:text-purple-500" />
+                      <h2 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-zinc-950 transition group-hover:text-violet-600 lg:mt-0 lg:text-4xl">
+                        {item.name}
+                      </h2>
+
+                      <p className="mt-3 line-clamp-2 max-w-xl text-sm leading-6 text-zinc-500">
+                        {item.description ||
+                          'Idol group 39Production.'}
+                      </p>
                     </div>
-                  </div>
-                </Link>
-              ))}
+
+                    {/* ACTION */}
+                    <div className="hidden items-center gap-4 border-l border-zinc-200 px-7 lg:flex">
+                      <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-zinc-400 transition group-hover:text-violet-600">
+                        View group
+                      </span>
+
+                      <ArrowRight className="h-4 w-4 text-zinc-300 transition group-hover:translate-x-1 group-hover:text-violet-600" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* FOOTER STATEMENT */}
+        <section className="border-t border-zinc-200 bg-zinc-950 text-white">
+          <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
+            <div className="grid gap-8 lg:grid-cols-[120px_1fr_auto] lg:items-end">
+              <span className="font-mono text-[9px] tracking-[0.2em] text-zinc-500">
+                05.01
+              </span>
+
+              <h2 className="max-w-3xl text-3xl font-medium leading-tight tracking-[-0.04em] sm:text-4xl">
+                Building groups.
+                <br />
+                Creating
+                <span className="text-violet-400"> identities.</span>
+              </h2>
+
+              <Link
+                to="/idol/members"
+                className="inline-flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-300 transition hover:text-white"
+              >
+                Meet the members
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
-          )}
+          </div>
         </section>
       </div>
     )
@@ -281,8 +426,8 @@ export function IdolGroupPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white px-6 text-center">
         <div>
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-50">
-            <Music className="h-7 w-7 text-zinc-300" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center border border-zinc-200 bg-zinc-50">
+            <Music className="h-6 w-6 text-zinc-300" />
           </div>
 
           <h1 className="mt-5 text-xl font-semibold text-zinc-800">
@@ -291,7 +436,7 @@ export function IdolGroupPage() {
 
           <Link
             to="/idol/groups"
-            className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-purple-600 transition hover:text-purple-700"
+            className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-violet-600 transition hover:text-violet-700"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Groups
@@ -308,88 +453,130 @@ export function IdolGroupPage() {
    */
 
   return (
-    <div className="min-h-screen bg-white text-zinc-900">
-      {/* HERO */}
-      <section className="relative overflow-hidden border-b border-zinc-200">
-        <div className="pointer-events-none absolute -right-40 -top-20 h-96 w-96 rounded-full bg-purple-100/60 blur-3xl" />
+    <div
+      className="min-h-screen bg-white text-zinc-900"
+      style={{
+        backgroundImage: `
+          linear-gradient(to right, #111 1px, transparent 1px),
+          linear-gradient(to bottom, #111 1px, transparent 1px)
+        `,
+        backgroundSize: '72px 72px',
+      }}
+    >
+      <div className="pointer-events-none fixed -right-40 top-20 h-96 w-96 rounded-full bg-violet-100/50 blur-3xl" />
 
-        <div className="pointer-events-none absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-pink-100/40 blur-3xl" />
+      <div className="pointer-events-none fixed -left-40 bottom-0 h-96 w-96 rounded-full bg-fuchsia-100/40 blur-3xl" />
 
-        <div className="relative mx-auto max-w-7xl px-6 py-12 sm:py-16 lg:px-8 lg:py-20">
+      {/* ========================================================
+          TOP NAV
+          ======================================================== */}
+
+      <header className="relative border-b border-zinc-200 bg-white/90 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
           <Link
             to="/idol/groups"
-            className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-zinc-500 transition hover:text-purple-600"
+            className="group inline-flex items-center gap-3 font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-500 transition hover:text-zinc-950"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Groups
+            <ArrowLeft className="h-4 w-4 transition group-hover:-translate-x-1" />
+            All Groups
           </Link>
 
-          <div className="grid gap-10 lg:grid-cols-[400px_1fr] lg:items-center lg:gap-14">
-            {/* GROUP IMAGE */}
-            <div className="mx-auto w-full max-w-md">
-              <div className="relative aspect-square overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-100 shadow-xl shadow-zinc-200/50">
-                {group.image_url ? (
-                  <img
-                    src={group.image_url}
-                    alt={group.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center bg-gradient-to-br from-purple-50 via-white to-pink-50">
-                    <Music className="h-24 w-24 text-purple-200" />
-                  </div>
-                )}
+          <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-400">
+            39Production / Group Profile
+          </span>
+        </div>
+      </header>
 
-                <div className="absolute left-5 top-5">
-                  <span
-                    className={`rounded-full border bg-white/95 px-3 py-1.5 text-xs font-medium shadow-sm ${group.status === 'Active'
-                        ? 'border-emerald-200 text-emerald-700'
-                        : 'border-amber-200 text-amber-700'
-                      }`}
-                  >
-                    {group.status}
-                  </span>
+      {/* ========================================================
+          GROUP HERO
+          ======================================================== */}
+
+      <section className="relative border-b border-zinc-200 bg-white">
+        <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8 lg:py-14">
+          <div className="grid border border-zinc-200 lg:grid-cols-[45%_55%]">
+            {/* IMAGE */}
+            <div className="relative min-h-[420px] overflow-hidden bg-zinc-100 lg:min-h-[590px]">
+              {group.image_url ? (
+                <img
+                  src={group.image_url}
+                  alt={group.name}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-zinc-100 via-white to-violet-50">
+                  <Music className="h-24 w-24 text-zinc-200" />
                 </div>
+              )}
+
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/10" />
+
+              <div className="absolute left-6 top-6">
+                <span
+                  className={`border bg-white/95 px-3 py-1.5 font-mono text-[8px] uppercase tracking-[0.18em] ${group.status === 'Active'
+                      ? 'border-violet-200 text-violet-600'
+                      : 'border-amber-200 text-amber-600'
+                    }`}
+                >
+                  {group.status}
+                </span>
+              </div>
+
+              <div className="absolute bottom-6 left-6">
+                <p className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/60">
+                  Group No.
+                </p>
+
+                <p className="mt-1 font-mono text-2xl tracking-[-0.04em] text-white">
+                  #{String(group.id).padStart(3, '0')}
+                </p>
               </div>
             </div>
 
-            {/* GROUP INFO */}
-            <div className="min-w-0">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-600">
-                39Production Idol
-              </p>
+            {/* INFO */}
+            <div className="flex flex-col justify-between p-7 sm:p-10 lg:p-12">
+              <div>
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-violet-600">
+                    39Production Idol
+                  </span>
 
-              <h1 className="mt-3 break-words text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
-                {group.name}
-              </h1>
+                  <span className="h-px w-8 bg-zinc-300" />
+                </div>
 
-              <p className="mt-5 max-w-2xl text-base leading-8 text-zinc-600 sm:text-lg">
-                {group.description || 'Idol group 39Production.'}
-              </p>
+                <h1 className="mt-7 max-w-xl break-words text-5xl font-semibold leading-[0.88] tracking-[-0.065em] text-zinc-950 sm:text-6xl lg:text-7xl">
+                  {group.name}
+                </h1>
 
-              <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <p className="mt-7 max-w-xl text-sm leading-7 text-zinc-500 sm:text-base sm:leading-8">
+                  {group.description ||
+                    'Idol group 39Production.'}
+                </p>
+              </div>
+
+              {/* STATS */}
+              <div className="mt-12 grid border-t border-zinc-200 sm:grid-cols-2 lg:grid-cols-4">
                 <Stat
-                  icon={<Users className="h-4 w-4" />}
                   value={group.members?.length || 0}
                   label="Members"
+                  icon={<Users className="h-3.5 w-3.5" />}
                 />
 
                 <Stat
-                  icon={<Disc3 className="h-4 w-4" />}
                   value={group.releases?.length || 0}
                   label="Releases"
+                  icon={<Disc3 className="h-3.5 w-3.5" />}
                 />
 
                 <Stat
-                  icon={<Play className="h-4 w-4" />}
                   value={group.music_videos?.length || 0}
                   label="Videos"
+                  icon={<Play className="h-3.5 w-3.5" />}
                 />
 
                 <Stat
-                  icon={<CalendarDays className="h-4 w-4" />}
                   value={group.activities?.length || 0}
-                  label="Events"
+                  label="Activities"
+                  icon={<CalendarDays className="h-3.5 w-3.5" />}
                 />
               </div>
             </div>
@@ -397,376 +584,518 @@ export function IdolGroupPage() {
         </div>
       </section>
 
-      {/* MEMBERS */}
-      <section className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
-        <SectionHeader
-          icon={<Users className="h-5 w-5" />}
-          title="Members"
-          description="Meet the artists behind the group."
-        />
+      {/* ========================================================
+          MEMBERS
+          ======================================================== */}
 
-        {group.members?.length ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {group.members.map((member) => (
-              <Link
-                key={member.id}
-                to={`/idol/members/${member.id}`}
-                className="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-purple-200 hover:shadow-xl hover:shadow-purple-100/30"
-              >
-                <div className="relative aspect-[4/5] overflow-hidden bg-zinc-100">
-                  {member.image_url ? (
-                    <img
-                      src={member.image_url}
-                      alt={member.stage_name}
-                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-purple-50 via-white to-pink-50">
-                      <User className="h-16 w-16 text-purple-200" />
-                    </div>
-                  )}
+      <section className="relative border-b border-zinc-200 bg-white">
+        <div className="mx-auto max-w-7xl px-6 py-14 lg:px-8 lg:py-18">
+          <SectionIntro
+            number="01"
+            eyebrow="The Roster"
+            title="Members"
+            description="The artists behind the group."
+          />
 
-                  <div className="absolute left-4 top-4">
+          {group.members?.length ? (
+            <div className="mt-10 grid border-t border-zinc-200 sm:grid-cols-2 lg:grid-cols-4">
+              {group.members.map((member, index) => (
+                <Link
+                  key={member.id}
+                  to={`/idol/members/${member.id}`}
+                  className="group border-b border-zinc-200 p-4 transition hover:bg-zinc-50 sm:p-5 lg:border-r lg:p-4"
+                >
+                  <div className="relative aspect-[4/5] overflow-hidden bg-zinc-100">
+                    {member.image_url ? (
+                      <img
+                        src={member.image_url}
+                        alt={member.stage_name}
+                        className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center bg-gradient-to-br from-zinc-100 via-white to-violet-50">
+                        <User className="h-14 w-14 text-zinc-200" />
+                      </div>
+                    )}
+
+                    <span className="absolute left-3 top-3 font-mono text-[9px] text-white drop-shadow-md">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+
                     <span
-                      className={`rounded-full border bg-white/95 px-2.5 py-1 text-[11px] font-medium shadow-sm ${member.status === 'Active'
-                          ? 'border-emerald-200 text-emerald-700'
-                          : 'border-zinc-200 text-zinc-500'
+                      className={`absolute right-3 top-3 border bg-white/95 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.12em] ${member.status === 'Active'
+                          ? 'border-violet-200 text-violet-600'
+                          : 'border-zinc-200 text-zinc-400'
                         }`}
                     >
                       {member.status}
                     </span>
                   </div>
-                </div>
 
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3 py-5">
                     <div className="min-w-0">
-                      <p className="truncate text-lg font-semibold text-zinc-900 transition group-hover:text-purple-600">
+                      <h3 className="truncate text-lg font-semibold tracking-[-0.025em] text-zinc-950 transition group-hover:text-violet-600">
                         {member.stage_name}
-                      </p>
+                      </h3>
 
-                      <p className="mt-1 text-sm font-medium text-purple-600">
+                      <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-400">
                         {member.position}
                       </p>
                     </div>
 
-                    <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-zinc-300 transition group-hover:translate-x-1 group-hover:text-purple-500" />
+                    <ArrowRight className="h-4 w-4 shrink-0 text-zinc-300 transition group-hover:translate-x-1 group-hover:text-violet-600" />
                   </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <Empty text="Belum ada member." />
-        )}
-      </section>
-
-      {/* RELEASES */}
-      <section className="border-y border-zinc-200 bg-zinc-50/70">
-        <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
-          <SectionHeader
-            icon={<Disc3 className="h-5 w-5" />}
-            title="Music Releases"
-            description="Original music released by this group."
-          />
-
-          {group.releases?.length ? (
-            <div className="grid gap-5 md:grid-cols-2">
-              {group.releases.map((release) => (
-                <div
-                  key={release.id}
-                  className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-purple-200 hover:shadow-md"
-                >
-                  <div className="flex flex-col gap-5 sm:flex-row">
-                    <div className="h-28 w-28 shrink-0 overflow-hidden rounded-xl bg-zinc-100">
-                      {release.cover_url ? (
-                        <img
-                          src={release.cover_url}
-                          alt={release.title}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
-                          <Music className="h-8 w-8 text-purple-200" />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-purple-50 px-2.5 py-1 text-[11px] font-semibold text-purple-700">
-                          {release.type}
-                        </span>
-
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${release.status === 'Released'
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : 'bg-amber-50 text-amber-700'
-                            }`}
-                        >
-                          {release.status}
-                        </span>
-                      </div>
-
-                      <h3 className="mt-2 text-lg font-semibold text-zinc-900">
-                        {release.title}
-                      </h3>
-
-                      <p className="mt-1 text-sm text-zinc-500">
-                        {formatDate(release.release_date)}
-                      </p>
-
-                      {release.description && (
-                        <p className="mt-3 line-clamp-2 text-sm leading-6 text-zinc-500">
-                          {release.description}
-                        </p>
-                      )}
-
-                      {release.audio_url && (
-                        <audio
-                          className="mt-4 h-9 w-full"
-                          controls
-                          src={release.audio_url}
-                        />
-                      )}
-
-                      {(release.spotify_url ||
-                        release.youtube_url) && (
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            {release.spotify_url && (
-                              <a
-                                href={release.spotify_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                onClick={(event) =>
-                                  event.stopPropagation()
-                                }
-                                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-purple-200 hover:bg-purple-50 hover:text-purple-700"
-                              >
-                                Spotify
-                              </a>
-                            )}
-
-                            {release.youtube_url && (
-                              <a
-                                href={release.youtube_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                onClick={(event) =>
-                                  event.stopPropagation()
-                                }
-                                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-purple-200 hover:bg-purple-50 hover:text-purple-700"
-                              >
-                                YouTube
-                              </a>
-                            )}
-                          </div>
-                        )}
-                    </div>
-                  </div>
-                </div>
+                </Link>
               ))}
             </div>
           ) : (
-            <Empty text="Belum ada music release." />
+            <div className="mt-10">
+              <Empty text="Belum ada member." />
+            </div>
           )}
         </div>
       </section>
 
-      {/* MUSIC VIDEOS */}
-      <section className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
-        <SectionHeader
-          icon={<Play className="h-5 w-5" />}
-          title="Music Videos"
-          description="Watch visual releases and music videos from the group."
-        />
+      {/* ========================================================
+          RELEASES
+          ======================================================== */}
 
-        {group.music_videos?.length ? (
-          <div className="grid gap-6 md:grid-cols-2">
-            {group.music_videos.map((video) => (
-              <div
-                key={video.id}
-                className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition hover:border-purple-200 hover:shadow-md"
-              >
-                <div className="relative aspect-video overflow-hidden bg-zinc-100">
-                  {video.youtube_url ? (
-                    <iframe
-                      src={toYoutubeEmbed(video.youtube_url)}
-                      title={video.title}
-                      className="h-full w-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  ) : video.video_url ? (
-                    <video
-                      controls
-                      poster={video.thumbnail_url || undefined}
-                      className="h-full w-full object-cover"
-                      src={video.video_url}
-                    />
-                  ) : video.thumbnail_url ? (
-                    <img
-                      src={video.thumbnail_url}
-                      alt={video.title}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-purple-50 via-white to-pink-50">
-                      <Play className="h-14 w-14 text-purple-200" />
-                    </div>
-                  )}
-
-                  <div className="absolute left-4 top-4 pointer-events-none">
-                    <span
-                      className={`rounded-full border bg-white/95 px-3 py-1 text-[11px] font-medium shadow-sm ${video.status === 'Published'
-                          ? 'border-emerald-200 text-emerald-700'
-                          : 'border-amber-200 text-amber-700'
-                        }`}
-                    >
-                      {video.status}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-5">
-                  <h3 className="font-semibold text-zinc-900">
-                    {video.title}
-                  </h3>
-
-                  <p className="mt-1 text-sm text-zinc-500">
-                    {formatDate(video.release_date)}
-                  </p>
-
-                  {video.description && (
-                    <p className="mt-3 text-sm leading-6 text-zinc-600">
-                      {video.description}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <Empty text="Belum ada music video." />
-        )}
-      </section>
-
-      {/* ACTIVITIES */}
-      <section className="border-t border-zinc-200 bg-zinc-50/70">
-        <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
-          <SectionHeader
-            icon={<CalendarDays className="h-5 w-5" />}
-            title="Activities & Events"
-            description="Follow upcoming schedules, concerts, and group activities."
+      <section className="relative border-b border-zinc-200 bg-zinc-50">
+        <div className="mx-auto max-w-7xl px-6 py-14 lg:px-8 lg:py-18">
+          <SectionIntro
+            number="02"
+            eyebrow="Discography"
+            title="Music Releases"
+            description="A record of the group's released and upcoming music."
           />
 
-          {group.activities?.length ? (
-            <div className="space-y-4">
-              {group.activities.map((activity) => (
+          {group.releases?.length ? (
+            <div className="mt-10 border-t border-zinc-300">
+              {group.releases.map((release, index) => (
                 <div
-                  key={activity.id}
-                  className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-purple-200 hover:shadow-md"
+                  key={release.id}
+                  className="grid border-b border-zinc-300 py-5 lg:grid-cols-[60px_96px_1fr_auto] lg:items-center lg:gap-6"
                 >
-                  <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex min-w-0 gap-4">
-                      <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-50 sm:flex">
-                        <CalendarDays className="h-5 w-5 text-purple-600" />
-                      </div>
+                  {/* INDEX */}
+                  <span className="hidden font-mono text-[9px] text-zinc-400 lg:block">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
 
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full bg-purple-50 px-2.5 py-1 text-[11px] font-semibold text-purple-700">
-                            {activity.type}
-                          </span>
-
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${activity.status === 'Upcoming'
-                                ? 'bg-purple-50 text-purple-700'
-                                : activity.status === 'Completed'
-                                  ? 'bg-emerald-50 text-emerald-700'
-                                  : 'bg-red-50 text-red-600'
-                              }`}
-                          >
-                            {activity.status}
-                          </span>
-                        </div>
-
-                        <h3 className="mt-2 text-lg font-semibold text-zinc-900">
-                          {activity.title}
-                        </h3>
-
-                        <div className="mt-2 flex flex-col gap-1 text-sm text-zinc-500 sm:flex-row sm:flex-wrap sm:gap-2">
-                          <span>{formatDate(activity.date)}</span>
-
-                          {activity.location && (
-                            <>
-                              <span className="hidden sm:inline">
-                                •
-                              </span>
-                              <span>{activity.location}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {activity.image_url && (
-                      <div className="h-28 w-full overflow-hidden rounded-xl bg-zinc-100 sm:h-20 sm:w-32 sm:shrink-0">
-                        <img
-                          src={activity.image_url}
-                          alt={activity.title}
-                          className="h-full w-full object-cover"
-                        />
+                  {/* COVER */}
+                  <div className="mb-5 aspect-square w-24 overflow-hidden bg-zinc-200 lg:mb-0">
+                    {release.cover_url ? (
+                      <img
+                        src={release.cover_url}
+                        alt={release.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center bg-zinc-100">
+                        <Disc3 className="h-7 w-7 text-zinc-300" />
                       </div>
                     )}
                   </div>
 
-                  {activity.description && (
-                    <p className="mt-5 border-t border-zinc-100 pt-4 text-sm leading-6 text-zinc-600">
-                      {activity.description}
+                  {/* INFO */}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-[8px] uppercase tracking-[0.15em] text-violet-600">
+                        {release.type}
+                      </span>
+
+                      <span className="h-1 w-1 rounded-full bg-zinc-300" />
+
+                      <span className="font-mono text-[8px] uppercase tracking-[0.15em] text-zinc-400">
+                        {getYear(release.release_date)}
+                      </span>
+
+                      <span
+                        className={`font-mono text-[8px] uppercase tracking-[0.15em] ${release.status === 'Released'
+                            ? 'text-emerald-600'
+                            : 'text-amber-600'
+                          }`}
+                      >
+                        / {release.status}
+                      </span>
+                    </div>
+
+                    <h3 className="mt-2 text-xl font-semibold tracking-[-0.035em] text-zinc-950">
+                      {release.title}
+                    </h3>
+
+                    <p className="mt-1 text-xs text-zinc-400">
+                      {formatDate(release.release_date)}
                     </p>
-                  )}
+
+                    {release.description && (
+                      <p className="mt-3 max-w-xl line-clamp-2 text-sm leading-6 text-zinc-500">
+                        {release.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* ACTIONS */}
+                  <div className="mt-5 flex flex-wrap items-center gap-3 lg:mt-0 lg:justify-end">
+                    {release.audio_url && (
+                      <audio
+                        className="h-8 max-w-[220px]"
+                        controls
+                        src={release.audio_url}
+                      />
+                    )}
+
+                    {release.spotify_url && (
+                      <a
+                        href={release.spotify_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(event) =>
+                          event.stopPropagation()
+                        }
+                        className="border border-zinc-300 px-3 py-2 font-mono text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 transition hover:border-violet-300 hover:text-violet-600"
+                      >
+                        Spotify
+                      </a>
+                    )}
+
+                    {release.youtube_url && (
+                      <a
+                        href={release.youtube_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(event) =>
+                          event.stopPropagation()
+                        }
+                        className="border border-zinc-300 px-3 py-2 font-mono text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-600 transition hover:border-violet-300 hover:text-violet-600"
+                      >
+                        YouTube
+                      </a>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           ) : (
-            <Empty text="Belum ada activity." />
+            <div className="mt-10">
+              <Empty text="Belum ada music release." />
+            </div>
           )}
+        </div>
+      </section>
+
+      {/* ========================================================
+          MUSIC VIDEOS
+          ======================================================== */}
+
+      <section className="relative border-b border-zinc-200 bg-white">
+        <div className="mx-auto max-w-7xl px-6 py-14 lg:px-8 lg:py-18">
+          <SectionIntro
+            number="03"
+            eyebrow="Visual Archive"
+            title="Music Videos"
+            description="Visual releases accompanying the group's music."
+          />
+
+          {group.music_videos?.length ? (
+            <div className="mt-10 grid gap-px border border-zinc-200 bg-zinc-200 md:grid-cols-2">
+              {group.music_videos.map((video, index) => (
+                <div
+                  key={video.id}
+                  className="group bg-white"
+                >
+                  <div className="relative aspect-video overflow-hidden bg-zinc-100">
+                    {video.youtube_url ? (
+                      <iframe
+                        src={toYoutubeEmbed(video.youtube_url)}
+                        title={video.title}
+                        className="absolute inset-0 h-full w-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : video.video_url ? (
+                      <video
+                        controls
+                        poster={video.thumbnail_url || undefined}
+                        className="h-full w-full object-cover"
+                        src={video.video_url}
+                      />
+                    ) : video.thumbnail_url ? (
+                      <img
+                        src={video.thumbnail_url}
+                        alt={video.title}
+                        className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center bg-gradient-to-br from-zinc-100 via-white to-violet-50">
+                        <Play className="h-12 w-12 text-zinc-200" />
+                      </div>
+                    )}
+
+                    <span className="pointer-events-none absolute left-4 top-4 border border-white/30 bg-black/50 px-2 py-1 font-mono text-[8px] text-white backdrop-blur-sm">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                  </div>
+
+                  <div className="flex items-start justify-between gap-5 p-5 lg:p-6">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-[8px] uppercase tracking-[0.15em] text-violet-600">
+                          {video.status}
+                        </span>
+
+                        <span className="h-1 w-1 rounded-full bg-zinc-300" />
+
+                        <span className="font-mono text-[8px] uppercase tracking-[0.15em] text-zinc-400">
+                          {getShortDate(video.release_date)}
+                        </span>
+                      </div>
+
+                      <h3 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-zinc-950">
+                        {video.title}
+                      </h3>
+
+                      {video.description && (
+                        <p className="mt-2 line-clamp-2 text-sm leading-6 text-zinc-500">
+                          {video.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {video.youtube_url && (
+                      <a
+                        href={video.youtube_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="shrink-0 border border-zinc-200 p-2.5 text-zinc-400 transition hover:border-violet-200 hover:text-violet-600"
+                        aria-label={`Open ${video.title} on YouTube`}
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-10">
+              <Empty text="Belum ada music video." />
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ========================================================
+          ACTIVITIES
+          ======================================================== */}
+
+      <section className="relative bg-zinc-950 text-white">
+        <div className="mx-auto max-w-7xl px-6 py-14 lg:px-8 lg:py-18">
+          <SectionIntro
+            number="04"
+            eyebrow="Schedule"
+            title="Activities & Events"
+            description="Concerts, appearances, fan meetings, and upcoming schedules."
+            dark
+          />
+
+          {group.activities?.length ? (
+            <div className="mt-10 border-t border-white/10">
+              {group.activities.map((activity, index) => (
+                <div
+                  key={activity.id}
+                  className="group grid border-b border-white/10 py-7 lg:grid-cols-[80px_160px_1fr_auto] lg:items-center lg:gap-8"
+                >
+                  {/* INDEX */}
+                  <div className="hidden lg:block">
+                    <span className="font-mono text-[9px] text-zinc-600">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                  </div>
+
+                  {/* DATE */}
+                  <div>
+                    <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-violet-400">
+                      {activity.type}
+                    </p>
+
+                    <p className="mt-2 text-sm font-medium text-zinc-300">
+                      {getShortDate(activity.date)}
+                    </p>
+                  </div>
+
+                  {/* INFO */}
+                  <div className="mt-5 min-w-0 lg:mt-0">
+                    <h3 className="text-xl font-medium tracking-[-0.025em] text-white">
+                      {activity.title}
+                    </h3>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-zinc-500">
+                      <span className="flex items-center gap-2">
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        {formatDate(activity.date)}
+                      </span>
+
+                      {activity.location && (
+                        <span className="flex items-center gap-2">
+                          <MapPin className="h-3.5 w-3.5" />
+                          {activity.location}
+                        </span>
+                      )}
+                    </div>
+
+                    {activity.description && (
+                      <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-500">
+                        {activity.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* IMAGE / STATUS */}
+                  <div className="mt-5 flex items-center gap-4 lg:mt-0">
+                    {activity.image_url && (
+                      <div className="h-14 w-20 shrink-0 overflow-hidden bg-zinc-900">
+                        <img
+                          src={activity.image_url}
+                          alt={activity.title}
+                          className="h-full w-full object-cover opacity-80 transition group-hover:opacity-100"
+                        />
+                      </div>
+                    )}
+
+                    <span
+                      className={`whitespace-nowrap font-mono text-[8px] uppercase tracking-[0.15em] ${activity.status === 'Upcoming'
+                          ? 'text-violet-400'
+                          : activity.status === 'Completed'
+                            ? 'text-emerald-400'
+                            : 'text-red-400'
+                        }`}
+                    >
+                      {activity.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-10">
+              <div className="border border-white/10 bg-white/[0.03] p-10 text-center">
+                <p className="text-sm text-zinc-500">
+                  Belum ada activity.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ========================================================
+          BOTTOM NAVIGATION
+          ======================================================== */}
+
+      <section className="border-t border-zinc-200 bg-white">
+        <div className="mx-auto grid max-w-7xl sm:grid-cols-2">
+          <Link
+            to="/idol/groups"
+            className="group flex items-center justify-between border-b border-zinc-200 px-6 py-7 transition hover:bg-zinc-50 sm:border-b-0 sm:border-r lg:px-8"
+          >
+            <div>
+              <p className="font-mono text-[8px] uppercase tracking-[0.18em] text-zinc-400">
+                Directory
+              </p>
+
+              <p className="mt-1 text-sm font-medium text-zinc-900">
+                All Groups
+              </p>
+            </div>
+
+            <ArrowLeft className="h-4 w-4 text-zinc-300 transition group-hover:-translate-x-1 group-hover:text-violet-600" />
+          </Link>
+
+          <Link
+            to="/idol/members"
+            className="group flex items-center justify-between px-6 py-7 transition hover:bg-zinc-50 lg:px-8"
+          >
+            <div>
+              <p className="font-mono text-[8px] uppercase tracking-[0.18em] text-zinc-400">
+                Continue
+              </p>
+
+              <p className="mt-1 text-sm font-medium text-zinc-900">
+                Meet the Artists
+              </p>
+            </div>
+
+            <ArrowRight className="h-4 w-4 text-zinc-300 transition group-hover:translate-x-1 group-hover:text-violet-600" />
+          </Link>
         </div>
       </section>
     </div>
   )
 }
 
-function SectionHeader({
-  icon,
+/*
+ * ==============================================================
+ * SECTION INTRO
+ * ==============================================================
+ */
+
+function SectionIntro({
+  number,
+  eyebrow,
   title,
   description,
+  dark = false,
 }: {
-  icon: ReactNode
+  number: string
+  eyebrow: string
   title: string
   description?: string
+  dark?: boolean
 }) {
   return (
-    <div className="mb-8 max-w-2xl">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
-          {icon}
-        </div>
-
-        <h2 className="text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">
-          {title}
-        </h2>
+    <div className="grid gap-5 lg:grid-cols-[90px_1fr]">
+      <div>
+        <span
+          className={`font-mono text-[10px] tracking-[0.2em] ${dark ? 'text-zinc-600' : 'text-zinc-400'
+            }`}
+        >
+          {number}
+        </span>
       </div>
 
-      {description && (
-        <p className="mt-3 text-sm leading-6 text-zinc-600 sm:text-base">
-          {description}
+      <div>
+        <p
+          className={`font-mono text-[9px] uppercase tracking-[0.2em] ${dark ? 'text-violet-400' : 'text-violet-600'
+            }`}
+        >
+          {eyebrow}
         </p>
-      )}
+
+        <h2
+          className={`mt-3 text-3xl font-semibold tracking-[-0.05em] sm:text-4xl ${dark ? 'text-white' : 'text-zinc-950'
+            }`}
+        >
+          {title}
+        </h2>
+
+        {description && (
+          <p
+            className={`mt-3 max-w-xl text-sm leading-7 ${dark ? 'text-zinc-500' : 'text-zinc-500'
+              }`}
+          >
+            {description}
+          </p>
+        )}
+      </div>
     </div>
   )
 }
+
+/*
+ * ==============================================================
+ * STAT
+ * ==============================================================
+ */
 
 function Stat({
   icon,
@@ -778,49 +1107,34 @@ function Stat({
   label: string
 }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center gap-2 text-purple-600">
+    <div className="border-b border-zinc-200 py-5 sm:border-r sm:px-4 lg:px-3">
+      <div className="flex items-center gap-2 text-violet-600">
         {icon}
 
-        <span className="text-xl font-bold text-zinc-900">
-          {value}
+        <span className="font-mono text-2xl tracking-[-0.05em] text-zinc-950">
+          {String(value).padStart(2, '0')}
         </span>
       </div>
 
-      <p className="mt-1 text-xs font-medium text-zinc-500">
+      <p className="mt-2 font-mono text-[8px] uppercase tracking-[0.16em] text-zinc-400">
         {label}
       </p>
     </div>
   )
 }
 
+/*
+ * ==============================================================
+ * EMPTY
+ * ==============================================================
+ */
+
 function Empty({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-10 text-center text-sm text-zinc-500">
-      {text}
+    <div className="border border-zinc-200 bg-zinc-50 px-6 py-12 text-center">
+      <p className="text-sm text-zinc-400">
+        {text}
+      </p>
     </div>
   )
-}
-
-function toYoutubeEmbed(url: string) {
-  try {
-    const parsed = new URL(url)
-
-    if (parsed.hostname.includes('youtu.be')) {
-      const id = parsed.pathname.replace('/', '')
-      return `https://www.youtube.com/embed/${id}`
-    }
-
-    if (parsed.hostname.includes('youtube.com')) {
-      const id = parsed.searchParams.get('v')
-
-      if (id) {
-        return `https://www.youtube.com/embed/${id}`
-      }
-    }
-  } catch {
-    return url
-  }
-
-  return url
 }

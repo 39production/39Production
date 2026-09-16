@@ -28,3 +28,4 @@ export function formatPriceRange(min: number, max?: number): string {
   }
   return `Mulai dari ${formatCurrency(min)}`;
 }
+

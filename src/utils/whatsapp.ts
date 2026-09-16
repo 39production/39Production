@@ -40,3 +40,4 @@ export function adminToCustomerMessage(customerName: string, orderId: string): s
 export function projectInquiryMessage(): string {
   return 'Halo 39Production, saya tertarik untuk memulai sebuah proyek bersama. Bisa tolong jelaskan prosesnya?';
 }
+

@@ -298,7 +298,7 @@ export function AdminLayout() {
     if (
       typeof window === 'undefined'
     ) {
-      return 'dark'
+      return 'light'
     }
 
     const stored =
@@ -306,9 +306,9 @@ export function AdminLayout() {
         '39production_admin_theme',
       )
 
-    return stored === 'light'
-      ? 'light'
-      : 'dark'
+    return stored === 'dark'
+      ? 'dark'
+      : 'light'
   })
 
   const [

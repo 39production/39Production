@@ -32,71 +32,105 @@ export function Footer() {
   )
 
   return (
-    <footer className="relative overflow-hidden border-t border-neutral-200 bg-white">
+    <footer className="relative overflow-hidden border-t border-black/10 bg-white">
       {/* =========================================================
           SUBTLE BACKGROUND
       ========================================================== */}
 
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 overflow-hidden"
-      >
-        <div className="footerGlow footerGlowOne absolute -left-40 top-[-180px] h-[420px] w-[420px] rounded-full" />
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.025]"
+        style={{
+          backgroundImage:
+            'linear-gradient(to right, #111 1px, transparent 1px), linear-gradient(to bottom, #111 1px, transparent 1px)',
+          backgroundSize: '100px 100px',
+        }}
+      />
 
-        <div className="footerGlow footerGlowTwo absolute -right-40 bottom-[-180px] h-[420px] w-[420px] rounded-full" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-[7%] top-[22%] h-2 w-2 rounded-full bg-[#7C3AED]"
+      />
 
-        <div className="footerGrid absolute inset-0" />
-      </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-[10%] bottom-[24%] h-1.5 w-1.5 rounded-full bg-black/20"
+      />
 
       {/* =========================================================
           MAIN FOOTER
       ========================================================== */}
 
-      <div className="relative mx-auto max-w-[1240px] px-5 py-14 sm:px-8 sm:py-16 lg:px-10 lg:py-20">
+      <div className="relative mx-auto max-w-[1440px] px-6 py-14 sm:px-8 sm:py-16 lg:px-12 lg:py-20 xl:px-16">
         {/* =======================================================
-            TOP AREA
+            TOP BRAND LINE
         ======================================================== */}
 
-        <div className="grid gap-12 lg:grid-cols-[1.45fr_0.75fr_0.75fr_1.25fr] lg:gap-10 xl:gap-14">
+        <div className="mb-12 flex flex-col gap-4 border-b border-black/10 pb-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-black tracking-[-0.05em] text-black">
+              39Production
+            </span>
+
+            <span className="h-1.5 w-1.5 rounded-full bg-[#7C3AED]" />
+
+            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-400">
+              Digital Production House
+            </span>
+          </div>
+
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-300">
+            Indonesia · 2026
+          </span>
+        </div>
+
+        {/* =======================================================
+            MAIN GRID
+        ======================================================== */}
+
+        <div className="grid gap-12 lg:grid-cols-[1.45fr_0.7fr_0.7fr_1.15fr] lg:gap-10 xl:gap-16">
           {/* =====================================================
               BRAND
           ====================================================== */}
 
           <div className="max-w-md">
-            <Link
-              to="/"
-              className="inline-flex transition-opacity duration-300 hover:opacity-75"
-            >
+            <div className="inline-flex">
               <Logo />
-            </Link>
-
-            <p className="mt-6 max-w-sm text-sm leading-7 text-neutral-500">
-              Creative technology and entertainment production house yang
-              menggabungkan technology, design, storytelling, music, dan
-              digital experiences.
-            </p>
-
-            <div className="mt-6 border-l-2 border-violet-200 pl-4">
-              <p className="text-sm font-medium leading-6 text-neutral-700">
-                Imagine it. Build it. Make it matter.
-              </p>
             </div>
 
-            {/* Small brand statement */}
+            <p className="mt-6 max-w-sm text-sm leading-7 text-neutral-500">
+              Creative technology and entertainment
+              production house yang menggabungkan technology,
+              design, storytelling, music, dan digital
+              experiences.
+            </p>
+
+            <div className="mt-7 flex items-start gap-3 border-l-2 border-[#7C3AED] pl-4">
+              <div>
+                <p className="text-sm font-semibold leading-6 text-black">
+                  Creating Digital Works.
+                </p>
+
+                <p className="text-sm font-semibold leading-6 text-neutral-400">
+                  Producing Stories. Sharing Gratitude.
+                </p>
+              </div>
+            </div>
+
             <div className="mt-8 flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-50">
-                <span className="bg-gradient-to-r from-violet-600 to-pink-500 bg-clip-text text-sm font-black text-transparent">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-black text-white">
+                <span className="text-sm font-black tracking-[-0.08em]">
                   39
                 </span>
               </div>
 
               <div>
-                <p className="text-xs font-semibold text-neutral-800">
+                <p className="text-xs font-bold text-black">
                   39Production
                 </p>
 
-                <p className="text-[10px] text-neutral-400">
-                  Creative Technology & Entertainment
+                <p className="text-[9px] uppercase tracking-[0.12em] text-neutral-400">
+                  Create · Produce · Deliver
                 </p>
               </div>
             </div>
@@ -107,20 +141,20 @@ export function Footer() {
           ====================================================== */}
 
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-900">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-black">
               Explore
             </h3>
 
-            <ul className="mt-5 space-y-3.5">
+            <ul className="mt-6 space-y-4">
               {footerLinks.explore.map((link) => (
                 <li key={link.path}>
                   <Link
                     to={link.path}
-                    className="group inline-flex items-center gap-1.5 text-sm text-neutral-500 transition-colors duration-300 hover:text-violet-600"
+                    className="group inline-flex items-center gap-2 text-sm text-neutral-500 transition-colors duration-300 hover:text-[#7C3AED]"
                   >
                     <span>{link.label}</span>
 
-                    <ArrowUpRight className="h-3.5 w-3.5 translate-y-px opacity-0 transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100" />
+                    <ArrowUpRight className="h-3.5 w-3.5 -translate-x-1 translate-y-1 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:translate-y-0 group-hover:opacity-100" />
                   </Link>
                 </li>
               ))}
@@ -132,20 +166,20 @@ export function Footer() {
           ====================================================== */}
 
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-900">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-black">
               Company
             </h3>
 
-            <ul className="mt-5 space-y-3.5">
+            <ul className="mt-6 space-y-4">
               {footerLinks.company.map((link) => (
                 <li key={link.path}>
                   <Link
                     to={link.path}
-                    className="group inline-flex items-center gap-1.5 text-sm text-neutral-500 transition-colors duration-300 hover:text-violet-600"
+                    className="group inline-flex items-center gap-2 text-sm text-neutral-500 transition-colors duration-300 hover:text-[#7C3AED]"
                   >
                     <span>{link.label}</span>
 
-                    <ArrowUpRight className="h-3.5 w-3.5 translate-y-px opacity-0 transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100" />
+                    <ArrowUpRight className="h-3.5 w-3.5 -translate-x-1 translate-y-1 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:translate-y-0 group-hover:opacity-100" />
                   </Link>
                 </li>
               ))}
@@ -153,31 +187,38 @@ export function Footer() {
           </div>
 
           {/* =====================================================
-              CONTACT / CTA
+              CONTACT
           ====================================================== */}
 
-          <div className="lg:pl-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-900">
-              Let&apos;s Work Together
-            </span>
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="h-2 w-2 rounded-full bg-[#7C3AED]" />
 
-            <h3 className="mt-4 text-2xl font-semibold leading-tight tracking-tight text-neutral-950">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">
+                Let&apos;s Work Together
+              </span>
+            </div>
+
+            <h3 className="mt-5 text-2xl font-black leading-[1.05] tracking-[-0.045em] text-black sm:text-3xl">
               Have an idea?
-              <span className="block text-neutral-500">
+              <br />
+              <span className="text-neutral-300">
                 Let&apos;s make it real.
               </span>
             </h3>
 
-            <p className="mt-3 max-w-sm text-sm leading-6 text-neutral-500">
-              Punya project, creative idea, atau kebutuhan digital? Ceritakan
-              kepada kami dan mari mulai percakapan.
+            <p className="mt-4 max-w-sm text-sm leading-6 text-neutral-500">
+              Punya project, creative idea, atau kebutuhan
+              digital? Ceritakan kepada kami dan mari mulai
+              percakapan.
             </p>
 
-            {/* CTA Buttons */}
+            {/* CTA */}
+
             <div className="mt-6 flex flex-col gap-3">
               <Link
                 to="/contact"
-                className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-neutral-950 px-5 py-3 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-violet-600 hover:shadow-lg hover:shadow-violet-100"
+                className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-black px-5 py-3 text-xs font-bold text-white transition-all duration-300 hover:bg-[#7C3AED]"
               >
                 Start a Project
 
@@ -188,7 +229,7 @@ export function Footer() {
                 href={whatsappUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-neutral-200 bg-white px-5 py-3 text-sm font-semibold text-neutral-700 transition-all duration-300 hover:-translate-y-0.5 hover:border-green-200 hover:text-green-600 hover:shadow-md"
+                className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-black bg-white px-5 py-3 text-xs font-bold text-black transition-all duration-300 hover:bg-black hover:text-white"
               >
                 <MessageCircle className="h-4 w-4 transition-transform duration-300 group-hover:scale-105" />
 
@@ -197,11 +238,12 @@ export function Footer() {
             </div>
 
             {/* Email */}
+
             <a
               href="mailto:39production.contact@gmail.com"
-              className="group mt-5 inline-flex items-center gap-2 text-sm text-neutral-500 transition-colors duration-300 hover:text-violet-600"
+              className="group mt-5 inline-flex items-center gap-2 text-xs text-neutral-500 transition-colors duration-300 hover:text-[#7C3AED]"
             >
-              <Mail className="h-4 w-4 text-neutral-400 transition-colors group-hover:text-violet-500" />
+              <Mail className="h-4 w-4 text-neutral-400 transition-colors duration-300 group-hover:text-[#7C3AED]" />
 
               <span>
                 39production.contact@gmail.com
@@ -211,124 +253,55 @@ export function Footer() {
         </div>
 
         {/* =======================================================
-            DIVIDER
+            BOTTOM
         ======================================================== */}
 
-        <div className="mt-12 border-t border-neutral-200 pt-6 sm:mt-14">
+        <div className="mt-14 border-t border-black/10 pt-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             {/* Copyright */}
-            <p className="text-xs leading-5 text-neutral-400">
+
+            <p className="text-[10px] leading-5 text-neutral-400">
               {APP_COPYRIGHT}
             </p>
 
-            {/* Bottom statement */}
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-400">
+            {/* Brand statement */}
+
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] font-medium uppercase tracking-[0.14em] text-neutral-400">
               <span>39Production</span>
 
-              <span className="text-neutral-300">•</span>
+              <span className="text-neutral-300">
+                •
+              </span>
 
-              <span>Creative Technology & Entertainment</span>
+              <span>Creative Technology</span>
 
-              <span className="text-neutral-300">•</span>
+              <span className="text-neutral-300">
+                •
+              </span>
 
-              <span>Built with purpose.</span>
+              <span>Entertainment</span>
+
+              <span className="text-neutral-300">
+                •
+              </span>
+
+              <span className="text-[#7C3AED]">
+                Built with purpose.
+              </span>
             </div>
           </div>
         </div>
       </div>
 
       {/* =========================================================
-          ANIMATIONS
+          BOTTOM ACCENT
       ========================================================== */}
 
-      <style>{`
-        .footerGlow {
-          filter: blur(90px);
-          opacity: 0.35;
-        }
-
-        .footerGlowOne {
-          background: rgba(139, 92, 246, 0.045);
-          animation: footerGlowOne 16s ease-in-out infinite;
-        }
-
-        .footerGlowTwo {
-          background: rgba(236, 72, 153, 0.035);
-          animation: footerGlowTwo 19s ease-in-out infinite;
-        }
-
-        .footerGrid {
-          background-image:
-            linear-gradient(
-              to right,
-              rgba(15, 23, 42, 0.018) 1px,
-              transparent 1px
-            ),
-            linear-gradient(
-              to bottom,
-              rgba(15, 23, 42, 0.018) 1px,
-              transparent 1px
-            );
-
-          background-size: 72px 72px;
-
-          mask-image:
-            linear-gradient(
-              to bottom,
-              transparent,
-              black 18%,
-              black 82%,
-              transparent
-            );
-
-          -webkit-mask-image:
-            linear-gradient(
-              to bottom,
-              transparent,
-              black 18%,
-              black 82%,
-              transparent
-            );
-        }
-
-        @keyframes footerGlowOne {
-          0%,
-          100% {
-            transform: translate3d(0, 0, 0);
-          }
-
-          50% {
-            transform: translate3d(40px, 25px, 0);
-          }
-        }
-
-        @keyframes footerGlowTwo {
-          0%,
-          100% {
-            transform: translate3d(0, 0, 0);
-          }
-
-          50% {
-            transform: translate3d(-40px, -25px, 0);
-          }
-        }
-
-        @media (max-width: 640px) {
-          .footerGlow {
-            opacity: 0.25;
-          }
-
-          .footerGrid {
-            background-size: 56px 56px;
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .footerGlow {
-            animation: none !important;
-          }
-        }
-      `}</style>
+      <div
+        aria-hidden="true"
+        className="absolute bottom-0 left-0 h-1 w-24 bg-[#7C3AED]"
+      />
     </footer>
   )
 }
+

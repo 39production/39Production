@@ -880,7 +880,7 @@ export const ADMIN_NAV_LINKS = [
 
   {
     path: '/admin/idol',
-    label: 'Idol Production',
+    label: 'Entertainment',
     icon: 'Music',
   },
 
@@ -1009,7 +1009,7 @@ export const ADMIN_NAV_GROUPS = [
       },
       {
         path: '/admin/idol',
-        label: 'Idol Production',
+        label: 'Entertainment',
         icon: 'Music',
       },
       {

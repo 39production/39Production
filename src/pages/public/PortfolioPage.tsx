@@ -1,464 +1,722 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
+  ArrowLeft,
   ArrowRight,
-  FolderOpen,
-  Loader2,
-  Sparkles,
+  ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Grid2X2,
+  Image as ImageIcon,
+  X,
 } from 'lucide-react'
 
 const API_BASE_URL =
   'https://39production-api.39production.workers.dev'
 
-interface Portfolio {
+type PortfolioItem = {
   id: number
   title: string
+  slug?: string
   category: string
-  client: string
-  description: string
-  year: string
-  status: 'Published' | 'Draft'
-  image_url?: string
+  description?: string
+  client?: string
+  year?: string | number
+  role?: string
+  tools?: string[]
+  image_url?: string | null
+  image_urls?: string[]
+  project_url?: string | null
+  status?: string
   created_at?: string
   updated_at?: string
 }
 
+const FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1558655146-9f40138edfeb?auto=format&fit=crop&w=1600&q=85'
+
+function getPortfolioImages(item: PortfolioItem) {
+  const gallery = Array.isArray(item.image_urls)
+    ? item.image_urls.filter(Boolean)
+    : []
+
+  if (gallery.length > 0) {
+    return gallery
+  }
+
+  if (item.image_url) {
+    return [item.image_url]
+  }
+
+  return [FALLBACK_IMAGE]
+}
+
+function getCategoryLabel(category?: string) {
+  if (!category) return 'Creative'
+
+  return category
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
 export function PortfolioPage() {
-  const [portfolio, setPortfolio] =
-    useState<Portfolio[]>([])
-
-  const [loading, setLoading] =
-    useState(true)
-
-  const [activeCategory, setActiveCategory] =
-    useState('All')
-
-  const [error, setError] =
-    useState('')
+  const [portfolio, setPortfolio] = useState<PortfolioItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [activeCategory, setActiveCategory] = useState('All')
+  const [selectedItem, setSelectedItem] =
+    useState<PortfolioItem | null>(null)
+  const [activeImageIndex, setActiveImageIndex] = useState(0)
 
   useEffect(() => {
-    const fetchPortfolio = async () => {
+    let cancelled = false
+
+    async function fetchPortfolio() {
       try {
         setLoading(true)
-        setError('')
 
         const response = await fetch(
           `${API_BASE_URL}/api/portfolio`,
-          {
-            cache: 'no-store',
-          },
         )
-
-        const result =
-          await response.json()
 
         if (!response.ok) {
-          throw new Error(
-            result?.message ||
-            'Failed to fetch portfolio.',
-          )
+          throw new Error('Failed to fetch portfolio')
         }
 
-        const data = Array.isArray(
-          result?.data,
-        )
-          ? result.data
-          : []
+        const data = await response.json()
 
-        setPortfolio(data)
-      } catch (err) {
-        console.error(
-          'Fetch portfolio error:',
-          err,
-        )
+        const items = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data?.portfolio)
+              ? data.portfolio
+              : []
 
-        setError(
-          'Gagal memuat portfolio.',
-        )
+        if (!cancelled) {
+          setPortfolio(items)
+        }
+      } catch (error) {
+        console.error('Failed to load portfolio:', error)
+
+        if (!cancelled) {
+          setPortfolio([])
+        }
       } finally {
-        setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+        }
       }
     }
 
-    void fetchPortfolio()
+    fetchPortfolio()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const categories = useMemo(() => {
-    const uniqueCategories =
-      Array.from(
-        new Set(
-          portfolio
-            .filter(
-              (item) =>
-                item.status ===
-                'Published',
-            )
-            .map(
-              (item) =>
-                item.category,
-            )
-            .filter(Boolean),
-        ),
-      )
+    const uniqueCategories = portfolio
+      .map((item) => item.category)
+      .filter(Boolean)
 
-    return [
-      'All',
-      ...uniqueCategories,
-    ]
+    return ['All', ...Array.from(new Set(uniqueCategories))]
   }, [portfolio])
 
-  const filteredPortfolio =
-    useMemo(() => {
-      return portfolio.filter(
-        (item) =>
-          item.status ===
-          'Published' &&
-          (activeCategory ===
-            'All' ||
-            item.category ===
-            activeCategory),
-      )
-    }, [
-      portfolio,
-      activeCategory,
-    ])
+  const filteredPortfolio = useMemo(() => {
+    if (activeCategory === 'All') {
+      return portfolio
+    }
+
+    return portfolio.filter(
+      (item) => item.category === activeCategory,
+    )
+  }, [portfolio, activeCategory])
+
+  const selectedImages = selectedItem
+    ? getPortfolioImages(selectedItem)
+    : []
+
+  const activeImage =
+    selectedImages[activeImageIndex] ||
+    selectedImages[0] ||
+    FALLBACK_IMAGE
+
+  function openPortfolio(item: PortfolioItem) {
+    setSelectedItem(item)
+    setActiveImageIndex(0)
+    document.body.style.overflow = 'hidden'
+  }
+
+  function closePortfolio() {
+    setSelectedItem(null)
+    setActiveImageIndex(0)
+    document.body.style.overflow = ''
+  }
+
+  function showNextImage() {
+    if (selectedImages.length <= 1) return
+
+    setActiveImageIndex((current) =>
+      current >= selectedImages.length - 1
+        ? 0
+        : current + 1,
+    )
+  }
+
+  function showPreviousImage() {
+    if (selectedImages.length <= 1) return
+
+    setActiveImageIndex((current) =>
+      current <= 0
+        ? selectedImages.length - 1
+        : current - 1,
+    )
+  }
+
+  useEffect(() => {
+    if (!selectedItem) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        closePortfolio()
+      }
+
+      if (event.key === 'ArrowRight') {
+        showNextImage()
+      }
+
+      if (event.key === 'ArrowLeft') {
+        showPreviousImage()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [selectedItem, selectedImages.length])
+
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [])
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-white">
-      {/* =========================================================
-          BACKGROUND
-      ========================================================== */}
+    <main className="min-h-screen bg-white text-neutral-950">
+      {/* GRID BACKGROUND */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 overflow-hidden"
-      >
-        <div className="absolute inset-0 bg-gradient-to-b from-white via-white to-neutral-50" />
+        className="pointer-events-none fixed inset-0 -z-10 opacity-[0.035]"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, #111 1px, transparent 1px),
+            linear-gradient(to bottom, #111 1px, transparent 1px)
+          `,
+          backgroundSize: '72px 72px',
+        }}
+      />
 
-        <div className="absolute -left-56 -top-32 h-[500px] w-[500px] rounded-full bg-violet-100/60 blur-[130px]" />
-
-        <div className="absolute -right-56 top-[18%] h-[480px] w-[480px] rounded-full bg-pink-100/50 blur-[130px]" />
-
-        <div className="absolute left-1/2 top-[8%] h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-fuchsia-100/35 blur-[110px]" />
-      </div>
-
-      {/* =========================================================
-          HERO
-      ========================================================== */}
+      {/* HERO */}
       <section className="relative border-b border-neutral-200">
-        <div className="mx-auto max-w-7xl px-4 pb-9 pt-24 sm:px-6 sm:pb-10 sm:pt-28 lg:px-8 lg:pb-12 lg:pt-32">
-          <div className="flex flex-col justify-between gap-7 lg:flex-row lg:items-end">
-            <div className="max-w-3xl">
-              {/* Badge */}
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3.5 py-2 shadow-sm">
-                <Sparkles className="h-3.5 w-3.5 text-violet-600" />
+        <div className="mx-auto max-w-[1600px] px-5 pb-20 pt-10 sm:px-8 sm:pb-28 lg:px-12 lg:pt-14">
+          <div className="mb-20 flex items-center justify-between border-b border-neutral-200 pb-5">
+            <span className="font-mono text-[9px] font-medium uppercase tracking-[0.22em] text-neutral-500">
+              39Production • Portfolio
+            </span>
 
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700 sm:text-xs">
-                  Creative Portfolio
-                </span>
-              </div>
+            <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-400">
+              Selected Works
+            </span>
+          </div>
 
-              {/* Heading */}
-              <h1 className="text-4xl font-black leading-[0.98] tracking-[-0.045em] text-neutral-950 sm:text-5xl lg:text-6xl">
-                Selected{' '}
-                <span className="bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-500 bg-clip-text text-transparent">
-                  Works
+          <div className="grid gap-12 lg:grid-cols-[1fr_360px] lg:items-end">
+            <div>
+              <p className="mb-6 font-mono text-[10px] uppercase tracking-[0.2em] text-violet-600">
+                04 / Portfolio
+              </p>
+
+              <h1 className="max-w-5xl text-5xl font-medium leading-[0.92] tracking-[-0.06em] sm:text-6xl lg:text-[7rem]">
+                Work that
+                <br />
+                <span className="text-neutral-400">
+                  speaks for itself.
                 </span>
               </h1>
-
-              <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-600 sm:text-base sm:leading-8">
-                A selection of digital experiences,
-                creative products, and production work
-                crafted across technology, design,
-                animation, games, and entertainment.
-              </p>
             </div>
 
-            {/* Published Count */}
-            {!loading && !error && (
-              <div className="hidden shrink-0 items-center gap-3 rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm sm:flex">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-700">
-                  <FolderOpen className="h-4 w-4" />
-                </div>
+            <div className="max-w-sm lg:pb-2">
+              <p className="text-sm leading-7 text-neutral-500">
+                A selection of digital works, visual experiences,
+                products, and creative projects produced by
+                39Production.
+              </p>
 
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-neutral-400">
-                    Published Works
-                  </p>
+              <div className="mt-8 flex items-center gap-4">
+                <span className="font-mono text-xs text-neutral-400">
+                  {String(portfolio.length).padStart(2, '0')}
+                </span>
 
-                  <p className="text-lg font-black text-neutral-950">
-                    {filteredPortfolio.length}
-                  </p>
-                </div>
+                <span className="h-px w-16 bg-neutral-300" />
+
+                <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-400">
+                  Projects
+                </span>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* =========================================================
-          CONTENT
-      ========================================================== */}
-      <section className="relative mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-9 lg:px-8 lg:py-10">
-        {/* =======================================================
-            CATEGORY FILTER
-        ======================================================== */}
-        {!loading &&
-          !error &&
-          categories.length > 1 && (
-            <div className="mb-8">
-              <div className="mb-3 flex items-center gap-2">
-                <div className="h-1 w-5 rounded-full bg-gradient-to-r from-violet-600 to-pink-500" />
-
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400">
-                  Explore by category
-                </p>
-              </div>
-
-              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-none sm:flex-wrap sm:overflow-visible">
-                {categories.map(
-                  (category) => {
-                    const isActive =
-                      activeCategory ===
-                      category
-
-                    return (
-                      <button
-                        key={category}
-                        type="button"
-                        onClick={() =>
-                          setActiveCategory(
-                            category,
-                          )
-                        }
-                        className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-semibold transition-all duration-200 ${isActive
-                            ? 'bg-neutral-950 text-white shadow-[0_8px_20px_rgba(0,0,0,0.10)]'
-                            : 'border border-neutral-200 bg-white text-neutral-500 shadow-sm hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700'
-                          }`}
-                      >
-                        {category}
-                      </button>
-                    )
-                  },
-                )}
-              </div>
+      {/* FILTER */}
+      <section className="border-b border-neutral-200">
+        <div className="mx-auto max-w-[1600px] px-5 sm:px-8 lg:px-12">
+          <div className="flex flex-col lg:flex-row lg:items-center">
+            <div className="flex h-16 items-center border-b border-neutral-200 lg:w-48 lg:border-b-0 lg:border-r">
+              <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-400">
+                Filter
+              </span>
             </div>
-          )}
 
-        {/* =======================================================
-            LOADING
-        ======================================================== */}
-        {loading && (
-          <div className="flex min-h-[280px] items-center justify-center">
-            <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-5 shadow-[0_15px_45px_rgba(0,0,0,0.05)]">
-              <div className="flex items-center gap-3 text-sm text-neutral-500">
-                <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
+            <div className="flex flex-wrap">
+              {categories.map((category) => {
+                const isActive = activeCategory === category
 
-                <div>
-                  <p className="font-semibold text-neutral-900">
-                    Loading portfolio
-                  </p>
-
-                  <p className="text-xs text-neutral-400">
-                    Menyiapkan selected works...
-                  </p>
-                </div>
-              </div>
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => setActiveCategory(category)}
+                    className={`border-r px-5 py-5 font-mono text-[9px] uppercase tracking-[0.16em] transition-colors first:border-l ${isActive
+                        ? 'bg-neutral-950 text-white'
+                        : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-950'
+                      }`}
+                  >
+                    {getCategoryLabel(category)}
+                  </button>
+                )
+              })}
             </div>
           </div>
-        )}
+        </div>
+      </section>
 
-        {/* =======================================================
-            ERROR
-        ======================================================== */}
-        {!loading && error && (
-          <div className="relative overflow-hidden rounded-2xl border border-red-200 bg-red-50 p-6 text-center sm:p-7">
-            <div className="relative">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 text-red-600">
-                <FolderOpen className="h-5 w-5" />
-              </div>
+      {/* PORTFOLIO GRID */}
+      <section>
+        <div className="mx-auto max-w-[1600px] px-5 py-16 sm:px-8 sm:py-20 lg:px-12">
+          {loading ? (
+            <div className="grid gap-px bg-neutral-200 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="aspect-[4/3] animate-pulse bg-neutral-100"
+                />
+              ))}
+            </div>
+          ) : filteredPortfolio.length === 0 ? (
+            <div className="flex min-h-[420px] flex-col items-center justify-center border border-dashed border-neutral-300 text-center">
+              <ImageIcon
+                size={28}
+                strokeWidth={1.2}
+                className="mb-5 text-neutral-300"
+              />
 
-              <h2 className="mt-4 text-lg font-bold text-neutral-950">
-                Unable to load portfolio
-              </h2>
-
-              <p className="mt-1 text-sm text-red-600">
-                {error}
+              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-400">
+                No projects found
               </p>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="grid gap-x-8 gap-y-16 md:grid-cols-2 lg:grid-cols-3">
+              {filteredPortfolio.map((item, index) => {
+                const images = getPortfolioImages(item)
+                const coverImage =
+                  images[0] || FALLBACK_IMAGE
 
-        {/* =======================================================
-            EMPTY
-        ======================================================== */}
-        {!loading &&
-          !error &&
-          filteredPortfolio.length ===
-          0 && (
-            <div className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-neutral-200 bg-white p-7 text-center shadow-[0_15px_50px_rgba(0,0,0,0.04)]">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-50 text-neutral-400">
-                <FolderOpen className="h-6 w-6" />
-              </div>
-
-              <h2 className="mt-4 text-lg font-bold text-neutral-950">
-                No published work yet
-              </h2>
-
-              <p className="mt-1 max-w-md text-sm leading-6 text-neutral-500">
-                Our portfolio is continuously evolving.
-                Published projects will appear here as
-                they become available.
-              </p>
-            </div>
-          )}
-
-        {/* =======================================================
-            PORTFOLIO GRID
-        ======================================================== */}
-        {!loading &&
-          !error &&
-          filteredPortfolio.length >
-          0 && (
-            <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {filteredPortfolio.map(
-                (item) => (
+                return (
                   <article
                     key={item.id}
-                    className="
-                      group
-                      relative
-                      flex
-                      h-full
-                      flex-col
-                      overflow-hidden
-                      rounded-[1.5rem]
-                      border
-                      border-neutral-200
-                      bg-white
-                      shadow-[0_10px_35px_rgba(0,0,0,0.045)]
-                      transition-all
-                      duration-300
-                      hover:-translate-y-1
-                      hover:border-violet-200
-                      hover:shadow-[0_20px_55px_rgba(124,58,237,0.10)]
-                    "
+                    className="group cursor-pointer"
+                    onClick={() => openPortfolio(item)}
+                    data-cursor="view"
+                    data-cursor-label="VIEW"
                   >
-                    {/* Top hover line */}
-                    <div className="absolute inset-x-6 top-0 z-30 h-px bg-gradient-to-r from-transparent via-violet-500 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-
-                    {/* =================================================
-                        IMAGE
-                    ================================================== */}
-                    <div className="relative aspect-[16/10] overflow-hidden bg-neutral-100">
-                      {item.image_url ? (
-                        <>
-                          <img
-                            src={
-                              item.image_url
-                            }
-                            alt={item.title}
-                            loading="lazy"
-                            decoding="async"
-                            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                          />
-
-                          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-neutral-950/65 via-neutral-950/5 to-transparent" />
-
-                          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-violet-500/10 via-transparent to-pink-500/10 opacity-70 transition-opacity duration-500 group-hover:opacity-100" />
-                        </>
-                      ) : (
-                        <>
-                          <div className="absolute inset-0 bg-gradient-to-br from-violet-100 via-white to-pink-100" />
-
-                          <div
-                            className="absolute inset-0 opacity-[0.06]"
-                            style={{
-                              backgroundImage: `
-                                linear-gradient(rgba(124,58,237,0.7) 1px, transparent 1px),
-                                linear-gradient(90deg, rgba(124,58,237,0.7) 1px, transparent 1px)
-                              `,
-                              backgroundSize:
-                                '32px 32px',
-                            }}
-                          />
-
-                          <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2">
-                            <div className="absolute -inset-8 rounded-full bg-violet-200/50 blur-2xl" />
-
-                            <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-violet-200 bg-white text-violet-600 shadow-xl">
-                              <FolderOpen className="h-9 w-9" />
-                            </div>
-                          </div>
-                        </>
-                      )}
-
-                      {/* Category */}
-                      <div className="absolute left-4 top-4">
-                        <span className="inline-flex rounded-full border border-white/30 bg-neutral-950/45 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-white shadow-sm backdrop-blur-md">
-                          {item.category}
-                        </span>
+                    <div className="relative overflow-hidden bg-neutral-100">
+                      <div className="aspect-[4/3] overflow-hidden">
+                        <img
+                          src={coverImage}
+                          alt={item.title}
+                          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.035]"
+                          loading={index < 3 ? 'eager' : 'lazy'}
+                        />
                       </div>
 
-                      {/* Year */}
-                      {item.year && (
-                        <div className="absolute right-4 top-4">
-                          <span className="inline-flex rounded-full border border-white/30 bg-neutral-950/45 px-3 py-1.5 text-[10px] font-medium text-white shadow-sm backdrop-blur-md">
-                            {item.year}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+
+                      {images.length > 1 && (
+                        <div className="absolute right-4 top-4 flex items-center gap-2 bg-white/90 px-3 py-2 backdrop-blur-sm">
+                          <ImageIcon
+                            size={11}
+                            strokeWidth={1.5}
+                          />
+
+                          <span className="font-mono text-[9px]">
+                            {String(images.length).padStart(
+                              2,
+                              '0',
+                            )}
                           </span>
                         </div>
                       )}
 
-                      {/* Client */}
-                      {item.client && (
-                        <div className="absolute bottom-4 left-4 right-4">
-                          <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-white/60">
-                            Client
-                          </p>
+                      <div className="absolute bottom-4 left-4 flex h-9 w-9 translate-y-2 items-center justify-center bg-white opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
+                        <ArrowUpRight
+                          size={15}
+                          strokeWidth={1.5}
+                        />
+                      </div>
+                    </div>
 
-                          <p className="mt-0.5 truncate text-xs font-semibold text-white">
-                            {item.client}
+                    <div className="mt-5 flex items-start justify-between gap-6">
+                      <div>
+                        <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.16em] text-violet-600">
+                          {getCategoryLabel(item.category)}
+                        </p>
+
+                        <h2 className="text-xl font-medium tracking-[-0.035em]">
+                          {item.title}
+                        </h2>
+
+                        {item.description && (
+                          <p className="mt-2 line-clamp-2 max-w-md text-sm leading-6 text-neutral-500">
+                            {item.description}
                           </p>
-                        </div>
+                        )}
+                      </div>
+
+                      <span className="font-mono text-[10px] text-neutral-400">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* BOTTOM STATEMENT */}
+      <section className="border-t border-neutral-200">
+        <div className="mx-auto max-w-[1600px] px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
+          <div className="grid gap-10 lg:grid-cols-[180px_1fr]">
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-400">
+              04.01
+            </div>
+
+            <div>
+              <p className="max-w-4xl text-3xl font-medium leading-tight tracking-[-0.045em] sm:text-4xl lg:text-5xl">
+                Every project is an opportunity to turn an
+                idea into something people can see, use,
+                experience, and remember.
+              </p>
+
+              <Link
+                to="/contact"
+                className="mt-10 inline-flex items-center gap-3 border-b border-neutral-950 pb-2 text-sm font-medium transition-all hover:gap-5"
+              >
+                Start a project
+                <ArrowRight size={15} strokeWidth={1.5} />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* DETAIL MODAL */}
+      {selectedItem && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md"
+          role="dialog"
+          aria-modal="true"
+          aria-label={selectedItem.title}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closePortfolio()
+            }
+          }}
+        >
+          <div className="flex h-full w-full items-center justify-center p-3 sm:p-6 lg:p-10">
+            <div className="relative flex max-h-[95vh] w-full max-w-[1500px] flex-col overflow-hidden bg-white shadow-2xl lg:max-h-[92vh]">
+              {/* MODAL HEADER */}
+              <div className="flex shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-5 py-4 sm:px-7">
+                <div className="flex items-center gap-4">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-violet-600">
+                    {getCategoryLabel(selectedItem.category)}
+                  </span>
+
+                  <span className="h-3 w-px bg-neutral-300" />
+
+                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400">
+                    {selectedImages.length}{' '}
+                    {selectedImages.length === 1
+                      ? 'Image'
+                      : 'Images'}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closePortfolio}
+                  aria-label="Close portfolio detail"
+                  className="flex h-9 w-9 items-center justify-center border border-neutral-200 transition-colors hover:bg-neutral-950 hover:text-white"
+                >
+                  <X size={16} strokeWidth={1.5} />
+                </button>
+              </div>
+
+              {/* DETAIL CONTENT */}
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="grid lg:grid-cols-[minmax(0,1fr)_360px]">
+                  {/* IMAGE VIEWER */}
+                  <div className="min-w-0 border-b border-neutral-200 lg:border-b-0 lg:border-r">
+                    <div className="relative flex min-h-[320px] max-h-[76vh] w-full items-center justify-center overflow-hidden bg-neutral-100 p-4 sm:min-h-[420px] sm:p-8 lg:min-h-[560px] lg:max-h-[76vh]">
+                      {/* 
+                        IMPORTANT:
+                        Tidak menggunakan aspect ratio.
+                        Tidak menggunakan object-cover.
+                        object-contain menjaga foto asli agar
+                        tidak terpotong.
+                      */}
+                      <img
+                        src={activeImage}
+                        alt={`${selectedItem.title} — image ${activeImageIndex + 1
+                          }`}
+                        className="max-h-[70vh] max-w-full object-contain"
+                      />
+
+                      {selectedImages.length > 1 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={showPreviousImage}
+                            aria-label="Previous image"
+                            className="absolute left-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center border border-white/70 bg-white/90 text-neutral-950 backdrop-blur-sm transition-colors hover:bg-neutral-950 hover:text-white"
+                          >
+                            <ChevronLeft
+                              size={17}
+                              strokeWidth={1.5}
+                            />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={showNextImage}
+                            aria-label="Next image"
+                            className="absolute right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center border border-white/70 bg-white/90 text-neutral-950 backdrop-blur-sm transition-colors hover:bg-neutral-950 hover:text-white"
+                          >
+                            <ChevronRight
+                              size={17}
+                              strokeWidth={1.5}
+                            />
+                          </button>
+
+                          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/75 px-3 py-2 font-mono text-[9px] text-white backdrop-blur-sm">
+                            {String(
+                              activeImageIndex + 1,
+                            ).padStart(2, '0')}{' '}
+                            /{' '}
+                            {String(
+                              selectedImages.length,
+                            ).padStart(2, '0')}
+                          </div>
+                        </>
                       )}
                     </div>
 
-                    {/* =================================================
-                        CONTENT
-                    ================================================== */}
-                    <div className="flex flex-1 flex-col p-5 sm:p-6">
-                      <h2 className="line-clamp-2 text-lg font-bold leading-6 text-neutral-950 transition-colors group-hover:text-violet-700 sm:text-xl">
-                        {item.title}
+                    {/* THUMBNAILS */}
+                    {selectedImages.length > 1 && (
+                      <div className="border-t border-neutral-200 bg-white p-4 sm:p-5">
+                        <div className="flex gap-3 overflow-x-auto pb-1">
+                          {selectedImages.map(
+                            (image, index) => (
+                              <button
+                                key={`${image}-${index}`}
+                                type="button"
+                                onClick={() =>
+                                  setActiveImageIndex(index)
+                                }
+                                aria-label={`View image ${index + 1
+                                  }`}
+                                className={`relative h-20 w-24 shrink-0 overflow-hidden border transition-all sm:h-24 sm:w-32 ${activeImageIndex === index
+                                    ? 'border-neutral-950'
+                                    : 'border-neutral-200 opacity-60 hover:opacity-100'
+                                  }`}
+                              >
+                                <img
+                                  src={image}
+                                  alt=""
+                                  className="h-full w-full object-contain bg-neutral-100 p-1"
+                                />
+
+                                <span className="absolute bottom-1 right-1 bg-black/70 px-1.5 py-1 font-mono text-[8px] text-white">
+                                  {String(index + 1).padStart(
+                                    2,
+                                    '0',
+                                  )}
+                                </span>
+                              </button>
+                            ),
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* PROJECT INFORMATION */}
+                  <aside className="bg-white">
+                    <div className="p-6 sm:p-8 lg:p-9">
+                      <p className="mb-4 font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-400">
+                        Project Detail
+                      </p>
+
+                      <h2 className="text-3xl font-medium leading-[0.95] tracking-[-0.05em] sm:text-4xl">
+                        {selectedItem.title}
                       </h2>
 
-                      {item.description && (
-                        <p className="mt-2 line-clamp-3 min-h-[66px] text-sm leading-6 text-neutral-500">
-                          {item.description}
+                      {selectedItem.description && (
+                        <p className="mt-6 text-sm leading-7 text-neutral-500">
+                          {selectedItem.description}
                         </p>
                       )}
 
-                      <div className="mt-auto pt-5">
-                        <div className="flex items-center justify-between gap-4 border-t border-neutral-100 pt-4">
-                          <div className="min-w-0">
-                            <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-neutral-400">
-                              Category
-                            </p>
+                      <div className="mt-10 border-t border-neutral-200">
+                        {selectedItem.client && (
+                          <div className="grid grid-cols-[100px_1fr] border-b border-neutral-200 py-4">
+                            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400">
+                              Client
+                            </span>
 
-                            <p className="mt-0.5 truncate text-xs font-medium text-neutral-800">
-                              {item.category}
-                            </p>
+                            <span className="text-sm text-neutral-800">
+                              {selectedItem.client}
+                            </span>
                           </div>
+                        )}
 
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-neutral-200 bg-white text-neutral-400 shadow-sm transition-all duration-300 group-hover:border-violet-200 group-hover:bg-violet-50 group-hover:text-violet-700">
-                            <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+                        {selectedItem.year && (
+                          <div className="grid grid-cols-[100px_1fr] border-b border-neutral-200 py-4">
+                            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400">
+                              Year
+                            </span>
+
+                            <span className="text-sm text-neutral-800">
+                              {selectedItem.year}
+                            </span>
                           </div>
-                        </div>
+                        )}
+
+                        {selectedItem.role && (
+                          <div className="grid grid-cols-[100px_1fr] border-b border-neutral-200 py-4">
+                            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400">
+                              Role
+                            </span>
+
+                            <span className="text-sm text-neutral-800">
+                              {selectedItem.role}
+                            </span>
+                          </div>
+                        )}
+
+                        {selectedItem.tools &&
+                          selectedItem.tools.length > 0 && (
+                            <div className="grid grid-cols-[100px_1fr] border-b border-neutral-200 py-4">
+                              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400">
+                                Tools
+                              </span>
+
+                              <div className="flex flex-wrap gap-x-3 gap-y-2">
+                                {selectedItem.tools.map(
+                                  (tool) => (
+                                    <span
+                                      key={tool}
+                                      className="text-sm text-neutral-800"
+                                    >
+                                      {tool}
+                                    </span>
+                                  ),
+                                )}
+                              </div>
+                            </div>
+                          )}
+                      </div>
+
+                      {selectedItem.project_url && (
+                        <a
+                          href={selectedItem.project_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-8 flex items-center justify-between border border-neutral-950 px-5 py-4 text-sm font-medium transition-colors hover:bg-neutral-950 hover:text-white"
+                        >
+                          <span>View Project</span>
+
+                          <ExternalLink
+                            size={15}
+                            strokeWidth={1.5}
+                          />
+                        </a>
+                      )}
+
+                      <div className="mt-10 flex items-center gap-3">
+                        <Grid2X2
+                          size={14}
+                          strokeWidth={1.4}
+                          className="text-neutral-400"
+                        />
+
+                        <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400">
+                          Gallery{' '}
+                          {String(
+                            selectedImages.length,
+                          ).padStart(2, '0')}
+                        </span>
                       </div>
                     </div>
-                  </article>
-                ),
-              )}
+                  </aside>
+                </div>
+              </div>
+
+              {/* MODAL FOOTER */}
+              <div className="flex shrink-0 items-center justify-between border-t border-neutral-200 bg-white px-5 py-3 sm:px-7">
+                <span className="font-mono text-[8px] uppercase tracking-[0.18em] text-neutral-400">
+                  39Production / Portfolio
+                </span>
+
+                <div className="hidden items-center gap-3 sm:flex">
+                  <span className="font-mono text-[8px] uppercase tracking-[0.15em] text-neutral-400">
+                    ← →
+                  </span>
+
+                  <span className="font-mono text-[8px] uppercase tracking-[0.15em] text-neutral-400">
+                    Navigate
+                  </span>
+
+                  <span className="h-3 w-px bg-neutral-300" />
+
+                  <span className="font-mono text-[8px] uppercase tracking-[0.15em] text-neutral-400">
+                    ESC
+                  </span>
+
+                  <span className="font-mono text-[8px] uppercase tracking-[0.15em] text-neutral-400">
+                    Close
+                  </span>
+                </div>
+              </div>
             </div>
-          )}
-      </section>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

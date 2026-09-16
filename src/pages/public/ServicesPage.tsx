@@ -1,12 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
-  Briefcase,
   ArrowRight,
-  Loader2,
-  Tag,
-  Sparkles,
+  ArrowUpRight,
+  Briefcase,
   Code2,
-  Wand2,
+  Gamepad2,
+  Layers3,
+  Loader2,
+  MonitorPlay,
+  MoveUpRight,
+  Palette,
+  PenTool,
+  Sparkles,
+  Tag,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
@@ -49,830 +55,846 @@ interface Promotion {
 const API_BASE_URL =
   'https://39production-api.39production.workers.dev'
 
+const serviceIcons = [
+  Code2,
+  Layers3,
+  Palette,
+  PenTool,
+  MonitorPlay,
+  Gamepad2,
+  Sparkles,
+]
+
+const categoryColors: Record<string, string> = {
+  Development: 'bg-violet-50 text-violet-700 border-violet-200',
+  Design: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200',
+  Multimedia: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  Entertainment: 'bg-violet-50 text-violet-700 border-violet-200',
+  Creative: 'bg-purple-50 text-purple-700 border-purple-200',
+}
+
+function formatPrice(price: number | null) {
+  if (price === null || Number.isNaN(price)) {
+    return null
+  }
+
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(price)
+}
+
+function isPromotionValid(promotion: Promotion) {
+  if (promotion.status !== 'Active') {
+    return false
+  }
+
+  const now = new Date()
+  const start = new Date(promotion.start_date)
+  const end = new Date(promotion.end_date)
+
+  return now >= start && now <= end
+}
+
+function getServicePromotion(
+  service: Service,
+  promotions: Promotion[],
+) {
+  return promotions.find(
+    (promotion) =>
+      promotion.target_type === 'Service' &&
+      promotion.service_id === service.id &&
+      isPromotionValid(promotion),
+  )
+}
+
+function calculateDiscount(
+  service: Service,
+  promotion?: Promotion,
+) {
+  if (!promotion) {
+    return null
+  }
+
+  if (
+    service.pricing_type !== 'fixed' ||
+    service.price === null
+  ) {
+    return null
+  }
+
+  if (promotion.discount_type === 'Percentage') {
+    return Math.max(
+      0,
+      service.price -
+      service.price * (promotion.discount_value / 100),
+    )
+  }
+
+  return Math.max(
+    0,
+    service.price - promotion.discount_value,
+  )
+}
+
+function getDiscountLabel(promotion: Promotion) {
+  if (promotion.discount_type === 'Percentage') {
+    return `-${promotion.discount_value}%`
+  }
+
+  return `-${formatPrice(promotion.discount_value)}`
+}
+
+function getPricingLabel(service: Service) {
+  switch (service.pricing_type) {
+    case 'starting_from':
+      return 'Starting From'
+    case 'custom_quote':
+      return 'Custom Quote'
+    default:
+      return 'Fixed Price'
+  }
+}
+
+function getPricingText(service: Service) {
+  switch (service.pricing_type) {
+    case 'starting_from':
+      return (
+        formatPrice(service.starting_price) ??
+        'Discuss your needs'
+      )
+
+    case 'custom_quote':
+      return 'Let’s discuss'
+
+    default:
+      return formatPrice(service.price) ?? 'Contact us'
+  }
+}
+
+function getPricingBadgeClass(
+  pricingType: ServicePricingType,
+) {
+  switch (pricingType) {
+    case 'starting_from':
+      return 'border-violet-200 bg-violet-50 text-violet-700'
+
+    case 'custom_quote':
+      return 'border-violet-200 bg-violet-50 text-violet-700'
+
+    default:
+      return 'border-violet-200 bg-violet-50 text-violet-700'
+  }
+}
+
 export function ServicesPage() {
   const [services, setServices] = useState<Service[]>([])
   const [promotions, setPromotions] = useState<Promotion[]>([])
-  const [loading, setLoading] = useState(true)
-  const [promotionLoading, setPromotionLoading] =
-    useState(true)
+  const [activeFilter, setActiveFilter] = useState('All')
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const formatPrice = (
-    price: number | null | undefined,
-  ) => {
-    if (
-      price === null ||
-      price === undefined ||
-      Number.isNaN(price)
-    ) {
-      return '-'
-    }
-
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      maximumFractionDigits: 0,
-    }).format(price)
-  }
-
-  const isPromotionValid = (
-    promotion: Promotion,
-  ) => {
-    const today = new Intl.DateTimeFormat(
-      'en-CA',
-      {
-        timeZone: 'Asia/Jakarta',
-      },
-    ).format(new Date())
-
-    return (
-      promotion.status === 'Active' &&
-      promotion.start_date <= today &&
-      promotion.end_date >= today
-    )
-  }
-
-  const getServicePromotion = (
-    serviceId: number,
-  ) => {
-    return (
-      promotions
-        .filter(
-          (promotion) =>
-            promotion.target_type === 'Service' &&
-            Number(promotion.service_id) ===
-            Number(serviceId) &&
-            isPromotionValid(promotion),
-        )
-        .sort((a, b) => b.id - a.id)[0] ??
-      null
-    )
-  }
-
-  const calculateDiscount = (
-    service: Service,
-    promotion: Promotion | null,
-  ) => {
-    /*
-     * Promotion hanya berlaku untuk fixed price.
-     *
-     * Starting From dan Custom Quote tidak
-     * mempunyai harga final sehingga promo
-     * tidak dihitung di halaman listing.
-     */
-    if (
-      !promotion ||
-      service.pricing_type !== 'fixed' ||
-      service.price === null ||
-      service.price === undefined
-    ) {
-      return 0
-    }
-
-    if (
-      promotion.discount_type ===
-      'Percentage'
-    ) {
-      return Math.min(
-        service.price,
-        Math.round(
-          service.price *
-          (Number(
-            promotion.discount_value,
-          ) / 100),
-        ),
-      )
-    }
-
-    return Math.min(
-      service.price,
-      Number(promotion.discount_value),
-    )
-  }
-
-  const getDiscountLabel = (
-    promotion: Promotion,
-  ) => {
-    if (
-      promotion.discount_type ===
-      'Percentage'
-    ) {
-      return `${promotion.discount_value}% OFF`
-    }
-
-    return `Save ${formatPrice(
-      Number(promotion.discount_value),
-    )}`
-  }
-
-  const getPricingLabel = (
-    service: Service,
-  ) => {
-    switch (service.pricing_type) {
-      case 'fixed':
-        return 'Fixed Price'
-
-      case 'starting_from':
-        return 'Starting From'
-
-      case 'custom_quote':
-        return 'Custom Quote'
-
-      default:
-        return 'Fixed Price'
-    }
-  }
-
-  const getPricingText = (
-    service: Service,
-  ) => {
-    switch (service.pricing_type) {
-      case 'fixed':
-        return service.price !== null
-          ? formatPrice(service.price)
-          : 'Price not set'
-
-      case 'starting_from':
-        return service.starting_price !== null
-          ? `From ${formatPrice(
-            service.starting_price,
-          )}`
-          : 'Starting price not set'
-
-      case 'custom_quote':
-        return 'Custom Quote'
-
-      default:
-        return service.price !== null
-          ? formatPrice(service.price)
-          : 'Price not set'
-    }
-  }
-
-  const getPricingBadgeClass = (
-    service: Service,
-  ) => {
-    switch (service.pricing_type) {
-      case 'fixed':
-        return 'border-violet-200 bg-violet-50 text-violet-700'
-
-      case 'starting_from':
-        return 'border-cyan-200 bg-cyan-50 text-cyan-700'
-
-      case 'custom_quote':
-        return 'border-pink-200 bg-pink-50 text-pink-700'
-
-      default:
-        return 'border-violet-200 bg-violet-50 text-violet-700'
-    }
-  }
-
   useEffect(() => {
-    const fetchServices = async () => {
+    let mounted = true
+
+    async function fetchServices() {
       try {
-        setLoading(true)
+        setIsLoading(true)
         setError('')
 
-        const response = await fetch(
-          `${API_BASE_URL}/api/services`,
-          {
-            cache: 'no-store',
-          },
-        )
-
-        if (!response.ok) {
-          throw new Error(
-            `Failed to fetch services (${response.status})`,
-          )
-        }
-
-        const result =
-          await response.json()
-
-        if (
-          result &&
-          result.success === false
-        ) {
-          throw new Error(
-            result.message ||
-            'Failed to fetch services',
-          )
-        }
-
-        const data =
-          Array.isArray(result)
-            ? result
-            : Array.isArray(result?.data)
-              ? result.data
-              : Array.isArray(
-                result?.services,
-              )
-                ? result.services
-                : []
-
-        const normalizedServices =
-          data.map(
-            (service: Service) => ({
-              ...service,
-
-              /*
-               * Backward compatibility:
-               * service lama yang belum mempunyai
-               * pricing_type dianggap fixed.
-               */
-              pricing_type:
-                service.pricing_type ||
-                'fixed',
-
-              price:
-                service.price !==
-                  undefined &&
-                  service.price !== null
-                  ? Number(service.price)
-                  : null,
-
-              starting_price:
-                service.starting_price !==
-                  undefined &&
-                  service.starting_price !== null
-                  ? Number(
-                    service.starting_price,
-                  )
-                  : null,
+        const [servicesResponse, promotionsResponse] =
+          await Promise.all([
+            fetch(`${API_BASE_URL}/api/services`, {
+              cache: 'no-store',
             }),
-          )
+            fetch(`${API_BASE_URL}/api/promotions`, {
+              cache: 'no-store',
+            }),
+          ])
 
-        setServices(
-          normalizedServices.filter(
+        if (!servicesResponse.ok) {
+          throw new Error('Failed to load services')
+        }
+
+        const servicesJson = await servicesResponse.json()
+
+        const normalizedServices: Service[] = (
+          servicesJson?.data ?? []
+        )
+          .map((service: any) => ({
+            ...service,
+
+            pricing_type:
+              service.pricing_type ??
+              (service.price !== null
+                ? 'fixed'
+                : 'custom_quote'),
+
+            price:
+              service.price !== null &&
+                service.price !== undefined
+                ? Number(service.price)
+                : null,
+
+            starting_price:
+              service.starting_price !== null &&
+                service.starting_price !== undefined
+                ? Number(service.starting_price)
+                : null,
+          }))
+          .filter(
             (service: Service) =>
               service.status === 'Active',
-          ),
-        )
+          )
+
+        let normalizedPromotions: Promotion[] = []
+
+        if (promotionsResponse.ok) {
+          const promotionsJson =
+            await promotionsResponse.json()
+
+          normalizedPromotions =
+            promotionsJson?.data ?? []
+        }
+
+        if (!mounted) {
+          return
+        }
+
+        setServices(normalizedServices)
+        setPromotions(normalizedPromotions)
       } catch (err) {
-        console.error(
-          'Error fetching services:',
-          err,
-        )
+        console.error(err)
+
+        if (!mounted) {
+          return
+        }
 
         setError(
-          err instanceof Error
-            ? err.message
-            : 'Failed to load services. Please try again later.',
+          'Unable to load our services right now. Please try again.',
         )
       } finally {
-        setLoading(false)
+        if (mounted) {
+          setIsLoading(false)
+        }
       }
     }
 
     fetchServices()
+
+    return () => {
+      mounted = false
+    }
   }, [])
 
-  useEffect(() => {
-    const fetchPromotions = async () => {
-      try {
-        setPromotionLoading(true)
+  const categories = useMemo(() => {
+    const uniqueCategories = Array.from(
+      new Set(
+        services
+          .map((service) => service.category)
+          .filter(Boolean),
+      ),
+    )
 
-        const response = await fetch(
-          `${API_BASE_URL}/api/promotions`,
-          {
-            cache: 'no-store',
-          },
-        )
+    return ['All', ...uniqueCategories]
+  }, [services])
 
-        if (!response.ok) {
-          setPromotions([])
-          return
-        }
-
-        const result =
-          await response.json()
-
-        const data =
-          Array.isArray(result)
-            ? result
-            : Array.isArray(result?.data)
-              ? result.data
-              : []
-
-        setPromotions(data)
-      } catch (err) {
-        console.error(
-          'Fetch promotions error:',
-          err,
-        )
-
-        setPromotions([])
-      } finally {
-        setPromotionLoading(false)
-      }
+  const filteredServices = useMemo(() => {
+    if (activeFilter === 'All') {
+      return services
     }
 
-    fetchPromotions()
-  }, [])
+    return services.filter(
+      (service) => service.category === activeFilter,
+    )
+  }, [services, activeFilter])
+
+  const hasActiveServicePromotion = promotions.some(
+    (promotion) =>
+      promotion.target_type === 'Service' &&
+      isPromotionValid(promotion),
+  )
 
   return (
-    <section className="relative isolate min-h-screen overflow-hidden bg-white">
-      {/* =====================================================
-          BACKGROUND
-      ====================================================== */}
+    <section className="relative isolate min-h-screen overflow-hidden bg-white text-zinc-950">
+      {/* Background grid */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 overflow-hidden"
-      >
-        <div className="absolute inset-0 bg-gradient-to-b from-white via-white to-neutral-50" />
+        className="pointer-events-none absolute inset-0 -z-10 opacity-70"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, rgba(24,24,27,0.035) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(24,24,27,0.035) 1px, transparent 1px)
+          `,
+          backgroundSize: '72px 72px',
+        }}
+      />
 
-        <div className="absolute -left-56 top-0 h-[420px] w-[420px] rounded-full bg-violet-100/60 blur-[120px]" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-[8%] top-[16%] h-2 w-2 rounded-full bg-violet-600"
+      />
 
-        <div className="absolute -right-56 top-[28%] h-[420px] w-[420px] rounded-full bg-pink-100/50 blur-[120px]" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-[13%] top-[38%] h-1.5 w-1.5 rounded-full bg-violet-500"
+      />
 
-        <div className="absolute bottom-[15%] left-[35%] h-[320px] w-[320px] rounded-full bg-fuchsia-100/30 blur-[110px]" />
-      </div>
-
-      {/* =====================================================
-          MAIN CONTENT
-      ====================================================== */}
-      <div className="relative z-10 mx-auto max-w-7xl px-4 pb-16 pt-24 sm:px-6 sm:pb-20 sm:pt-28 lg:px-8 lg:pb-24">
-        {/* ===================================================
-            PAGE INTRO
-        ==================================================== */}
-        <div className="mb-10 max-w-3xl sm:mb-12">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3.5 py-2 shadow-sm">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-500 opacity-60" />
-
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-violet-600" />
+      <div className="relative mx-auto max-w-[1600px] px-5 pb-20 pt-28 sm:px-8 sm:pt-32 lg:px-12 lg:pb-28 lg:pt-18">
+        {/* Top editorial line */}
+        <div className="mb-12 flex items-center justify-between border-b border-black/10 pb-5 sm:mb-16">
+          <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-500 sm:text-xs">
+            <span className="text-zinc-950">
+              39Production
             </span>
 
-            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-700 sm:text-xs">
-              Creative Technology Studio
-            </span>
+            <span className="h-1 w-1 rounded-full bg-violet-600" />
+
+            <span>Services</span>
           </div>
 
-          <h1 className="text-4xl font-black leading-[0.98] tracking-[-0.04em] text-neutral-950 sm:text-5xl md:text-6xl">
-            <span className="bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-500 bg-clip-text text-transparent">
-              Build
-            </span>{' '}
-            What Matters
-          </h1>
+          <div className="hidden items-center gap-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400 sm:flex">
+            <span>Digital</span>
+            <span>/</span>
+            <span>Creative</span>
+            <span>/</span>
+            <span>Entertainment</span>
+          </div>
+        </div>
 
-          <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-600 sm:text-base sm:leading-8">
-            We combine technology, design, and
-            creative production to transform ideas
-            into digital products, experiences, and
-            stories built to make an impact.
-          </p>
+        {/* Hero */}
+        <div className="relative grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-end lg:gap-16">
+          <div>
+            <div className="mb-7 flex items-center gap-3">
+              <span className="inline-flex items-center gap-2 border border-violet-200 bg-violet-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700">
+                <Sparkles className="h-3.5 w-3.5" />
+                What We Build
+              </span>
 
-          {/* Capability pills */}
-          <div className="mt-6 flex flex-wrap gap-2.5">
-            <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3.5 py-2 text-xs font-medium text-neutral-600 shadow-sm">
-              <Code2 className="h-3.5 w-3.5 text-violet-600" />
-              Creative Technology
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                07 Disciplines
+              </span>
             </div>
 
-            <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3.5 py-2 text-xs font-medium text-neutral-600 shadow-sm">
-              <Wand2 className="h-3.5 w-3.5 text-pink-600" />
-              Creative Production
+            <h1 className="max-w-5xl text-[clamp(3.5rem,8vw,8rem)] font-black leading-[0.82] tracking-[-0.065em]">
+              <span className="block text-zinc-950">
+                Build
+              </span>
+
+              <span className="block text-zinc-300">
+                what matters.
+              </span>
+            </h1>
+
+            <div className="mt-8 max-w-2xl border-l-2 border-violet-600 pl-5">
+              <p className="text-base leading-7 text-zinc-600 sm:text-lg">
+                From digital products to creative experiences,
+                we bring different disciplines into one
+                production team.
+              </p>
+            </div>
+          </div>
+
+          <div className="relative lg:pb-2">
+            <div className="absolute -right-2 -top-8 hidden text-[9rem] font-black leading-none tracking-[-0.08em] text-zinc-100 lg:block">
+              39
             </div>
 
-            <div className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3.5 py-2 text-xs font-medium text-neutral-600 shadow-sm">
-              <Briefcase className="h-3.5 w-3.5 text-cyan-600" />
-              Digital Solutions
+            <div className="relative border-t border-black/10 pt-5">
+              <div className="flex items-start justify-between gap-8">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                    Production Philosophy
+                  </p>
+
+                  <p className="mt-3 max-w-md text-sm leading-6 text-zinc-600">
+                    Strategy, design, technology and
+                    entertainment can work together under
+                    one roof.
+                  </p>
+                </div>
+
+                <div className="shrink-0 text-right">
+                  <span className="text-3xl font-black tracking-[-0.04em] text-violet-600">
+                    {services.length
+                      .toString()
+                      .padStart(2, '0')}
+                  </span>
+
+                  <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                    Active Services
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ===================================================
-            LOADING
-        ==================================================== */}
-        {loading && (
-          <div className="flex min-h-[280px] items-center justify-center">
-            <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-5 shadow-[0_15px_45px_rgba(0,0,0,0.05)]">
-              <div className="flex items-center gap-3 text-sm text-neutral-500">
-                <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
-                Loading services...
-              </div>
+        {/* Category navigation */}
+        <div className="mt-20 border-y border-black/10 py-4 sm:mt-24">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-3 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+              Explore
+            </span>
+
+            {categories.map((category) => {
+              const isActive =
+                activeFilter === category
+
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() =>
+                    setActiveFilter(category)
+                  }
+                  className={`
+                    group relative px-4 py-2 text-xs font-bold
+                    transition-all duration-300
+                    ${isActive
+                      ? 'bg-violet-600 text-white'
+                      : 'text-zinc-500 hover:bg-violet-50 hover:text-violet-700'
+                    }
+                  `}
+                >
+                  {category}
+
+                  {isActive && (
+                    <span className="absolute -bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-violet-600" />
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Section heading */}
+        <div className="mt-14 flex flex-col justify-between gap-6 sm:mt-16 sm:flex-row sm:items-end">
+          <div>
+            <div className="mb-3 flex items-center gap-3">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-violet-600">
+                01
+              </span>
+
+              <span className="h-px w-10 bg-violet-600" />
+
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                Our Capabilities
+              </span>
+            </div>
+
+            <h2 className="text-3xl font-black tracking-[-0.04em] sm:text-5xl">
+              Different disciplines.
+              <span className="ml-2 text-zinc-300">
+                One team.
+              </span>
+            </h2>
+          </div>
+
+          <Link
+            to="/contact"
+            className="group inline-flex w-fit items-center gap-3 border-b border-black pb-2 text-xs font-bold uppercase tracking-[0.16em] text-zinc-950 transition-colors hover:border-violet-600 hover:text-violet-600"
+          >
+            Discuss a Project
+            <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" />
+          </Link>
+        </div>
+
+        {/* Loading */}
+        {isLoading && (
+          <div className="mt-10 flex min-h-[300px] items-center justify-center border border-black/10 bg-neutral-50">
+            <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
+              <Loader2 className="h-4 w-4 animate-spin text-violet-600" />
+              Loading services
             </div>
           </div>
         )}
 
-        {/* ===================================================
-            ERROR
-        ==================================================== */}
-        {!loading && error && (
-          <div className="max-w-xl rounded-2xl border border-red-200 bg-red-50 p-5 sm:p-6">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
-                <Briefcase className="h-5 w-5" />
-              </div>
-
-              <div>
-                <h2 className="font-semibold text-neutral-900">
-                  Unable to load services
-                </h2>
-
-                <p className="mt-1 text-sm leading-6 text-red-600">
-                  {error}
-                </p>
-              </div>
-            </div>
+        {/* Error */}
+        {!isLoading && error && (
+          <div className="mt-10 border border-red-200 bg-red-50 px-6 py-5 text-sm text-red-700">
+            {error}
           </div>
         )}
 
-        {/* ===================================================
-            EMPTY
-        ==================================================== */}
-        {!loading &&
+        {/* Empty */}
+        {!isLoading &&
           !error &&
-          services.length === 0 && (
-            <div className="rounded-2xl border border-neutral-200 bg-white p-8 text-center shadow-[0_15px_50px_rgba(0,0,0,0.04)] sm:p-10">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-50 text-violet-600">
-                <Briefcase className="h-7 w-7" />
-              </div>
+          filteredServices.length === 0 && (
+            <div className="mt-10 border border-black/10 bg-neutral-50 px-6 py-20 text-center">
+              <Briefcase className="mx-auto h-7 w-7 text-violet-600" />
 
-              <h2 className="mt-4 text-lg font-semibold text-neutral-900">
-                No services available
-              </h2>
+              <h3 className="mt-5 text-xl font-black tracking-tight">
+                No services found
+              </h3>
 
-              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-neutral-500">
-                Our service catalog is currently
-                being updated. Please check back
-                soon.
+              <p className="mt-2 text-sm text-zinc-500">
+                Try another category.
               </p>
             </div>
           )}
 
-        {/* ===================================================
-            SERVICE GRID
-        ==================================================== */}
-        {!loading &&
+        {/* Services */}
+        {!isLoading &&
           !error &&
-          services.length > 0 && (
-            <>
-              <div className="mb-6 flex items-end justify-between gap-4 sm:mb-7">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-violet-600">
-                    What we build
-                  </p>
+          filteredServices.length > 0 && (
+            <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-12">
+              {filteredServices.map(
+                (service, index) => {
+                  const Icon =
+                    serviceIcons[
+                    index % serviceIcons.length
+                    ]
 
-                  <h2 className="mt-1 text-2xl font-bold tracking-tight text-neutral-950 sm:text-3xl">
-                    Our Capabilities
-                  </h2>
-                </div>
-
-                <div className="hidden items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-500 shadow-sm sm:flex">
-                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
-
-                  {services.length}{' '}
-                  {services.length === 1
-                    ? 'Service'
-                    : 'Services'}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {services.map((service) => {
                   const promotion =
                     getServicePromotion(
-                      service.id,
+                      service,
+                      promotions,
                     )
 
-                  const hasFixedPricing =
-                    service.pricing_type ===
-                    'fixed' &&
-                    service.price !== null &&
-                    service.price !==
-                    undefined
-
-                  const discount =
-                    hasFixedPricing
-                      ? calculateDiscount(
-                        service,
-                        promotion,
-                      )
-                      : 0
-
-                  const finalPrice =
-                    hasFixedPricing &&
-                      service.price !== null
-                      ? service.price - discount
-                      : null
-
-                  /*
-                   * Promo hanya tampil untuk
-                   * fixed pricing.
-                   */
-                  const showPromotion =
-                    Boolean(
-                      promotion &&
-                      hasFixedPricing,
+                  const discountedPrice =
+                    calculateDiscount(
+                      service,
+                      promotion,
                     )
+
+                  const isLarge =
+                    index % 5 === 0
 
                   return (
-                    <Link
+                    <article
                       key={service.id}
-                      to={`/services/${service.id}`}
-                      className="
-                        group
-                        relative
-                        flex
-                        h-full
-                        flex-col
-                        overflow-hidden
-                        rounded-[1.5rem]
-                        border
-                        border-neutral-200
+                      className={`
+                        group relative overflow-hidden
+                        border border-black/10
                         bg-white
-                        shadow-[0_10px_35px_rgba(0,0,0,0.045)]
-                        transition-all
-                        duration-300
+                        transition-all duration-500
                         hover:-translate-y-1
-                        hover:border-violet-200
-                        hover:shadow-[0_20px_55px_rgba(124,58,237,0.10)]
-                      "
+                        hover:border-violet-300
+                        hover:shadow-[0_18px_50px_rgba(124,58,237,0.10)]
+                        ${isLarge
+                          ? 'md:min-h-[390px] lg:col-span-7'
+                          : 'md:min-h-[390px] lg:col-span-5'
+                        }
+                      `}
                     >
-                      {/* Top hover line */}
-                      <div className="absolute inset-x-6 top-0 z-20 h-px bg-gradient-to-r from-transparent via-violet-500 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                      {/* Accent */}
+                      <div className="absolute inset-x-0 top-0 h-1 bg-violet-600 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-                      {/* =================================================
-                          IMAGE
-                      ================================================== */}
-                      <div className="relative aspect-[16/9] w-full overflow-hidden bg-neutral-100">
-                        {service.image_url ? (
-                          <>
-                            <img
-                              src={
-                                service.image_url
-                              }
-                              alt={service.name}
-                              loading="lazy"
-                              className="
-                                h-full
-                                w-full
-                                object-cover
-                                transition-transform
-                                duration-500
-                                group-hover:scale-[1.04]
-                              "
-                              onError={(
-                                event,
-                              ) => {
-                                event.currentTarget.style.display =
-                                  'none'
-                              }}
-                            />
+                      {/* Image */}
+                      {service.image_url ? (
+                        <div
+                          className={`
+                            absolute inset-0 overflow-hidden
+                            ${isLarge
+                              ? 'lg:w-[48%]'
+                              : 'lg:w-[42%]'
+                            }
+                          `}
+                        >
+                          <img
+                            src={service.image_url}
+                            alt={service.name}
+                            className="h-full w-full object-cover grayscale transition-all duration-700 group-hover:scale-105 group-hover:grayscale-0"
+                          />
 
-                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-neutral-950/55 via-transparent to-transparent" />
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/0 to-white lg:from-transparent lg:via-transparent" />
 
-                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-violet-500/10 via-transparent to-pink-500/10 opacity-70" />
-                          </>
-                        ) : (
-                          <>
-                            <div className="absolute inset-0 bg-gradient-to-br from-violet-100 via-white to-pink-100" />
+                          <div className="absolute left-5 top-5 border border-white/30 bg-black/70 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-white backdrop-blur-sm">
+                            39Production
+                          </div>
+                        </div>
+                      ) : null}
 
-                            <div
-                              className="absolute inset-0 opacity-[0.06]"
-                              style={{
-                                backgroundImage: `
-                                  linear-gradient(rgba(124, 58, 237, 0.7) 1px, transparent 1px),
-                                  linear-gradient(90deg, rgba(124, 58, 237, 0.7) 1px, transparent 1px)
-                                `,
-                                backgroundSize:
-                                  '30px 30px',
-                              }}
-                            />
-
-                            <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2">
-                              <div className="absolute -inset-8 rounded-full bg-violet-200/50 blur-2xl" />
-
-                              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-violet-200 bg-white/90 text-violet-600 shadow-xl backdrop-blur-md">
-                                <Briefcase className="h-9 w-9" />
-                              </div>
+                      <div
+                        className={`
+                          relative flex h-full flex-col
+                          ${service.image_url
+                            ? 'lg:ml-[42%] lg:min-h-[390px]'
+                            : ''
+                          }
+                          ${isLarge &&
+                            service.image_url
+                            ? 'lg:ml-[48%]'
+                            : ''
+                          }
+                          ${service.image_url
+                            ? 'p-7 lg:p-8'
+                            : 'p-7 sm:p-8'
+                          }
+                        `}
+                      >
+                        {/* Top */}
+                        <div className="flex items-start justify-between gap-5">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-11 w-11 items-center justify-center border border-violet-200 bg-violet-50 text-violet-600 transition-all duration-300 group-hover:bg-violet-600 group-hover:text-white">
+                              <Icon className="h-5 w-5" />
                             </div>
-                          </>
-                        )}
 
-                        {/* Category */}
-                        <div className="absolute bottom-4 left-4">
-                          <span className="inline-flex rounded-full border border-white/25 bg-black/45 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-white backdrop-blur-md">
-                            {service.category}
-                          </span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                              {String(index + 1).padStart(
+                                2,
+                                '0',
+                              )}
+                            </span>
+                          </div>
+
+                          <ArrowUpRight className="h-5 w-5 text-zinc-300 transition-all duration-300 group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-violet-600" />
                         </div>
 
-                        {/* Pricing */}
-                        <div className="absolute left-4 top-4">
-                          <span
-                            className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide backdrop-blur-md ${getPricingBadgeClass(
-                              service,
-                            )}`}
-                          >
-                            {getPricingLabel(
-                              service,
-                            )}
-                          </span>
+                        {/* Main */}
+                        <div className="mt-8">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`
+                                border px-2.5 py-1 text-[9px]
+                                font-bold uppercase tracking-[0.14em]
+                                ${categoryColors[
+                                service.category
+                                ] ??
+                                'border-zinc-200 bg-zinc-50 text-zinc-600'
+                                }
+                              `}
+                            >
+                              {service.category}
+                            </span>
+
+                            <span
+                              className={`
+                                border px-2.5 py-1 text-[9px]
+                                font-bold uppercase tracking-[0.14em]
+                                ${getPricingBadgeClass(
+                                service.pricing_type,
+                              )}
+                              `}
+                            >
+                              {getPricingLabel(
+                                service,
+                              )}
+                            </span>
+                          </div>
+
+                          <h3 className="mt-5 text-2xl font-black leading-[1] tracking-[-0.045em] sm:text-3xl">
+                            {service.name}
+                          </h3>
+
+                          <p className="mt-4 max-w-xl text-sm leading-6 text-zinc-500">
+                            {service.description}
+                          </p>
                         </div>
 
                         {/* Promotion */}
-                        {showPromotion &&
-                          promotion && (
-                            <div className="absolute right-4 top-4">
-                              <span className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-white/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-green-700 shadow-sm backdrop-blur-md">
-                                <Tag className="h-3 w-3" />
+                        {promotion && (
+                          <div className="mt-6 border border-violet-200 bg-violet-50 p-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex gap-3">
+                                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center bg-violet-600 text-white">
+                                  <Tag className="h-3.5 w-3.5" />
+                                </div>
 
+                                <div>
+                                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-700">
+                                    {promotion.title}
+                                  </p>
+
+                                  <p className="mt-1 text-xs text-violet-700/70">
+                                    Code:{' '}
+                                    <span className="font-bold">
+                                      {promotion.code}
+                                    </span>
+                                  </p>
+                                </div>
+                              </div>
+
+                              <span className="shrink-0 text-sm font-black text-violet-700">
                                 {getDiscountLabel(
                                   promotion,
                                 )}
                               </span>
                             </div>
-                          )}
-                      </div>
+                          </div>
+                        )}
 
-                      {/* =================================================
-                          CONTENT
-                      ================================================== */}
-                      <div className="flex flex-1 flex-col p-5 sm:p-6">
-                        <h3 className="line-clamp-2 text-lg font-bold leading-6 text-neutral-950 transition-colors group-hover:text-violet-700 sm:text-xl">
-                          {service.name}
-                        </h3>
+                        {/* Bottom */}
+                        <div className="mt-auto pt-8">
+                          <div className="mb-5 flex items-end justify-between gap-5 border-t border-black/10 pt-5">
+                            <div>
+                              <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                                {promotion &&
+                                  discountedPrice !== null
+                                  ? 'Promotion Price'
+                                  : getPricingLabel(
+                                    service,
+                                  )}
+                              </p>
 
-                        <p className="mt-2 line-clamp-3 min-h-[66px] text-sm leading-6 text-neutral-500">
-                          {service.description}
-                        </p>
+                              <div className="mt-1 flex flex-wrap items-baseline gap-2">
+                                {promotion &&
+                                  discountedPrice !==
+                                  null ? (
+                                  <>
+                                    <span className="text-xl font-black tracking-tight text-violet-600">
+                                      {formatPrice(
+                                        discountedPrice,
+                                      )}
+                                    </span>
 
-                        {/* Promotion box */}
-                        {showPromotion &&
-                          promotion && (
-                            <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-3.5">
-                              <div className="flex items-start gap-2.5">
-                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-green-100 text-green-700">
-                                  <Tag className="h-3.5 w-3.5" />
-                                </div>
-
-                                <div className="min-w-0">
-                                  <p className="truncate text-xs font-semibold text-green-800">
-                                    {
-                                      promotion.title
-                                    }
-                                  </p>
-
-                                  <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-green-700/80">
-                                    {
-                                      promotion.description
-                                    }
-                                  </p>
-
-                                  <p className="mt-1.5 font-mono text-[9px] uppercase tracking-wider text-green-700/60">
-                                    Code:{' '}
-                                    {
-                                      promotion.code
-                                    }
-                                  </p>
-                                </div>
+                                    <span className="text-xs text-zinc-400 line-through">
+                                      {formatPrice(
+                                        service.price,
+                                      )}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span className="text-xl font-black tracking-tight">
+                                    {getPricingText(
+                                      service,
+                                    )}
+                                  </span>
+                                )}
                               </div>
                             </div>
-                          )}
 
-                        {/* =================================================
-                            FOOTER
-                        ================================================== */}
-                        <div className="mt-auto pt-5">
-                          <div className="flex items-end justify-between gap-4 border-t border-neutral-100 pt-4">
-                            <div className="min-w-0">
-                              {/* Fixed */}
-                              {service.pricing_type ===
-                                'fixed' && (
-                                  <>
-                                    {showPromotion &&
-                                      finalPrice !==
-                                      null ? (
-                                      <>
-                                        <p className="text-[10px] font-medium text-neutral-400 line-through">
-                                          {formatPrice(
-                                            service.price,
-                                          )}
-                                        </p>
-
-                                        <p className="mt-0.5 text-lg font-bold text-green-600 sm:text-xl">
-                                          {formatPrice(
-                                            finalPrice,
-                                          )}
-                                        </p>
-                                      </>
-                                    ) : (
-                                      <p className="text-lg font-bold text-neutral-950 sm:text-xl">
-                                        {getPricingText(
-                                          service,
-                                        )}
-                                      </p>
-                                    )}
-                                  </>
-                                )}
-
-                              {/* Starting From */}
-                              {service.pricing_type ===
-                                'starting_from' && (
-                                  <div>
-                                    <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-cyan-700">
-                                      Starting from
-                                    </p>
-
-                                    <p className="mt-0.5 text-lg font-bold text-cyan-700 sm:text-xl">
-                                      {formatPrice(
-                                        service.starting_price,
-                                      )}
-                                    </p>
-                                  </div>
-                                )}
-
-                              {/* Custom Quote */}
-                              {service.pricing_type ===
-                                'custom_quote' && (
-                                  <div>
-                                    <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-pink-600">
-                                      Pricing
-                                    </p>
-
-                                    <p className="mt-0.5 text-lg font-bold text-pink-600 sm:text-xl">
-                                      Custom Quote
-                                    </p>
-                                  </div>
-                                )}
-                            </div>
-
-                            <span className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-violet-700 transition-colors group-hover:text-violet-800 sm:text-sm">
-                              View Detail
-
-                              <ArrowRight
-                                className="
-                                  h-3.5
-                                  w-3.5
-                                  transition-transform
-                                  duration-300
-                                  group-hover:translate-x-1
-                                "
-                              />
+                            <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                              Available
                             </span>
                           </div>
 
-                          <Sparkles className="pointer-events-none absolute bottom-5 right-5 h-3 w-3 text-violet-600/0 transition-all duration-300 group-hover:text-violet-600/30" />
+                          <Link
+                            to={`/services/${service.id}`}
+                            className="group/link flex items-center justify-between border border-black bg-black px-5 py-3.5 text-xs font-bold uppercase tracking-[0.14em] text-white transition-all duration-300 hover:border-violet-600 hover:bg-violet-600"
+                          >
+                            <span>View Detail</span>
+
+                            <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/link:translate-x-1" />
+                          </Link>
                         </div>
                       </div>
-                    </Link>
+                    </article>
                   )
-                })}
-              </div>
-            </>
+                },
+              )}
+            </div>
           )}
 
-        {/* ===================================================
-            PROMOTION INFO
-        ==================================================== */}
-        {!promotionLoading &&
-          services.length > 0 &&
-          promotions.some(
-            (promotion) =>
-              promotion.target_type ===
-              'Service' &&
-              isPromotionValid(promotion),
-          ) && (
-            <div className="relative mt-7 overflow-hidden rounded-2xl border border-violet-200 bg-violet-50/70 p-4 sm:mt-8 sm:p-5">
-              <div className="pointer-events-none absolute right-0 top-0 h-24 w-24 rounded-full bg-violet-200/50 blur-3xl" />
+        {/* Promotion note */}
+        {!isLoading &&
+          !error &&
+          hasActiveServicePromotion && (
+            <div className="mt-10 grid border border-violet-200 bg-violet-50 lg:grid-cols-[auto_1fr_auto]">
+              <div className="flex items-center justify-center bg-violet-600 p-5 text-white">
+                <Tag className="h-5 w-5" />
+              </div>
 
-              <div className="relative flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-violet-200 bg-white text-violet-700 shadow-sm">
-                  <Tag className="h-4 w-4" />
-                </div>
+              <div className="px-6 py-5">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
+                  Current Offers
+                </p>
 
-                <div>
-                  <p className="text-sm font-semibold text-neutral-900">
-                    Active promotions are
-                    automatically applied
-                  </p>
+                <p className="mt-1 text-sm leading-6 text-violet-900/80">
+                  Selected services currently have active
+                  promotional offers. Check each service
+                  for its available code and terms.
+                </p>
+              </div>
 
-                  <p className="mt-1 max-w-3xl text-xs leading-5 text-neutral-500 sm:text-sm">
-                    No promo code is required.
-                    Eligible fixed-price services
-                    will have their promotions
-                    applied automatically when
-                    you place an order.
-                  </p>
-                </div>
+              <div className="flex items-center px-6 pb-5 lg:pb-0">
+                <Link
+                  to="/promotions"
+                  className="group inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-violet-700"
+                >
+                  View Promotions
+                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                </Link>
               </div>
             </div>
           )}
+
+        {/* CTA */}
+        <div className="relative mt-24 overflow-hidden bg-black px-7 py-12 text-white sm:px-10 lg:mt-28 lg:px-14 lg:py-16">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute right-[-3rem] top-1/2 -translate-y-1/2 text-[15rem] font-black leading-none tracking-[-0.12em] text-white/[0.035]"
+          >
+            39
+          </div>
+
+          <div
+            aria-hidden="true"
+            className="absolute right-8 top-8 h-2 w-2 rounded-full bg-violet-500"
+          />
+
+          <div className="relative grid gap-10 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div>
+              <div className="mb-5 flex items-center gap-3">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-400">
+                  39Production
+                </span>
+
+                <span className="h-px w-10 bg-violet-500" />
+
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+                  Start Something Worth Making
+                </span>
+              </div>
+
+              <h2 className="max-w-4xl text-4xl font-black leading-[0.95] tracking-[-0.05em] sm:text-6xl lg:text-7xl">
+                Have something
+                <span className="block text-violet-400">
+                  different in mind?
+                </span>
+              </h2>
+
+              <p className="mt-6 max-w-xl text-sm leading-6 text-white/55 sm:text-base">
+                Tell us what you want to build. We’ll help
+                shape the idea, define the scope and find
+                the right production approach.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+              <Link
+                to="/contact"
+                className="group inline-flex items-center justify-center gap-3 bg-violet-600 px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-white transition-all duration-300 hover:bg-violet-500"
+              >
+                Start a Project
+                <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" />
+              </Link>
+
+              <Link
+                to="/portfolio"
+                className="group inline-flex items-center justify-center gap-3 border border-white/15 px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-white/75 transition-all duration-300 hover:border-violet-400 hover:text-violet-300"
+              >
+                See Our Work
+                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Signature */}
+        <div className="mt-7 flex flex-col justify-between gap-3 border-t border-black/10 pt-5 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400 sm:flex-row sm:items-center">
+          <span>
+            39Production / Digital / Creative / Entertainment
+          </span>
+
+          <span className="inline-flex items-center gap-2">
+            Creating Digital Works
+            <MoveUpRight className="h-3 w-3 text-violet-600" />
+          </span>
+        </div>
       </div>
 
-      {/* =====================================================
-          LIGHTWEIGHT ANIMATION
-      ====================================================== */}
       <style>{`
         @media (prefers-reduced-motion: reduce) {
           *,
           *::before,
           *::after {
+            scroll-behavior: auto !important;
+            transition-duration: 0.01ms !important;
             animation-duration: 0.01ms !important;
             animation-iteration-count: 1 !important;
-            transition-duration: 0.01ms !important;
-            scroll-behavior: auto !important;
           }
         }
       `}</style>

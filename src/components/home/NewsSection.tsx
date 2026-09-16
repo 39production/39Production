@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -56,35 +57,6 @@ function getNewsUrl(item: News) {
   return '/news'
 }
 
-function getCategoryStyle(
-  index: number,
-) {
-  const styles = [
-    {
-      badge:
-        'border-violet-100 bg-violet-50 text-violet-700',
-      dot: 'bg-violet-500',
-    },
-    {
-      badge:
-        'border-pink-100 bg-pink-50 text-pink-700',
-      dot: 'bg-pink-500',
-    },
-    {
-      badge:
-        'border-purple-100 bg-purple-50 text-purple-700',
-      dot: 'bg-purple-500',
-    },
-    {
-      badge:
-        'border-indigo-100 bg-indigo-50 text-indigo-700',
-      dot: 'bg-indigo-500',
-    },
-  ]
-
-  return styles[index % styles.length]
-}
-
 export function NewsSection() {
   const [news, setNews] = useState<News[]>([])
   const [loading, setLoading] = useState(true)
@@ -102,28 +74,21 @@ export function NewsSection() {
         )
 
         if (!response.ok) {
-          throw new Error(
-            'Failed to fetch news.',
-          )
+          throw new Error('Failed to fetch news.')
         }
 
         const result =
-          (await response.json()) as ApiResponse<
-            News[]
-          >
+          (await response.json()) as ApiResponse<News[]>
 
         if (!mounted) {
           return
         }
 
         if (result.success) {
-          const publishedNews = (
-            result.data ?? []
-          )
+          const publishedNews = (result.data ?? [])
             .filter(
               (item) =>
-                item.status ===
-                'Published',
+                item.status === 'Published',
             )
             .sort((a, b) => {
               const dateA = new Date(
@@ -181,80 +146,92 @@ export function NewsSection() {
   }
 
   const featuredNews = visibleNews[0]
-  const secondaryNews =
-    visibleNews.slice(1)
+  const secondaryNews = visibleNews.slice(1)
 
   return (
     <section
       id="news"
       aria-labelledby="news-section-title"
-      className="relative isolate overflow-hidden bg-white py-20 sm:py-24 lg:py-32"
+      className="relative isolate overflow-hidden bg-white py-20 sm:py-24 lg:py-28"
     >
       {/* =========================================================
           BACKGROUND
       ========================================================== */}
 
-      <div className="pointer-events-none absolute inset-0 -z-20 overflow-hidden">
-        <div className="newsGlow newsGlowOne absolute -left-40 top-[10%] h-[420px] w-[420px] rounded-full" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.028]"
+        style={{
+          backgroundImage:
+            'linear-gradient(to right, #111 1px, transparent 1px), linear-gradient(to bottom, #111 1px, transparent 1px)',
+          backgroundSize: '100px 100px',
+        }}
+      />
 
-        <div className="newsGlow newsGlowTwo absolute -right-40 top-[45%] h-[460px] w-[460px] rounded-full" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-[8%] top-[16%] -z-10 h-2 w-2 rounded-full bg-[#7C3AED]"
+      />
 
-        <div className="newsGlow newsGlowThree absolute bottom-[-180px] left-[35%] h-[420px] w-[420px] rounded-full" />
-      </div>
-
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="newsGrid absolute inset-0" />
-      </div>
-
-      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="newsLightLine newsLightLineOne absolute left-[-20%] top-[30%] h-px w-[140%]" />
-
-        <div className="newsLightLine newsLightLineTwo absolute left-[-20%] top-[74%] h-px w-[140%]" />
-      </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-[11%] bottom-[18%] -z-10 hidden h-1.5 w-1.5 rounded-full bg-black/20 sm:block"
+      />
 
       {/* =========================================================
           CONTENT
       ========================================================== */}
 
-      <div className="relative z-10 mx-auto max-w-[1240px] px-5 sm:px-8 lg:px-10">
+      <div className="relative z-10 mx-auto max-w-[1440px] px-6 sm:px-8 lg:px-12 xl:px-16">
         {/* =======================================================
             HEADER
         ======================================================== */}
 
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-8 border-b border-black/10 pb-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <div className="newsEyebrow mb-5 inline-flex items-center gap-2 rounded-full border border-violet-100 bg-violet-50 px-4 py-2">
-              <Sparkles className="h-3.5 w-3.5 text-violet-600" />
+            <div className="newsEyebrow mb-5 flex items-center gap-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-white">
+                <Newspaper
+                  className="h-3.5 w-3.5"
+                  strokeWidth={1.8}
+                />
+              </span>
 
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-700 sm:text-[11px]">
-                39PRODUCTION JOURNAL
+              <span className="h-px w-8 bg-[#7C3AED]" />
+
+              <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-neutral-400">
+                39Production Journal
               </span>
             </div>
 
             <h2
               id="news-section-title"
-              className="text-3xl font-semibold leading-[1.1] tracking-tight text-neutral-950 sm:text-4xl lg:text-5xl"
+              className="max-w-3xl text-4xl font-black leading-[0.92] tracking-[-0.065em] text-black sm:text-5xl lg:text-6xl"
             >
-              What&apos;s happening
-              <span className="block bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
-                at 39Production?
+              Stories, updates,
+              <br />
+              <span className="text-neutral-300">
+                and things we're making.
               </span>
             </h2>
 
-            <p className="mt-5 max-w-2xl text-sm leading-6 text-neutral-500 sm:text-base sm:leading-7">
-              Ikuti update terbaru seputar project, produk digital, creative
-              technology, dan entertainment dari 39Production.
+            <p className="mt-6 max-w-2xl text-sm leading-7 text-neutral-500 sm:text-base sm:leading-8">
+              Ikuti perkembangan terbaru dari 39Production —
+              mulai dari project, produk digital, creative
+              technology, hingga entertainment.
             </p>
           </div>
 
           {!loading && news.length > 0 && (
             <Link
               to="/news"
-              className="group inline-flex w-fit items-center gap-2 text-sm font-semibold text-neutral-700 transition-colors hover:text-violet-600"
+              className="group inline-flex w-fit items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-black transition-colors duration-300 hover:text-[#7C3AED]"
             >
               View all updates
 
-              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+              <ArrowRight
+                className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1"
+              />
             </Link>
           )}
         </div>
@@ -264,64 +241,61 @@ export function NewsSection() {
         ======================================================== */}
 
         {loading ? (
-          <div className="mt-10 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="overflow-hidden rounded-[24px] border border-neutral-200 bg-white">
-              <div className="h-[280px] animate-pulse bg-neutral-100 sm:h-[340px]" />
+          <div className="mt-10 grid gap-6 lg:grid-cols-[1.08fr_0.92fr]">
+            <div className="overflow-hidden border border-neutral-200 bg-white">
+              <div className="aspect-[16/9] animate-pulse bg-neutral-100" />
 
-              <div className="space-y-4 p-6">
-                <div className="h-5 w-24 animate-pulse rounded-full bg-neutral-100" />
+              <div className="space-y-5 p-6 sm:p-8">
+                <div className="h-3 w-24 animate-pulse bg-neutral-100" />
 
-                <div className="h-7 w-4/5 animate-pulse rounded bg-neutral-100" />
+                <div className="h-8 w-4/5 animate-pulse bg-neutral-100" />
 
-                <div className="h-3 w-full animate-pulse rounded bg-neutral-100" />
+                <div className="h-3 w-full animate-pulse bg-neutral-100" />
 
-                <div className="h-3 w-2/3 animate-pulse rounded bg-neutral-100" />
+                <div className="h-3 w-2/3 animate-pulse bg-neutral-100" />
+
+                <div className="h-4 w-28 animate-pulse bg-neutral-100" />
               </div>
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              {[1, 2, 3, 4].map(
-                (item) => (
-                  <div
-                    key={item}
-                    className="overflow-hidden rounded-[22px] border border-neutral-200 bg-white"
-                  >
-                    <div className="h-36 animate-pulse bg-neutral-100" />
+            <div className="grid gap-6 sm:grid-cols-2">
+              {[1, 2, 3, 4].map((item) => (
+                <div
+                  key={item}
+                  className="overflow-hidden border border-neutral-200 bg-white"
+                >
+                  <div className="aspect-[16/9] animate-pulse bg-neutral-100" />
 
-                    <div className="space-y-3 p-5">
-                      <div className="h-3 w-20 animate-pulse rounded-full bg-neutral-100" />
-                      <div className="h-5 w-full animate-pulse rounded bg-neutral-100" />
-                      <div className="h-3 w-4/5 animate-pulse rounded bg-neutral-100" />
-                    </div>
+                  <div className="space-y-3 p-5">
+                    <div className="h-3 w-20 animate-pulse bg-neutral-100" />
+
+                    <div className="h-5 w-full animate-pulse bg-neutral-100" />
+
+                    <div className="h-3 w-4/5 animate-pulse bg-neutral-100" />
                   </div>
-                ),
-              )}
+                </div>
+              ))}
             </div>
           </div>
         ) : (
-          <div className="mt-10 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="mt-10 grid gap-6 lg:grid-cols-[1.08fr_0.92fr]">
             {/* =================================================
                 FEATURED NEWS
             ================================================== */}
 
             {featuredNews && (
               <Link
-                to={getNewsUrl(
-                  featuredNews,
-                )}
-                className="newsFeatured group flex h-full flex-col overflow-hidden rounded-[24px] border border-neutral-200 bg-white transition-all duration-500 hover:-translate-y-1 hover:border-violet-200 hover:shadow-[0_20px_50px_rgba(15,23,42,0.08)]"
+                to={getNewsUrl(featuredNews)}
+                className="newsFeatured group flex h-full flex-col overflow-hidden border border-neutral-200 bg-white transition-all duration-500 hover:-translate-y-1 hover:border-black hover:shadow-[0_22px_55px_rgba(0,0,0,0.07)]"
               >
                 {/* Image */}
+
                 <div className="relative aspect-[16/9] overflow-hidden bg-neutral-100 sm:aspect-[16/8.5]">
                   {featuredNews.image_url ? (
                     <img
-                      src={
-                        featuredNews.image_url
-                      }
-                      alt={
-                        featuredNews.title
-                      }
-                      className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.045]"
+                      src={featuredNews.image_url}
+                      alt={featuredNews.title}
+                      className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.035]"
                       loading="lazy"
                       decoding="async"
                       onError={(event) => {
@@ -330,67 +304,81 @@ export function NewsSection() {
                       }}
                     />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-violet-50 via-white to-pink-50">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-violet-600 shadow-sm ring-1 ring-neutral-200">
+                    <div className="absolute inset-0 flex items-center justify-center bg-neutral-50">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-400 transition-all duration-500 group-hover:border-[#7C3AED] group-hover:text-[#7C3AED]">
                         <Newspaper className="h-7 w-7" />
                       </div>
                     </div>
                   )}
 
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent" />
+                  <div
+                    aria-hidden="true"
+                    className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"
+                  />
 
-                  {/* Featured badge */}
+                  {/* Latest badge */}
+
                   <div className="absolute left-5 top-5 sm:left-6 sm:top-6">
-                    <span className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/90 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-700 shadow-sm backdrop-blur-sm">
-                      <Sparkles className="h-3.5 w-3.5 text-violet-600" />
+                    <span className="inline-flex items-center gap-2 bg-black px-3.5 py-2 text-[9px] font-bold uppercase tracking-[0.14em] text-white">
+                      <Sparkles className="h-3 w-3 text-[#7C3AED]" />
 
                       Latest Update
                     </span>
                   </div>
 
                   {/* Accent */}
-                  <div className="absolute bottom-0 left-0 h-1 w-20 bg-gradient-to-r from-violet-600 to-pink-500 transition-all duration-500 group-hover:w-32" />
+
+                  <div className="absolute bottom-0 left-0 h-1 w-20 bg-[#7C3AED] transition-all duration-500 group-hover:w-32" />
                 </div>
 
                 {/* Content */}
-                <div className="flex flex-1 flex-col p-6 sm:p-7 lg:p-8">
+
+                <div className="flex flex-1 flex-col p-6 sm:p-8">
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="inline-flex items-center gap-2 rounded-full border border-violet-100 bg-violet-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-700">
-                      <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
+                    <span className="inline-flex items-center gap-2 border border-[#7C3AED]/20 bg-[#7C3AED]/5 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.13em] text-[#7C3AED]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#7C3AED]" />
 
                       {featuredNews.category}
                     </span>
 
-                    {(
-                      featuredNews.published_at ??
-                      featuredNews.created_at
-                    ) && (
-                        <span className="flex items-center gap-1.5 text-xs text-neutral-400">
-                          <Clock3 className="h-3.5 w-3.5" />
+                    {(featuredNews.published_at ??
+                      featuredNews.created_at) && (
+                        <>
+                          <span className="h-3 w-px bg-neutral-200" />
 
-                          {formatDate(
-                            featuredNews.published_at ??
-                            featuredNews.created_at,
-                          )}
-                        </span>
+                          <span className="flex items-center gap-1.5 text-xs text-neutral-400">
+                            <Clock3 className="h-3.5 w-3.5" />
+
+                            {formatDate(
+                              featuredNews.published_at ??
+                              featuredNews.created_at,
+                            )}
+                          </span>
+                        </>
                       )}
                   </div>
 
-                  <h3 className="mt-4 max-w-2xl text-2xl font-semibold leading-tight tracking-tight text-neutral-950 transition-colors duration-300 group-hover:text-violet-600 sm:text-3xl">
+                  <h3 className="mt-5 max-w-3xl text-2xl font-black leading-[1.05] tracking-[-0.045em] text-black transition-colors duration-300 group-hover:text-[#7C3AED] sm:text-3xl lg:text-4xl">
                     {featuredNews.title}
                   </h3>
 
                   {featuredNews.excerpt && (
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-500 sm:text-base sm:leading-7">
+                    <p className="mt-4 max-w-2xl text-sm leading-7 text-neutral-500 sm:text-base sm:leading-8">
                       {featuredNews.excerpt}
                     </p>
                   )}
 
-                  <div className="mt-auto pt-6">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-neutral-600 transition-colors group-hover:text-violet-600">
-                      Read update
+                  <div className="mt-auto pt-8">
+                    <div className="flex items-center justify-between gap-5 border-t border-neutral-200 pt-5">
+                      <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-neutral-400">
+                        Featured Story
+                      </span>
 
-                      <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                      <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-black transition-colors group-hover:text-[#7C3AED]">
+                        Read update
+
+                        <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -401,95 +389,90 @@ export function NewsSection() {
                 SECONDARY NEWS
             ================================================== */}
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              {secondaryNews.map(
-                (item, index) => {
-                  const accent =
-                    getCategoryStyle(
-                      index,
-                    )
+            <div className="grid gap-6 sm:grid-cols-2">
+              {secondaryNews.map((item, index) => (
+                <Link
+                  key={item.id}
+                  to={getNewsUrl(item)}
+                  className="newsCard group relative flex h-full flex-col overflow-hidden border border-neutral-200 bg-white transition-all duration-500 hover:-translate-y-1 hover:border-black hover:shadow-[0_18px_40px_rgba(0,0,0,0.06)]"
+                  style={{
+                    animationDelay: `${index * 80}ms`,
+                  }}
+                >
+                  {/* Image */}
 
-                  return (
-                    <Link
-                      key={item.id}
-                      to={getNewsUrl(item)}
-                      className="newsCard group flex h-full flex-col overflow-hidden rounded-[22px] border border-neutral-200 bg-white transition-all duration-500 hover:-translate-y-1 hover:border-violet-200 hover:shadow-[0_16px_35px_rgba(15,23,42,0.06)]"
-                    >
-                      {/* Image */}
-                      <div className="relative aspect-[16/9] overflow-hidden bg-neutral-100">
-                        {item.image_url ? (
-                          <img
-                            src={
-                              item.image_url
-                            }
-                            alt={item.title}
-                            className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.045]"
-                            loading="lazy"
-                            decoding="async"
-                            onError={(event) => {
-                              event.currentTarget.style.display =
-                                'none'
-                            }}
-                          />
-                        ) : (
-                          <div className="absolute inset-0 flex items-center justify-center bg-neutral-100">
-                            <Newspaper className="h-10 w-10 text-neutral-300" />
-                          </div>
-                        )}
-
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
-
-                        <div className="absolute bottom-3 left-3">
-                          <span
-                            className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] shadow-sm backdrop-blur-sm ${accent.badge}`}
-                          >
-                            <span
-                              className={`h-1.5 w-1.5 rounded-full ${accent.dot}`}
-                            />
-
-                            {item.category}
-                          </span>
-                        </div>
+                  <div className="relative aspect-[16/9] overflow-hidden bg-neutral-100">
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.title}
+                        className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+                        loading="lazy"
+                        decoding="async"
+                        onError={(event) => {
+                          event.currentTarget.style.display =
+                            'none'
+                        }}
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-neutral-50">
+                        <Newspaper className="h-9 w-9 text-neutral-300 transition-colors duration-300 group-hover:text-[#7C3AED]" />
                       </div>
+                    )}
 
-                      {/* Content */}
-                      <div className="flex flex-1 flex-col p-5">
-                        <div className="flex items-center gap-2 text-xs text-neutral-400">
-                          <Clock3 className="h-3.5 w-3.5" />
+                    <div
+                      aria-hidden="true"
+                      className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent"
+                    />
 
-                          {formatDate(
-                            item.published_at ??
-                            item.created_at,
-                          )}
-                        </div>
+                    <div className="absolute bottom-3 left-3">
+                      <span className="inline-flex items-center gap-2 bg-white px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-black">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#7C3AED]" />
 
-                        <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-6 text-neutral-950 transition-colors duration-300 group-hover:text-violet-600">
-                          {item.title}
-                        </h3>
+                        {item.category}
+                      </span>
+                    </div>
+                  </div>
 
-                        {item.excerpt && (
-                          <p className="mt-2 line-clamp-2 text-sm leading-5 text-neutral-500">
-                            {item.excerpt}
-                          </p>
-                        )}
+                  {/* Content */}
 
-                        <div className="mt-auto pt-4">
-                          <span className="inline-flex items-center gap-2 text-xs font-semibold text-neutral-500 transition-colors group-hover:text-violet-600">
-                            Read more
+                  <div className="flex flex-1 flex-col p-5">
+                    <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.1em] text-neutral-400">
+                      <Clock3 className="h-3.5 w-3.5" />
 
-                            <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
-                          </span>
-                        </div>
-                      </div>
+                      {formatDate(
+                        item.published_at ??
+                        item.created_at,
+                      )}
+                    </div>
 
-                      <div className="newsCardShine pointer-events-none absolute inset-y-0 left-0 w-[30%] -translate-x-[180%] bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-18deg]" />
-                    </Link>
-                  )
-                },
-              )}
+                    <h3 className="mt-3 line-clamp-2 text-lg font-black leading-[1.15] tracking-[-0.035em] text-black transition-colors duration-300 group-hover:text-[#7C3AED]">
+                      {item.title}
+                    </h3>
+
+                    {item.excerpt && (
+                      <p className="mt-3 line-clamp-2 text-sm leading-6 text-neutral-500">
+                        {item.excerpt}
+                      </p>
+                    )}
+
+                    <div className="mt-auto pt-5">
+                      <span className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.13em] text-neutral-400 transition-colors duration-300 group-hover:text-[#7C3AED]">
+                        Read more
+
+                        <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Bottom accent */}
+
+                  <div className="absolute bottom-0 left-0 h-0.5 w-0 bg-[#7C3AED] transition-all duration-500 group-hover:w-full" />
+                </Link>
+              ))}
 
               {secondaryNews.length === 0 && (
-                <div className="hidden rounded-[22px] border border-dashed border-neutral-200 bg-neutral-50 sm:block" />
+                <div className="hidden border border-dashed border-neutral-200 bg-neutral-50 sm:block" />
               )}
             </div>
           </div>
@@ -500,15 +483,29 @@ export function NewsSection() {
         ======================================================== */}
 
         {!loading && news.length > 6 && (
-          <div className="mt-10 flex justify-center">
+          <div className="mt-10 flex justify-center border-t border-black/10 pt-8">
             <Link
               to="/news"
-              className="group inline-flex w-full items-center justify-center gap-2 rounded-full border border-neutral-200 bg-white px-6 py-3 text-sm font-semibold text-neutral-700 transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-200 hover:text-violet-600 hover:shadow-md sm:w-auto"
+              className="group inline-flex items-center gap-3 rounded-full bg-black px-6 py-3.5 text-xs font-bold uppercase tracking-[0.1em] text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#7C3AED]"
             >
               Explore all updates
 
               <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
+          </div>
+        )}
+
+        {/* Small footer statement */}
+
+        {!loading && news.length > 0 && (
+          <div className="mt-8 flex flex-col gap-3 border-t border-black/5 pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[9px] font-medium uppercase tracking-[0.2em] text-neutral-400">
+              39Production Journal
+            </p>
+
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-300">
+              Create · Produce · Deliver
+            </p>
           </div>
         )}
       </div>
@@ -518,99 +515,16 @@ export function NewsSection() {
       ========================================================== */}
 
       <style>{`
-        .newsGlow {
-          filter: blur(90px);
-          opacity: 0.38;
-        }
-
-        .newsGlowOne {
-          background: rgba(139, 92, 246, 0.04);
-          animation: newsGlowOne 16s ease-in-out infinite;
-        }
-
-        .newsGlowTwo {
-          background: rgba(236, 72, 153, 0.03);
-          animation: newsGlowTwo 19s ease-in-out infinite;
-        }
-
-        .newsGlowThree {
-          background: rgba(99, 102, 241, 0.028);
-          animation: newsGlowThree 18s ease-in-out infinite;
-        }
-
-        .newsGrid {
-          background-image:
-            linear-gradient(
-              to right,
-              rgba(15, 23, 42, 0.022) 1px,
-              transparent 1px
-            ),
-            linear-gradient(
-              to bottom,
-              rgba(15, 23, 42, 0.022) 1px,
-              transparent 1px
-            );
-
-          background-size: 76px 76px;
-
-          mask-image:
-            linear-gradient(
-              to bottom,
-              transparent,
-              black 14%,
-              black 82%,
-              transparent
-            );
-
-          -webkit-mask-image:
-            linear-gradient(
-              to bottom,
-              transparent,
-              black 14%,
-              black 82%,
-              transparent
-            );
-
-          animation: newsGridMove 24s linear infinite;
-        }
-
-        .newsLightLine {
-          background: linear-gradient(
-            to right,
-            transparent,
-            rgba(139, 92, 246, 0.07),
-            transparent
-          );
-
-          opacity: 0.4;
-          animation: newsLineMove 11s ease-in-out infinite;
-        }
-
-        .newsLightLineTwo {
-          background: linear-gradient(
-            to right,
-            transparent,
-            rgba(236, 72, 153, 0.06),
-            transparent
-          );
-
-          animation-delay: 4s;
-        }
-
         .newsEyebrow {
           animation: newsEyebrowIn 0.7s ease-out both;
         }
 
-        .newsCardShine {
-          opacity: 0;
-          transition:
-            transform 1s cubic-bezier(0.16, 1, 0.3, 1),
-            opacity 0.3s ease;
+        .newsFeatured {
+          animation: newsFeaturedIn 0.8s ease-out both;
         }
 
-        .newsCard:hover .newsCardShine {
-          opacity: 1;
-          transform: translateX(400%);
+        .newsCard {
+          animation: newsCardIn 0.65s ease-out both;
         }
 
         @keyframes newsEyebrowIn {
@@ -625,90 +539,35 @@ export function NewsSection() {
           }
         }
 
-        @keyframes newsGridMove {
+        @keyframes newsFeaturedIn {
           from {
-            background-position: 0 0;
+            opacity: 0;
+            transform: translateY(18px);
           }
 
           to {
-            background-position: 76px 76px;
+            opacity: 1;
+            transform: translateY(0);
           }
         }
 
-        @keyframes newsGlowOne {
-          0%,
-          100% {
-            transform: translate3d(0, 0, 0);
+        @keyframes newsCardIn {
+          from {
+            opacity: 0;
+            transform: translateY(14px);
           }
 
-          50% {
-            transform: translate3d(45px, 30px, 0);
-          }
-        }
-
-        @keyframes newsGlowTwo {
-          0%,
-          100% {
-            transform: translate3d(0, 0, 0);
-          }
-
-          50% {
-            transform: translate3d(-45px, -30px, 0);
-          }
-        }
-
-        @keyframes newsGlowThree {
-          0%,
-          100% {
-            transform: translate3d(0, 0, 0);
-          }
-
-          50% {
-            transform: translate3d(35px, -30px, 0);
-          }
-        }
-
-        @keyframes newsLineMove {
-          0%,
-          100% {
-            transform: translateX(-3%);
-            opacity: 0.15;
-          }
-
-          50% {
-            transform: translateX(3%);
-            opacity: 0.5;
-          }
-        }
-
-        @media (max-width: 640px) {
-          .newsGlow {
-            opacity: 0.28;
-          }
-
-          .newsGrid {
-            background-size: 56px 56px;
-          }
-
-          .newsLightLine {
-            opacity: 0.2;
-          }
-
-          .newsCardShine {
-            display: none;
+          to {
+            opacity: 1;
+            transform: translateY(0);
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .newsGlow,
-          .newsGrid,
-          .newsLightLine,
-          .newsEyebrow {
+          .newsEyebrow,
+          .newsFeatured,
+          .newsCard {
             animation: none !important;
-          }
-
-          .newsCardShine {
-            display: none;
           }
         }
       `}</style>

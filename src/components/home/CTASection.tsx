@@ -6,7 +6,6 @@ import {
   Layers3,
   Music2,
   Sparkles,
-  Star,
   Wand2,
 } from 'lucide-react'
 
@@ -33,7 +32,7 @@ export function CTASection() {
   return (
     <section
       aria-labelledby="cta-title"
-      className="relative isolate overflow-hidden border-t border-neutral-200 bg-white py-20 sm:py-24 lg:py-32"
+      className="relative isolate overflow-hidden border-t border-black/10 bg-white py-20 sm:py-24 lg:py-28"
     >
       {/* =========================================================
           BACKGROUND
@@ -41,220 +40,240 @@ export function CTASection() {
 
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-20 overflow-hidden"
-      >
-        {/* Main soft atmosphere */}
-        <div className="ctaGlow ctaGlowOne absolute -left-40 top-1/2 h-[460px] w-[460px] -translate-y-1/2 rounded-full" />
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.025]"
+        style={{
+          backgroundImage:
+            'linear-gradient(to right, #111 1px, transparent 1px), linear-gradient(to bottom, #111 1px, transparent 1px)',
+          backgroundSize: '100px 100px',
+        }}
+      />
 
-        <div className="ctaGlow ctaGlowTwo absolute -right-40 top-1/2 h-[460px] w-[460px] -translate-y-1/2 rounded-full" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-[8%] top-[22%] -z-10 h-2 w-2 rounded-full bg-[#7C3AED]"
+      />
 
-        <div className="ctaGlow ctaGlowCenter absolute left-1/2 top-[42%] h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full" />
-
-        {/* Very subtle grid */}
-        <div className="ctaGrid absolute inset-0" />
-
-        {/* Moving accent lines */}
-        <div className="ctaLine ctaLineOne absolute left-[-20%] top-[28%] h-px w-[140%]" />
-
-        <div className="ctaLine ctaLineTwo absolute left-[-20%] top-[72%] h-px w-[140%]" />
-
-        {/* Particles */}
-        <span className="ctaParticle ctaParticleOne absolute left-[14%] top-[28%] h-1.5 w-1.5 rounded-full" />
-
-        <span className="ctaParticle ctaParticleTwo absolute left-[25%] bottom-[24%] h-1 w-1 rounded-full" />
-
-        <span className="ctaParticle ctaParticleThree absolute right-[18%] top-[25%] h-1.5 w-1.5 rounded-full" />
-
-        <span className="ctaParticle ctaParticleFour absolute right-[25%] bottom-[28%] h-1 w-1 rounded-full" />
-      </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-[9%] bottom-[20%] -z-10 h-1.5 w-1.5 rounded-full bg-black/20"
+      />
 
       {/* =========================================================
           MAIN
       ========================================================== */}
 
-      <div className="relative mx-auto max-w-[1180px] px-5 sm:px-8 lg:px-10">
-        <div className="ctaPanel relative overflow-hidden rounded-[30px] border border-neutral-200 bg-neutral-50/80 px-6 py-14 shadow-[0_20px_70px_rgba(15,23,42,0.06)] sm:px-10 sm:py-16 lg:px-16 lg:py-20">
+      <div className="relative mx-auto max-w-[1440px] px-6 sm:px-8 lg:px-12 xl:px-16">
+        <div className="relative overflow-hidden border border-neutral-200 bg-neutral-50">
           {/* =====================================================
-              DECORATIVE 39
+              LARGE 39 WATERMARK
           ====================================================== */}
 
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute left-1/2 top-1/2 hidden h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 lg:block"
+            className="pointer-events-none absolute right-[-20px] top-1/2 hidden -translate-y-1/2 select-none text-[18rem] font-black leading-none tracking-[-0.14em] text-black/[0.025] lg:block xl:text-[22rem]"
           >
-            <div className="ctaOrbitOuter absolute inset-0 rounded-full border border-violet-200/50" />
-
-            <div className="ctaOrbitInner absolute inset-[58px] rounded-full border border-pink-200/40" />
-
-            <div className="absolute left-1/2 top-0 h-2 w-2 -translate-x-1/2 rounded-full bg-violet-500" />
-
-            <div className="absolute bottom-[12%] left-[5%] h-1.5 w-1.5 rounded-full bg-pink-500" />
-
-            <div className="absolute right-[8%] top-[20%] h-1.5 w-1.5 rounded-full bg-cyan-500" />
-
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none font-display text-[15rem] font-black leading-none tracking-[-0.12em] text-neutral-900/[0.025]">
-              39
-            </div>
+            39
           </div>
 
-          {/* Decorative stars */}
-          <Star
-            aria-hidden="true"
-            className="ctaStar absolute left-[8%] top-[18%] hidden h-4 w-4 text-violet-400 lg:block"
-          />
-
-          <Star
-            aria-hidden="true"
-            className="ctaStar absolute right-[10%] top-[25%] hidden h-3 w-3 text-pink-400 lg:block"
-            style={{
-              animationDelay: '1s',
-            }}
-          />
-
-          <Sparkles
-            aria-hidden="true"
-            className="ctaStar absolute bottom-[18%] left-[12%] hidden h-4 w-4 text-purple-300 lg:block"
-            style={{
-              animationDelay: '2s',
-            }}
-          />
-
           {/* =====================================================
-              LABEL
+              TOP BRAND LINE
           ====================================================== */}
 
-          <div className="relative z-10 flex justify-center">
-            <div className="ctaFade ctaFadeOne inline-flex items-center gap-2 rounded-full border border-violet-100 bg-violet-50 px-4 py-2">
-              <Sparkles className="h-4 w-4 text-violet-600" />
+          <div className="relative z-10 flex flex-col gap-4 border-b border-black/10 px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-black tracking-[-0.04em] text-black">
+                39Production
+              </span>
 
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-700 sm:text-xs">
-                LET&apos;S BUILD SOMETHING
+              <span className="h-1.5 w-1.5 rounded-full bg-[#7C3AED]" />
+
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-400">
+                Digital Production House
               </span>
             </div>
+
+            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-400">
+              Start something worth making
+            </span>
           </div>
 
           {/* =====================================================
-              TITLE
+              CONTENT
           ====================================================== */}
 
-          <div className="relative z-10 mx-auto max-w-4xl text-center">
-            <h2
-              id="cta-title"
-              className="ctaFade ctaFadeTwo mt-7 text-3xl font-semibold leading-[1.05] tracking-tight text-neutral-950 sm:text-5xl lg:text-6xl"
-            >
-              Ideas deserve to
-              <span className="block bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
-                become real.
-              </span>
-            </h2>
+          <div className="relative z-10 px-6 py-14 sm:px-8 sm:py-16 lg:px-12 lg:py-20 xl:px-16">
+            <div className="grid gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:items-end lg:gap-16">
+              {/* LEFT */}
 
-            <p className="ctaFade ctaFadeThree mx-auto mt-6 max-w-2xl text-sm leading-6 text-neutral-500 sm:text-base sm:leading-7 lg:text-lg">
-              Kami menggabungkan technology, design, dan creative production
-              untuk membangun digital experiences, products, dan stories yang
-              punya tujuan nyata.
-            </p>
+              <div>
+                <div className="ctaFade flex items-center gap-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-white">
+                    <Sparkles
+                      className="h-3.5 w-3.5"
+                      strokeWidth={1.8}
+                    />
+                  </span>
 
-            <p className="ctaFade ctaFadeFour mt-4 text-sm italic text-neutral-400">
-              Imagine it. Build it. Make it matter.
-            </p>
-          </div>
+                  <span className="h-px w-8 bg-[#7C3AED]" />
 
-          {/* =====================================================
-              BUSINESS PILLARS
-          ====================================================== */}
-
-          <div className="ctaFade ctaFadeFive relative z-10 mx-auto mt-9 flex max-w-3xl flex-wrap justify-center gap-2.5">
-            {pillars.map((item) => {
-              const Icon = item.icon
-
-              return (
-                <div
-                  key={item.label}
-                  className="group inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2.5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md"
-                >
-                  <Icon
-                    aria-hidden="true"
-                    className="h-3.5 w-3.5 text-violet-600 transition-transform duration-300 group-hover:scale-110"
-                  />
-
-                  <span className="text-xs font-medium text-neutral-600">
-                    {item.label}
+                  <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-neutral-400">
+                    Let&apos;s build something
                   </span>
                 </div>
-              )
-            })}
-          </div>
 
-          {/* =====================================================
-              BUTTONS
-          ====================================================== */}
+                <h2
+                  id="cta-title"
+                  className="ctaFade ctaFadeTwo mt-7 max-w-4xl text-5xl font-black leading-[0.88] tracking-[-0.075em] text-black sm:text-6xl lg:text-7xl xl:text-[6.8rem]"
+                >
+                  Bring your
+                  <br />
+                  <span className="relative inline-block">
+                    idea
+                    <span
+                      aria-hidden="true"
+                      className="absolute bottom-0 left-0 right-[-4%] h-[0.09em] bg-[#7C3AED]"
+                    />
+                  </span>{' '}
+                  <span className="text-neutral-300">
+                    to life.
+                  </span>
+                </h2>
 
-          <div className="ctaFade ctaFadeSix relative z-10 mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link
-              to="/contact"
-              className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-neutral-950 px-7 py-3.5 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:bg-violet-600 hover:shadow-xl hover:shadow-violet-200 sm:w-auto"
-            >
-              Start a Project
+                <p className="ctaFade ctaFadeThree mt-7 max-w-2xl text-sm leading-7 text-neutral-500 sm:text-base sm:leading-8">
+                  Punya project, produk, atau cerita yang
+                  ingin diwujudkan? 39Production membantu
+                  mengubahnya menjadi digital experience,
+                  creative work, atau entertainment project
+                  yang siap dibuat.
+                </p>
 
-              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-            </Link>
+                <div className="ctaFade ctaFadeFour mt-8 flex flex-col gap-3 sm:flex-row">
+                  <Link
+                    to="/contact"
+                    className="group inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-black px-7 py-3.5 text-xs font-bold text-white transition-all duration-300 hover:bg-[#7C3AED]"
+                  >
+                    Start a Project
 
-            <Link
-              to="/services"
-              className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-neutral-200 bg-white px-7 py-3.5 text-sm font-semibold text-neutral-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-200 hover:text-violet-600 hover:shadow-md sm:w-auto"
-            >
-              Explore Our Services
+                    <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                  </Link>
 
-              <ArrowRight className="h-4 w-4 text-neutral-400 transition-all duration-300 group-hover:translate-x-1 group-hover:text-violet-600" />
-            </Link>
-          </div>
+                  <Link
+                    to="/services"
+                    className="group inline-flex min-h-12 items-center justify-center gap-3 rounded-full border border-black bg-white px-7 py-3.5 text-xs font-bold text-black transition-all duration-300 hover:bg-black hover:text-white"
+                  >
+                    Explore Services
 
-          {/* =====================================================
-              MINI BRAND FOOTER
-          ====================================================== */}
+                    <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                  </Link>
+                </div>
+              </div>
 
-          <div className="ctaFade ctaFadeSeven relative z-10 mt-12 flex flex-col items-center justify-center gap-5 border-t border-neutral-200 pt-7 sm:flex-row sm:gap-6">
-            <div className="flex items-center gap-3">
-              <div className="relative flex h-10 w-10 items-center justify-center">
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 opacity-15 blur-md" />
+              {/* RIGHT */}
 
-                <div className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-neutral-200 bg-white shadow-sm">
-                  <span className="font-display text-lg font-black bg-gradient-to-r from-violet-600 to-pink-500 bg-clip-text text-transparent">
+              <div className="ctaFade ctaFadeFive lg:pb-1">
+                <div className="border-t border-black/10">
+                  <div className="py-5">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-400">
+                      What we build
+                    </p>
+
+                    <p className="mt-3 max-w-sm text-sm leading-6 text-neutral-500">
+                      Satu production house untuk berbagai
+                      kebutuhan digital, creative, dan
+                      entertainment.
+                    </p>
+                  </div>
+
+                  <div className="border-t border-black/10">
+                    {pillars.map((item, index) => {
+                      const Icon = item.icon
+
+                      return (
+                        <div
+                          key={item.label}
+                          className="group flex items-center justify-between border-b border-black/10 py-4 transition-colors duration-300 hover:bg-white"
+                        >
+                          <div className="flex items-center gap-4">
+                            <span className="text-[9px] font-black tracking-[0.16em] text-[#7C3AED]">
+                              {String(
+                                index + 1,
+                              ).padStart(2, '0')}
+                            </span>
+
+                            <Icon
+                              aria-hidden="true"
+                              className="h-4 w-4 text-neutral-400 transition-colors duration-300 group-hover:text-[#7C3AED]"
+                              strokeWidth={1.7}
+                            />
+
+                            <span className="text-sm font-semibold text-black">
+                              {item.label}
+                            </span>
+                          </div>
+
+                          <ArrowRight
+                            aria-hidden="true"
+                            className="h-4 w-4 text-neutral-300 transition-all duration-300 group-hover:translate-x-1 group-hover:text-[#7C3AED]"
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ===================================================
+                BOTTOM STATEMENT
+            ==================================================== */}
+
+            <div className="ctaFade ctaFadeSix mt-12 flex flex-col gap-5 border-t border-black/10 pt-7 sm:flex-row sm:items-center sm:justify-between lg:mt-16">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-black text-white">
+                  <span className="text-sm font-black tracking-[-0.08em]">
                     39
                   </span>
                 </div>
+
+                <div>
+                  <p className="text-xs font-bold text-black">
+                    39Production
+                  </p>
+
+                  <p className="text-[9px] uppercase tracking-[0.12em] text-neutral-400">
+                    Creative Production House
+                  </p>
+                </div>
               </div>
 
-              <div className="text-left">
-                <p className="text-sm font-bold text-neutral-900">
-                  39Production
-                </p>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-400">
+                <Disc3 className="h-3.5 w-3.5 text-[#7C3AED]" />
 
-                <p className="text-[10px] text-neutral-400">
-                  サンキュープロダクション
-                </p>
+                <span>Creating Digital Works.</span>
+
+                <span className="text-neutral-300">
+                  •
+                </span>
+
+                <span>Producing Stories.</span>
+
+                <span className="text-neutral-300">
+                  •
+                </span>
+
+                <span>Sharing Gratitude.</span>
               </div>
-            </div>
-
-            <div className="hidden h-5 w-px bg-neutral-200 sm:block" />
-
-            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-neutral-400">
-              <Disc3
-                aria-hidden="true"
-                className="h-3.5 w-3.5 text-pink-500"
-              />
-
-              <span>Creating Digital Works.</span>
-
-              <span className="text-neutral-300">•</span>
-
-              <span>Producing Stories.</span>
-
-              <span className="text-neutral-300">•</span>
-
-              <span>Sharing Gratitude.</span>
             </div>
           </div>
+
+          {/* =====================================================
+              ACCENT EDGE
+          ====================================================== */}
+
+          <div
+            aria-hidden="true"
+            className="absolute bottom-0 left-0 h-1 w-24 bg-[#7C3AED]"
+          />
         </div>
       </div>
 
@@ -263,105 +282,6 @@ export function CTASection() {
       ========================================================== */}
 
       <style>{`
-        .ctaGlow {
-          filter: blur(90px);
-          opacity: 0.45;
-        }
-
-        .ctaGlowOne {
-          background: rgba(139, 92, 246, 0.055);
-          animation: ctaGlowOne 15s ease-in-out infinite;
-        }
-
-        .ctaGlowTwo {
-          background: rgba(236, 72, 153, 0.04);
-          animation: ctaGlowTwo 18s ease-in-out infinite;
-        }
-
-        .ctaGlowCenter {
-          background: rgba(124, 58, 237, 0.035);
-          animation: ctaGlowCenter 14s ease-in-out infinite;
-        }
-
-        .ctaGrid {
-          background-image:
-            linear-gradient(
-              to right,
-              rgba(15, 23, 42, 0.02) 1px,
-              transparent 1px
-            ),
-            linear-gradient(
-              to bottom,
-              rgba(15, 23, 42, 0.02) 1px,
-              transparent 1px
-            );
-
-          background-size: 64px 64px;
-
-          mask-image:
-            radial-gradient(
-              ellipse at center,
-              black 0%,
-              transparent 72%
-            );
-
-          -webkit-mask-image:
-            radial-gradient(
-              ellipse at center,
-              black 0%,
-              transparent 72%
-            );
-
-          animation: ctaGridMove 22s linear infinite;
-        }
-
-        .ctaLine {
-          background: linear-gradient(
-            to right,
-            transparent,
-            rgba(139, 92, 246, 0.08),
-            transparent
-          );
-
-          opacity: 0.4;
-          animation: ctaLineMove 10s ease-in-out infinite;
-        }
-
-        .ctaLineTwo {
-          background: linear-gradient(
-            to right,
-            transparent,
-            rgba(236, 72, 153, 0.06),
-            transparent
-          );
-
-          animation-delay: 3s;
-        }
-
-        .ctaParticle {
-          background: rgba(124, 58, 237, 0.3);
-          box-shadow: 0 0 12px rgba(124, 58, 237, 0.12);
-          animation: ctaParticleFloat 5s ease-in-out infinite;
-        }
-
-        .ctaParticleTwo,
-        .ctaParticleFour {
-          background: rgba(236, 72, 153, 0.25);
-          box-shadow: 0 0 12px rgba(236, 72, 153, 0.1);
-        }
-
-        .ctaParticleTwo {
-          animation-delay: 1s;
-        }
-
-        .ctaParticleThree {
-          animation-delay: 2s;
-        }
-
-        .ctaParticleFour {
-          animation-delay: 3s;
-        }
-
         .ctaFade {
           animation: ctaFadeUp 0.75s ease-out both;
         }
@@ -375,37 +295,21 @@ export function CTASection() {
         }
 
         .ctaFadeFour {
-          animation-delay: 0.22s;
+          animation-delay: 0.24s;
         }
 
         .ctaFadeFive {
-          animation-delay: 0.28s;
+          animation-delay: 0.32s;
         }
 
         .ctaFadeSix {
-          animation-delay: 0.34s;
-        }
-
-        .ctaFadeSeven {
           animation-delay: 0.4s;
-        }
-
-        .ctaOrbitOuter {
-          animation: ctaOrbitSpin 30s linear infinite;
-        }
-
-        .ctaOrbitInner {
-          animation: ctaOrbitSpinReverse 22s linear infinite;
-        }
-
-        .ctaStar {
-          animation: ctaTwinkle 3.5s ease-in-out infinite;
         }
 
         @keyframes ctaFadeUp {
           from {
             opacity: 0;
-            transform: translateY(18px);
+            transform: translateY(16px);
           }
 
           to {
@@ -414,131 +318,8 @@ export function CTASection() {
           }
         }
 
-        @keyframes ctaGlowOne {
-          0%,
-          100% {
-            transform: translate3d(0, -50%, 0) scale(1);
-          }
-
-          50% {
-            transform: translate3d(45px, calc(-50% + 25px), 0) scale(1.08);
-          }
-        }
-
-        @keyframes ctaGlowTwo {
-          0%,
-          100% {
-            transform: translate3d(0, -50%, 0) scale(1);
-          }
-
-          50% {
-            transform: translate3d(-45px, calc(-50% - 25px), 0) scale(1.06);
-          }
-        }
-
-        @keyframes ctaGlowCenter {
-          0%,
-          100% {
-            transform: translate3d(-50%, -50%, 0) scale(1);
-          }
-
-          50% {
-            transform: translate3d(-50%, calc(-50% - 20px), 0) scale(1.08);
-          }
-        }
-
-        @keyframes ctaGridMove {
-          from {
-            background-position: 0 0;
-          }
-
-          to {
-            background-position: 64px 64px;
-          }
-        }
-
-        @keyframes ctaLineMove {
-          0%,
-          100% {
-            transform: translateX(-3%);
-            opacity: 0.15;
-          }
-
-          50% {
-            transform: translateX(3%);
-            opacity: 0.5;
-          }
-        }
-
-        @keyframes ctaParticleFloat {
-          0%,
-          100% {
-            transform: translateY(0) scale(1);
-            opacity: 0.3;
-          }
-
-          50% {
-            transform: translateY(-16px) scale(1.3);
-            opacity: 0.8;
-          }
-        }
-
-        @keyframes ctaOrbitSpin {
-          from {
-            transform: rotate(0deg);
-          }
-
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        @keyframes ctaOrbitSpinReverse {
-          from {
-            transform: rotate(360deg);
-          }
-
-          to {
-            transform: rotate(0deg);
-          }
-        }
-
-        @keyframes ctaTwinkle {
-          0%,
-          100% {
-            opacity: 0.25;
-            transform: scale(0.85);
-          }
-
-          50% {
-            opacity: 0.8;
-            transform: scale(1.1);
-          }
-        }
-
-        @media (max-width: 640px) {
-          .ctaGlow {
-            opacity: 0.3;
-          }
-
-          .ctaGrid {
-            background-size: 52px 52px;
-          }
-
-          .ctaLine {
-            opacity: 0.2;
-          }
-        }
-
         @media (prefers-reduced-motion: reduce) {
-          .ctaGlow,
-          .ctaGrid,
-          .ctaLine,
-          .ctaParticle,
-          .ctaFade,
-          .ctaOrbitOuter,
-          .ctaOrbitInner,
-          .ctaStar {
+          .ctaFade {
             animation: none !important;
           }
         }

@@ -8,11 +8,29 @@ import {
   Upload,
   X,
 } from 'lucide-react'
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 
-const API_BASE_URL = 'https://39production-api.39production.workers.dev'
+const API_BASE_URL =
+  'https://39production-api.39production.workers.dev'
 
 type AdminTheme = 'dark' | 'light'
+
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024
+const MAX_STORED_IMAGE_SIZE = 150 * 1024
+const MAX_PRODUCT_IMAGES = 8
+
+const ALLOWED_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+]
 
 interface Product {
   id: number
@@ -23,6 +41,7 @@ interface Product {
   stock: number
   status: 'Published' | 'Draft'
   image_url?: string | null
+  image_urls?: string[] | string | null
 }
 
 interface ProductForm {
@@ -32,6 +51,12 @@ interface ProductForm {
   price: string
   stock: string
   status: 'Published' | 'Draft'
+}
+
+interface ProductImage {
+  id: string
+  url: string
+  file?: File
 }
 
 interface ThemeTokens {
@@ -56,43 +81,44 @@ const emptyForm: ProductForm = {
   status: 'Published',
 }
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024
-const MAX_STORED_IMAGE_SIZE = 150 * 1024
-
-const ALLOWED_IMAGE_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-]
-
 function useAdminTheme() {
   const readTheme = (): AdminTheme =>
     document.documentElement.dataset.adminTheme === 'light'
       ? 'light'
       : 'dark'
 
-  const [theme, setTheme] = useState<AdminTheme>(readTheme)
+  const [theme, setTheme] =
+    useState<AdminTheme>(readTheme)
 
   useEffect(() => {
-    const syncTheme = () => setTheme(readTheme())
+    const syncTheme = () =>
+      setTheme(readTheme())
 
     syncTheme()
 
-    const observer = new MutationObserver(syncTheme)
+    const observer =
+      new MutationObserver(syncTheme)
 
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-admin-theme'],
-    })
+    observer.observe(
+      document.documentElement,
+      {
+        attributes: true,
+        attributeFilter: [
+          'data-admin-theme',
+        ],
+      },
+    )
 
-    return () => observer.disconnect()
+    return () =>
+      observer.disconnect()
   }, [])
 
   return theme
 }
 
-function getThemeTokens(theme: AdminTheme): ThemeTokens {
+function getThemeTokens(
+  theme: AdminTheme,
+): ThemeTokens {
   if (theme === 'light') {
     return {
       page: 'bg-[#f7f7fa]',
@@ -104,7 +130,8 @@ function getThemeTokens(theme: AdminTheme): ThemeTokens {
       textSecondary: 'text-neutral-600',
       textMuted: 'text-neutral-500',
       hover: 'hover:bg-neutral-50',
-      placeholder: 'placeholder:text-neutral-400',
+      placeholder:
+        'placeholder:text-neutral-400',
     }
   }
 
@@ -118,11 +145,14 @@ function getThemeTokens(theme: AdminTheme): ThemeTokens {
     textSecondary: 'text-white/70',
     textMuted: 'text-white/45',
     hover: 'hover:bg-white/[0.04]',
-    placeholder: 'placeholder:text-white/25',
+    placeholder:
+      'placeholder:text-white/25',
   }
 }
 
-function extractToken(value: unknown): string | null {
+function extractToken(
+  value: unknown,
+): string | null {
   if (typeof value === 'string') {
     const trimmed = value.trim()
 
@@ -130,14 +160,19 @@ function extractToken(value: unknown): string | null {
 
     try {
       const parsed = JSON.parse(trimmed)
+
       return extractToken(parsed)
     } catch {
       return trimmed
     }
   }
 
-  if (value && typeof value === 'object') {
-    const record = value as Record<string, unknown>
+  if (
+    value &&
+    typeof value === 'object'
+  ) {
+    const record =
+      value as Record<string, unknown>
 
     const tokenKeys = [
       'token',
@@ -150,7 +185,8 @@ function extractToken(value: unknown): string | null {
     ]
 
     for (const key of tokenKeys) {
-      const candidate = record[key]
+      const candidate =
+        record[key]
 
       if (
         typeof candidate === 'string' &&
@@ -166,7 +202,8 @@ function extractToken(value: unknown): string | null {
       'session',
       'user',
     ]) {
-      const candidate = extractToken(record[key])
+      const candidate =
+        extractToken(record[key])
 
       if (candidate) return candidate
     }
@@ -180,9 +217,13 @@ function getStoredAuthTokens() {
   const seen = new Set<string>()
 
   const add = (value: unknown) => {
-    const token = extractToken(value)
+    const token =
+      extractToken(value)
 
-    if (token && !seen.has(token)) {
+    if (
+      token &&
+      !seen.has(token)
+    ) {
       seen.add(token)
       tokens.push(token)
     }
@@ -220,7 +261,8 @@ function getStoredAuthTokens() {
         index < storage.length;
         index += 1
       ) {
-        const key = storage.key(index)
+        const key =
+          storage.key(index)
 
         if (
           !key ||
@@ -239,20 +281,25 @@ function getStoredAuthTokens() {
   return tokens
 }
 
-async function getAdminToken(): Promise<string | null> {
-  const candidates = getStoredAuthTokens()
+async function getAdminToken(): Promise<
+  string | null
+> {
+  const candidates =
+    getStoredAuthTokens()
 
   for (const token of candidates) {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/auth/me`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
+      const response =
+        await fetch(
+          `${API_BASE_URL}/api/auth/me`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+            cache: 'no-store',
           },
-          cache: 'no-store',
-        },
-      )
+        )
 
       if (response.ok) {
         return token
@@ -269,7 +316,8 @@ async function adminFetch(
   url: string,
   init: RequestInit = {},
 ) {
-  const token = await getAdminToken()
+  const token =
+    await getAdminToken()
 
   if (!token) {
     throw new Error(
@@ -277,7 +325,8 @@ async function adminFetch(
     )
   }
 
-  const headers = new Headers(init.headers)
+  const headers =
+    new Headers(init.headers)
 
   headers.set(
     'Authorization',
@@ -290,20 +339,72 @@ async function adminFetch(
   })
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0,
-  }).format(value)
+function formatCurrency(
+  value: number,
+) {
+  return new Intl.NumberFormat(
+    'id-ID',
+    {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0,
+    },
+  ).format(value)
+}
+
+function normalizeProductImages(
+  product: Product,
+): string[] {
+  if (Array.isArray(product.image_urls)) {
+    return product.image_urls.filter(
+      (url): url is string =>
+        typeof url === 'string' &&
+        url.trim().length > 0,
+    )
+  }
+
+  if (
+    typeof product.image_urls ===
+    'string'
+  ) {
+    try {
+      const parsed =
+        JSON.parse(
+          product.image_urls,
+        )
+
+      if (Array.isArray(parsed)) {
+        return parsed.filter(
+          (url): url is string =>
+            typeof url ===
+            'string' &&
+            url.trim().length > 0,
+        )
+      }
+    } catch {
+      // Ignore invalid JSON.
+    }
+  }
+
+  if (
+    product.image_url &&
+    product.image_url.trim()
+  ) {
+    return [product.image_url]
+  }
+
+  return []
 }
 
 async function compressProductImage(
   file: File,
 ): Promise<File> {
-  if (file.type === 'image/gif') {
+  if (
+    file.type === 'image/gif'
+  ) {
     if (
-      file.size > MAX_STORED_IMAGE_SIZE
+      file.size >
+      MAX_STORED_IMAGE_SIZE
     ) {
       throw new Error(
         'GIF image must not exceed 150 KB. Please use JPG, PNG, or WEBP for larger images.',
@@ -314,12 +415,14 @@ async function compressProductImage(
   }
 
   if (
-    file.size <= MAX_STORED_IMAGE_SIZE
+    file.size <=
+    MAX_STORED_IMAGE_SIZE
   ) {
     return file
   }
 
-  const bitmap = await createImageBitmap(file)
+  const bitmap =
+    await createImageBitmap(file)
 
   const dimensions = [
     1200,
@@ -343,27 +446,36 @@ async function compressProductImage(
 
   try {
     for (const maxDimension of dimensions) {
-      const scale = Math.min(
-        1,
-        maxDimension /
+      const scale =
+        Math.min(
+          1,
+          maxDimension /
+          Math.max(
+            bitmap.width,
+            bitmap.height,
+          ),
+        )
+
+      const width =
         Math.max(
-          bitmap.width,
-          bitmap.height,
-        ),
-      )
+          1,
+          Math.round(
+            bitmap.width * scale,
+          ),
+        )
 
-      const width = Math.max(
-        1,
-        Math.round(bitmap.width * scale),
-      )
-
-      const height = Math.max(
-        1,
-        Math.round(bitmap.height * scale),
-      )
+      const height =
+        Math.max(
+          1,
+          Math.round(
+            bitmap.height * scale,
+          ),
+        )
 
       const canvas =
-        document.createElement('canvas')
+        document.createElement(
+          'canvas',
+        )
 
       canvas.width = width
       canvas.height = height
@@ -377,8 +489,11 @@ async function compressProductImage(
         )
       }
 
-      context.imageSmoothingEnabled = true
-      context.imageSmoothingQuality = 'high'
+      context.imageSmoothingEnabled =
+        true
+
+      context.imageSmoothingQuality =
+        'high'
 
       context.drawImage(
         bitmap,
@@ -401,14 +516,19 @@ async function compressProductImage(
 
         if (
           blob &&
-          blob.size <= MAX_STORED_IMAGE_SIZE
+          blob.size <=
+          MAX_STORED_IMAGE_SIZE
         ) {
           return new File(
             [blob],
-            `${file.name.replace(/\.[^.]+$/, '')}.webp`,
+            `${file.name.replace(
+              /\.[^.]+$/,
+              '',
+            )}.webp`,
             {
               type: 'image/webp',
-              lastModified: Date.now(),
+              lastModified:
+                Date.now(),
             },
           )
         }
@@ -423,57 +543,97 @@ async function compressProductImage(
   )
 }
 
+function createImageId() {
+  if (
+    typeof crypto !==
+    'undefined' &&
+    typeof crypto.randomUUID ===
+    'function'
+  ) {
+    return crypto.randomUUID()
+  }
+
+  return `${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}`
+}
+
 export function AdminProductsPage() {
-  const theme = useAdminTheme()
-  const c = getThemeTokens(theme)
+  const theme =
+    useAdminTheme()
+
+  const c =
+    getThemeTokens(theme)
 
   const [products, setProducts] =
     useState<Product[]>([])
 
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] =
-    useState('All')
-
-  const [isModalOpen, setIsModalOpen] =
-    useState(false)
-
-  const [editingProduct, setEditingProduct] =
-    useState<Product | null>(null)
-
-  const [form, setForm] =
-    useState<ProductForm>(emptyForm)
-
-  const [imageFile, setImageFile] =
-    useState<File | null>(null)
-
-  const [imagePreview, setImagePreview] =
+  const [search, setSearch] =
     useState('')
 
-  const [error, setError] = useState('')
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] = useState('All')
+
+  const [
+    isModalOpen,
+    setIsModalOpen,
+  ] = useState(false)
+
+  const [
+    editingProduct,
+    setEditingProduct,
+  ] = useState<Product | null>(
+    null,
+  )
+
+  const [form, setForm] =
+    useState<ProductForm>(
+      emptyForm,
+    )
+
+  const [
+    productImages,
+    setProductImages,
+  ] = useState<ProductImage[]>([])
+
+  const [error, setError] =
+    useState('')
+
   const [success, setSuccess] =
     useState('')
 
-  const [isLoading, setIsLoading] =
-    useState(true)
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true)
 
-  const [isSubmitting, setIsSubmitting] =
-    useState(false)
+  const [
+    isSubmitting,
+    setIsSubmitting,
+  ] = useState(false)
 
-  const [deletingId, setDeletingId] =
-    useState<number | null>(null)
+  const [
+    deletingId,
+    setDeletingId,
+  ] = useState<number | null>(
+    null,
+  )
 
   async function fetchProducts() {
     try {
       setIsLoading(true)
       setError('')
 
-      const response = await adminFetch(
-        `${API_BASE_URL}/api/products`,
-        {
-          method: 'GET',
-          cache: 'no-store',
-        },
-      )
+      const response =
+        await adminFetch(
+          `${API_BASE_URL}/api/products`,
+          {
+            method: 'GET',
+            cache: 'no-store',
+          },
+        )
 
       if (!response.ok) {
         throw new Error(
@@ -484,10 +644,11 @@ export function AdminProductsPage() {
       const result =
         await response.json()
 
-      const data = Array.isArray(result)
-        ? result
-        : result?.data ??
-        result?.products
+      const data =
+        Array.isArray(result)
+          ? result
+          : result?.data ??
+          result?.products
 
       if (!Array.isArray(data)) {
         throw new Error(
@@ -520,89 +681,113 @@ export function AdminProductsPage() {
 
   useEffect(() => {
     return () => {
-      if (
-        imagePreview.startsWith('blob:')
-      ) {
-        URL.revokeObjectURL(
-          imagePreview,
-        )
-      }
+      productImages.forEach(
+        (image) => {
+          if (
+            image.file &&
+            image.url.startsWith(
+              'blob:',
+            )
+          ) {
+            URL.revokeObjectURL(
+              image.url,
+            )
+          }
+        },
+      )
     }
-  }, [imagePreview])
+  }, [productImages])
 
-  const filteredProducts = useMemo(() => {
-    const keyword = search
-      .toLowerCase()
-      .trim()
+  const filteredProducts =
+    useMemo(() => {
+      const keyword =
+        search
+          .toLowerCase()
+          .trim()
 
-    return products.filter(
-      (product) => {
-        const matchesSearch =
-          product.name
-            .toLowerCase()
-            .includes(keyword) ||
-          product.category
-            .toLowerCase()
-            .includes(keyword) ||
-          product.description
-            .toLowerCase()
-            .includes(keyword)
+      return products.filter(
+        (product) => {
+          const matchesSearch =
+            product.name
+              .toLowerCase()
+              .includes(keyword) ||
+            product.category
+              .toLowerCase()
+              .includes(keyword) ||
+            product.description
+              .toLowerCase()
+              .includes(keyword)
 
-        const matchesStatus =
-          statusFilter === 'All' ||
-          product.status === statusFilter
+          const matchesStatus =
+            statusFilter ===
+            'All' ||
+            product.status ===
+            statusFilter
 
-        return (
-          matchesSearch &&
-          matchesStatus
-        )
-      },
-    )
-  }, [
-    products,
-    search,
-    statusFilter,
-  ])
+          return (
+            matchesSearch &&
+            matchesStatus
+          )
+        },
+      )
+    }, [
+      products,
+      search,
+      statusFilter,
+    ])
 
   const publishedCount =
     products.filter(
       (product) =>
-        product.status === 'Published',
+        product.status ===
+        'Published',
     ).length
 
   const draftCount =
     products.filter(
       (product) =>
-        product.status === 'Draft',
+        product.status ===
+        'Draft',
     ).length
 
   const totalStock =
     products.reduce(
       (total, product) =>
         total +
-        Number(product.stock || 0),
+        Number(
+          product.stock || 0,
+        ),
       0,
     )
 
   function resetImageState() {
-    if (
-      imagePreview.startsWith('blob:')
-    ) {
-      URL.revokeObjectURL(
-        imagePreview,
-      )
-    }
+    productImages.forEach(
+      (image) => {
+        if (
+          image.file &&
+          image.url.startsWith(
+            'blob:',
+          )
+        ) {
+          URL.revokeObjectURL(
+            image.url,
+          )
+        }
+      },
+    )
 
-    setImageFile(null)
-    setImagePreview('')
+    setProductImages([])
   }
 
   function openAddModal() {
     setEditingProduct(null)
+
     setForm({
       ...emptyForm,
     })
+
     resetImageState()
+
     setError('')
     setSuccess('')
     setIsModalOpen(true)
@@ -618,15 +803,32 @@ export function AdminProductsPage() {
       category: product.category,
       description:
         product.description,
-      price: String(product.price),
-      stock: String(product.stock),
+      price: String(
+        product.price,
+      ),
+      stock: String(
+        product.stock,
+      ),
       status: product.status,
     })
 
-    setImageFile(null)
-    setImagePreview(
-      product.image_url || '',
+    const images =
+      normalizeProductImages(
+        product,
+      )
+
+    setProductImages(
+      images
+        .slice(
+          0,
+          MAX_PRODUCT_IMAGES,
+        )
+        .map((url) => ({
+          id: createImageId(),
+          url,
+        })),
     )
+
     setError('')
     setSuccess('')
     setIsModalOpen(true)
@@ -637,58 +839,114 @@ export function AdminProductsPage() {
 
     setIsModalOpen(false)
     setEditingProduct(null)
+
     setForm({
       ...emptyForm,
     })
+
     resetImageState()
+
     setError('')
   }
 
   function handleImageChange(
-    event: React.ChangeEvent<HTMLInputElement>,
+    event: ChangeEvent<HTMLInputElement>,
   ) {
-    const file =
-      event.target.files?.[0]
+    const files = Array.from(
+      event.target.files ?? [],
+    )
 
     event.target.value = ''
 
-    if (!file) return
+    if (!files.length) return
 
     if (
-      !ALLOWED_IMAGE_TYPES.includes(
-        file.type,
-      )
+      productImages.length +
+      files.length >
+      MAX_PRODUCT_IMAGES
     ) {
       setError(
-        'Image must be JPG, PNG, WEBP, or GIF.',
+        `A product can contain a maximum of ${MAX_PRODUCT_IMAGES} images.`,
       )
       return
     }
 
-    if (
-      file.size > MAX_IMAGE_SIZE
-    ) {
+    const invalidType =
+      files.find(
+        (file) =>
+          !ALLOWED_IMAGE_TYPES.includes(
+            file.type,
+          ),
+      )
+
+    if (invalidType) {
       setError(
-        'Image size must not exceed 5 MB.',
+        `"${invalidType.name}" is not a supported image. Use JPG, PNG, WEBP, or GIF.`,
       )
       return
     }
 
-    if (
-      imagePreview.startsWith('blob:')
-    ) {
-      URL.revokeObjectURL(
-        imagePreview,
+    const oversizedFile =
+      files.find(
+        (file) =>
+          file.size >
+          MAX_IMAGE_SIZE,
       )
+
+    if (oversizedFile) {
+      setError(
+        `"${oversizedFile.name}" exceeds the 5 MB limit.`,
+      )
+      return
     }
 
-    setImageFile(file)
+    const newImages =
+      files.map((file) => ({
+        id: createImageId(),
+        url: URL.createObjectURL(
+          file,
+        ),
+        file,
+      }))
 
-    setImagePreview(
-      URL.createObjectURL(file),
+    setProductImages(
+      (current) => [
+        ...current,
+        ...newImages,
+      ],
     )
 
     setError('')
+  }
+
+  function removeProductImage(
+    imageId: string,
+  ) {
+    setProductImages(
+      (current) => {
+        const target =
+          current.find(
+            (image) =>
+              image.id === imageId,
+          )
+
+        if (
+          target?.file &&
+          target.url.startsWith(
+            'blob:',
+          )
+        ) {
+          URL.revokeObjectURL(
+            target.url,
+          )
+        }
+
+        return current.filter(
+          (image) =>
+            image.id !== imageId,
+        )
+      },
+    )
   }
 
   async function handleSubmit(
@@ -701,17 +959,17 @@ export function AdminProductsPage() {
     setIsSubmitting(true)
 
     try {
-      const name = form.name.trim()
+      const name =
+        form.name.trim()
+
       const description =
         form.description.trim()
 
-      const price = Number(
-        form.price,
-      )
+      const price =
+        Number(form.price)
 
-      const stock = Number(
-        form.stock,
-      )
+      const stock =
+        Number(form.stock)
 
       if (!name) {
         throw new Error(
@@ -743,6 +1001,15 @@ export function AdminProductsPage() {
       ) {
         throw new Error(
           'Please enter a valid stock quantity.',
+        )
+      }
+
+      if (
+        productImages.length >
+        MAX_PRODUCT_IMAGES
+      ) {
+        throw new Error(
+          `A product can contain a maximum of ${MAX_PRODUCT_IMAGES} images.`,
         )
       }
 
@@ -779,14 +1046,57 @@ export function AdminProductsPage() {
         form.status,
       )
 
-      if (imageFile) {
+      /*
+       * Existing images are represented by
+       * their stored data URLs.
+       *
+       * New images contain a File.
+       */
+      const existingImages =
+        productImages
+          .filter(
+            (image) =>
+              !image.file,
+          )
+          .map(
+            (image) =>
+              image.url,
+          )
+
+      const newImages =
+        productImages.filter(
+          (image) =>
+            Boolean(image.file),
+        )
+
+      formData.append(
+        'existing_images',
+        JSON.stringify(
+          existingImages,
+        ),
+      )
+
+      formData.append(
+        'replace_images',
+        'true',
+      )
+
+      /*
+       * Upload every new image using
+       * the "images" field.
+       */
+      for (const image of newImages) {
+        if (!image.file) {
+          continue
+        }
+
         const compressedImage =
           await compressProductImage(
-            imageFile,
+            image.file,
           )
 
         formData.append(
-          'image',
+          'images',
           compressedImage,
         )
       }
@@ -806,7 +1116,8 @@ export function AdminProductsPage() {
         })
 
       if (!response.ok) {
-        let message = `Failed to ${editingProduct
+        let message =
+          `Failed to ${editingProduct
             ? 'update'
             : 'create'
           } product (${response.status})`
@@ -856,7 +1167,8 @@ export function AdminProductsPage() {
   ) {
     const product =
       products.find(
-        (item) => item.id === id,
+        (item) =>
+          item.id === id,
       )
 
     if (!product) return
@@ -883,7 +1195,8 @@ export function AdminProductsPage() {
         )
 
       if (!response.ok) {
-        let message = `Failed to delete product (${response.status})`
+        let message =
+          `Failed to delete product (${response.status})`
 
         try {
           const result =
@@ -957,11 +1270,12 @@ export function AdminProductsPage() {
         </button>
       </div>
 
-      {error && !isModalOpen && (
-        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
-          {error}
-        </div>
-      )}
+      {error &&
+        !isModalOpen && (
+          <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+            {error}
+          </div>
+        )}
 
       {success && (
         <div
@@ -1126,146 +1440,196 @@ export function AdminProductsPage() {
                 </tr>
               ) : (
                 filteredProducts.map(
-                  (product) => (
-                    <tr
-                      key={product.id}
-                      className={`border-b ${c.border} last:border-0 ${c.hover} transition-colors`}
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`h-12 w-12 shrink-0 overflow-hidden rounded-lg border ${c.border} ${product.image_url
-                                ? ''
-                                : 'bg-violet-500/10'
-                              }`}
-                          >
-                            {product.image_url ? (
-                              <img
-                                src={
-                                  product.image_url
-                                }
-                                alt={
+                  (product) => {
+                    const images =
+                      normalizeProductImages(
+                        product,
+                      )
+
+                    return (
+                      <tr
+                        key={
+                          product.id
+                        }
+                        className={`border-b ${c.border} last:border-0 ${c.hover} transition-colors`}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border ${c.border} ${images.length ===
+                                  0
+                                  ? 'bg-violet-500/10'
+                                  : ''
+                                }`}
+                            >
+                              {images[0] ? (
+                                <>
+                                  <img
+                                    src={
+                                      images[0]
+                                    }
+                                    alt={
+                                      product.name
+                                    }
+                                    className="h-full w-full object-cover"
+                                  />
+
+                                  {images.length >
+                                    1 && (
+                                      <span className="absolute bottom-0 right-0 bg-black/70 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                                        +
+                                        {images.length -
+                                          1}
+                                      </span>
+                                    )}
+                                </>
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-violet-500">
+                                  <Package className="h-5 w-5" />
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="min-w-0">
+                              <p
+                                className={`truncate font-medium ${c.textPrimary}`}
+                              >
+                                {
                                   product.name
                                 }
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-violet-500">
-                                <Package className="h-5 w-5" />
-                              </div>
-                            )}
+                              </p>
+
+                              <p
+                                className={`mt-1 text-xs ${c.textMuted}`}
+                              >
+                                ID #
+                                {
+                                  product.id
+                                }
+
+                                {images.length >
+                                  0 && (
+                                    <>
+                                      {' '}
+                                      ·{' '}
+                                      {
+                                        images.length
+                                      }{' '}
+                                      image
+                                      {images.length >
+                                        1
+                                        ? 's'
+                                        : ''}
+                                    </>
+                                  )}
+                              </p>
+                            </div>
                           </div>
+                        </td>
 
-                          <div className="min-w-0">
-                            <p
-                              className={`truncate font-medium ${c.textPrimary}`}
-                            >
-                              {product.name}
-                            </p>
+                        <td
+                          className={`px-6 py-4 ${c.textSecondary}`}
+                        >
+                          {
+                            product.category
+                          }
+                        </td>
 
-                            <p
-                              className={`mt-1 text-xs ${c.textMuted}`}
-                            >
-                              ID #{product.id}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td
-                        className={`px-6 py-4 ${c.textSecondary}`}
-                      >
-                        {product.category}
-                      </td>
-
-                      <td
-                        className={`px-6 py-4 font-medium ${c.textPrimary}`}
-                      >
-                        {formatCurrency(
-                          Number(
-                            product.price,
-                          ),
-                        )}
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <span
-                          className={
+                        <td
+                          className={`px-6 py-4 font-medium ${c.textPrimary}`}
+                        >
+                          {formatCurrency(
                             Number(
-                              product.stock,
-                            ) === 0
-                              ? 'text-red-500'
-                              : Number(
+                              product.price,
+                            ),
+                          )}
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <span
+                            className={
+                              Number(
                                 product.stock,
-                              ) < 10
+                              ) ===
+                                0
+                                ? 'text-red-500'
+                                : Number(
+                                  product.stock,
+                                ) <
+                                  10
+                                  ? theme ===
+                                    'light'
+                                    ? 'text-amber-600'
+                                    : 'text-amber-400'
+                                  : c.textSecondary
+                            }
+                          >
+                            {
+                              product.stock
+                            }
+                          </span>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${product.status ===
+                                'Published'
                                 ? theme ===
                                   'light'
-                                  ? 'text-amber-600'
-                                  : 'text-amber-400'
-                                : c.textSecondary
-                          }
-                        >
-                          {product.stock}
-                        </span>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${product.status ===
-                              'Published'
-                              ? theme ===
-                                'light'
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-emerald-500/10 text-emerald-400'
-                              : theme ===
-                                'light'
-                                ? 'bg-amber-50 text-amber-700'
-                                : 'bg-amber-500/10 text-amber-400'
-                            }`}
-                        >
-                          {product.status}
-                        </span>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              openEditModal(
-                                product,
-                              )
-                            }
-                            disabled={
-                              deletingId ===
-                              product.id
-                            }
-                            className={`rounded-lg border ${c.border} p-2 ${c.textMuted} transition-colors hover:text-violet-500 disabled:cursor-not-allowed disabled:opacity-50`}
-                            title="Edit product"
+                                  ? 'bg-emerald-50 text-emerald-700'
+                                  : 'bg-emerald-500/10 text-emerald-400'
+                                : theme ===
+                                  'light'
+                                  ? 'bg-amber-50 text-amber-700'
+                                  : 'bg-amber-500/10 text-amber-400'
+                              }`}
                           >
-                            <Edit className="h-4 w-4" />
-                          </button>
+                            {
+                              product.status
+                            }
+                          </span>
+                        </td>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDelete(
-                                product.id,
-                              )
-                            }
-                            disabled={
-                              deletingId ===
-                              product.id
-                            }
-                            className="rounded-lg border border-red-500/20 p-2 text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
-                            title="Delete product"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ),
+                        <td className="px-6 py-4">
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openEditModal(
+                                  product,
+                                )
+                              }
+                              disabled={
+                                deletingId ===
+                                product.id
+                              }
+                              className={`rounded-lg border ${c.border} p-2 ${c.textMuted} transition-colors hover:text-violet-500 disabled:cursor-not-allowed disabled:opacity-50`}
+                              title="Edit product"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleDelete(
+                                  product.id,
+                                )
+                              }
+                              disabled={
+                                deletingId ===
+                                product.id
+                              }
+                              className="rounded-lg border border-red-500/20 p-2 text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                              title="Delete product"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  },
                 )
               )}
             </tbody>
@@ -1276,7 +1640,7 @@ export function AdminProductsPage() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
           <div
-            className={`max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border ${c.border} ${c.surface} shadow-2xl`}
+            className={`max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border ${c.border} ${c.surface} shadow-2xl`}
           >
             <div
               className={`flex items-center justify-between border-b ${c.border} px-6 py-5`}
@@ -1294,7 +1658,7 @@ export function AdminProductsPage() {
                   className={`mt-1 text-sm ${c.textMuted}`}
                 >
                   {editingProduct
-                    ? 'Update product information.'
+                    ? 'Update product information and gallery.'
                     : 'Create a new digital product.'}
                 </p>
               </div>
@@ -1302,7 +1666,9 @@ export function AdminProductsPage() {
               <button
                 type="button"
                 onClick={closeModal}
-                disabled={isSubmitting}
+                disabled={
+                  isSubmitting
+                }
                 className={`rounded-lg p-2 ${c.textMuted} ${c.hover} transition-colors disabled:opacity-50`}
               >
                 <X className="h-5 w-5" />
@@ -1310,7 +1676,9 @@ export function AdminProductsPage() {
             </div>
 
             <form
-              onSubmit={handleSubmit}
+              onSubmit={
+                handleSubmit
+              }
             >
               <div className="space-y-5 px-6 py-6">
                 {error && (
@@ -1320,83 +1688,209 @@ export function AdminProductsPage() {
                 )}
 
                 <div>
-                  <label
-                    className={`mb-2 block text-sm font-medium ${c.textPrimary}`}
-                  >
-                    Product Image
-                  </label>
-
-                  <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
-                    <div
-                      className={`relative aspect-square overflow-hidden rounded-xl border ${c.border} ${c.input}`}
-                    >
-                      {imagePreview ? (
-                        <img
-                          src={imagePreview}
-                          alt="Product preview"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div
-                          className={`flex h-full flex-col items-center justify-center ${c.textMuted}`}
-                        >
-                          <ImagePlus className="h-8 w-8" />
-
-                          <span className="mt-2 text-xs">
-                            No image
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div
-                      className={`flex flex-col justify-center rounded-xl border border-dashed ${c.border} ${c.elevated} p-5`}
-                    >
-                      <div
-                        className={`flex items-center gap-3 ${c.textPrimary}`}
+                  <div className="mb-3 flex items-end justify-between gap-4">
+                    <div>
+                      <label
+                        className={`block text-sm font-medium ${c.textPrimary}`}
                       >
-                        <Upload className="h-5 w-5 text-violet-500" />
-
-                        <p className="text-sm font-semibold">
-                          Upload product image
-                        </p>
-                      </div>
-
-                      <p
-                        className={`mt-2 text-xs leading-5 ${c.textMuted}`}
-                      >
-                        JPG, PNG, WEBP, or GIF.
-                        Maximum 5 MB. Stored
-                        image is compressed to
-                        150 KB.
-                      </p>
-
-                      <label className="mt-4 inline-flex w-fit cursor-pointer items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700">
-                        <ImagePlus className="h-4 w-4" />
-
-                        Choose Image
-
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp,image/gif"
-                          onChange={
-                            handleImageChange
-                          }
-                          disabled={
-                            isSubmitting
-                          }
-                          className="sr-only"
-                        />
+                        Product Images
                       </label>
 
-                      {imageFile && (
-                        <p
-                          className={`mt-3 truncate text-xs ${c.textSecondary}`}
-                        >
-                          {imageFile.name}
-                        </p>
+                      <p
+                        className={`mt-1 text-xs ${c.textMuted}`}
+                      >
+                        The first image
+                        becomes the
+                        product cover.
+                      </p>
+                    </div>
+
+                    <span
+                      className={`text-xs font-medium ${productImages.length >=
+                          MAX_PRODUCT_IMAGES
+                          ? 'text-amber-500'
+                          : c.textMuted
+                        }`}
+                    >
+                      {
+                        productImages.length
+                      }
+                      /
+                      {
+                        MAX_PRODUCT_IMAGES
+                      }{' '}
+                      images
+                    </span>
+                  </div>
+
+                  {productImages.length >
+                    0 ? (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {productImages.map(
+                        (
+                          image,
+                          index,
+                        ) => (
+                          <div
+                            key={
+                              image.id
+                            }
+                            className={`group relative aspect-square overflow-hidden rounded-xl border ${c.border} ${c.input}`}
+                          >
+                            <img
+                              src={
+                                image.url
+                              }
+                              alt={`Product image ${index +
+                                1
+                                }`}
+                              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                            />
+
+                            <div className="absolute inset-x-0 top-0 flex items-center justify-between p-2">
+                              {index ===
+                                0 ? (
+                                <span className="rounded-md bg-violet-600 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+                                  Cover
+                                </span>
+                              ) : (
+                                <span className="rounded-md bg-black/60 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm">
+                                  {String(
+                                    index +
+                                    1,
+                                  ).padStart(
+                                    2,
+                                    '0',
+                                  )}
+                                </span>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  removeProductImage(
+                                    image.id,
+                                  )
+                                }
+                                disabled={
+                                  isSubmitting
+                                }
+                                className="rounded-md bg-black/65 p-1.5 text-white opacity-0 backdrop-blur-sm transition hover:bg-red-500 group-hover:opacity-100 disabled:cursor-not-allowed"
+                                title="Remove image"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+
+                            {image.file && (
+                              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 pb-2 pt-6">
+                                <p className="truncate text-[10px] text-white/80">
+                                  {
+                                    image
+                                      .file
+                                      .name
+                                  }
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ),
                       )}
                     </div>
+                  ) : (
+                    <div
+                      className={`flex min-h-[220px] items-center justify-center rounded-xl border border-dashed ${c.border} ${c.elevated}`}
+                    >
+                      <div
+                        className={`text-center ${c.textMuted}`}
+                      >
+                        <ImagePlus className="mx-auto h-9 w-9" />
+
+                        <p className="mt-3 text-sm font-medium">
+                          No images
+                          added
+                        </p>
+
+                        <p className="mt-1 text-xs">
+                          Add up to{' '}
+                          {
+                            MAX_PRODUCT_IMAGES
+                          }{' '}
+                          product
+                          images.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div
+                    className={`mt-4 rounded-xl border border-dashed ${c.border} ${c.elevated} p-5`}
+                  >
+                    <div
+                      className={`flex items-center gap-3 ${c.textPrimary}`}
+                    >
+                      <Upload className="h-5 w-5 text-violet-500" />
+
+                      <p className="text-sm font-semibold">
+                        Upload product
+                        gallery
+                      </p>
+                    </div>
+
+                    <p
+                      className={`mt-2 text-xs leading-5 ${c.textMuted}`}
+                    >
+                      JPG, PNG, WEBP,
+                      or GIF. Maximum
+                      5 MB per source
+                      image. Images
+                      are automatically
+                      compressed to
+                      150 KB before
+                      upload.
+                    </p>
+
+                    <label
+                      className={`mt-4 inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 ${productImages.length >=
+                          MAX_PRODUCT_IMAGES
+                          ? 'pointer-events-none opacity-50'
+                          : 'cursor-pointer'
+                        }`}
+                    >
+                      <ImagePlus className="h-4 w-4" />
+
+                      {productImages.length >
+                        0
+                        ? 'Add More Images'
+                        : 'Choose Images'}
+
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        onChange={
+                          handleImageChange
+                        }
+                        disabled={
+                          isSubmitting ||
+                          productImages.length >=
+                          MAX_PRODUCT_IMAGES
+                        }
+                        className="sr-only"
+                      />
+                    </label>
+
+                    <p
+                      className={`mt-3 text-[11px] ${c.textMuted}`}
+                    >
+                      You can select
+                      multiple files
+                      at once. Maximum{' '}
+                      {
+                        MAX_PRODUCT_IMAGES
+                      }{' '}
+                      images total.
+                    </p>
                   </div>
                 </div>
 
@@ -1412,7 +1906,9 @@ export function AdminProductsPage() {
                     id="product-name"
                     type="text"
                     value={form.name}
-                    onChange={(event) =>
+                    onChange={(
+                      event,
+                    ) =>
                       setForm(
                         (current) => ({
                           ...current,
@@ -1423,7 +1919,9 @@ export function AdminProductsPage() {
                       )
                     }
                     placeholder="e.g. Website Template"
-                    disabled={isSubmitting}
+                    disabled={
+                      isSubmitting
+                    }
                     className={`w-full rounded-lg border ${c.border} ${c.input} ${c.textPrimary} ${c.placeholder} px-4 py-3 text-sm outline-none focus:border-violet-500 disabled:opacity-50`}
                   />
                 </div>
@@ -1455,7 +1953,9 @@ export function AdminProductsPage() {
                           }),
                         )
                       }
-                      disabled={isSubmitting}
+                      disabled={
+                        isSubmitting
+                      }
                       className={`w-full rounded-lg border ${c.border} ${c.input} ${c.textPrimary} px-4 py-3 text-sm outline-none focus:border-violet-500 disabled:opacity-50`}
                     >
                       <option>
@@ -1556,7 +2056,9 @@ export function AdminProductsPage() {
                       )
                     }
                     placeholder="25"
-                    disabled={isSubmitting}
+                    disabled={
+                      isSubmitting
+                    }
                     className={`w-full rounded-lg border ${c.border} ${c.input} ${c.textPrimary} ${c.placeholder} px-4 py-3 text-sm outline-none focus:border-violet-500 disabled:opacity-50`}
                   />
                 </div>
@@ -1589,7 +2091,9 @@ export function AdminProductsPage() {
                       )
                     }
                     placeholder="Describe this product..."
-                    disabled={isSubmitting}
+                    disabled={
+                      isSubmitting
+                    }
                     className={`w-full resize-none rounded-lg border ${c.border} ${c.input} ${c.textPrimary} ${c.placeholder} px-4 py-3 text-sm leading-6 outline-none focus:border-violet-500 disabled:opacity-50`}
                   />
                 </div>
@@ -1604,7 +2108,9 @@ export function AdminProductsPage() {
 
                   <select
                     id="product-status"
-                    value={form.status}
+                    value={
+                      form.status
+                    }
                     onChange={(
                       event,
                     ) =>
@@ -1620,7 +2126,9 @@ export function AdminProductsPage() {
                         }),
                       )
                     }
-                    disabled={isSubmitting}
+                    disabled={
+                      isSubmitting
+                    }
                     className={`w-full rounded-lg border ${c.border} ${c.input} ${c.textPrimary} px-4 py-3 text-sm outline-none focus:border-violet-500 disabled:opacity-50`}
                   >
                     <option value="Published">
@@ -1639,8 +2147,12 @@ export function AdminProductsPage() {
               >
                 <button
                   type="button"
-                  onClick={closeModal}
-                  disabled={isSubmitting}
+                  onClick={
+                    closeModal
+                  }
+                  disabled={
+                    isSubmitting
+                  }
                   className={`rounded-lg border ${c.border} px-5 py-2.5 text-sm font-medium ${c.textSecondary} ${c.hover} transition-colors disabled:opacity-50`}
                 >
                   Cancel
@@ -1648,7 +2160,9 @@ export function AdminProductsPage() {
 
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={
+                    isSubmitting
+                  }
                   className="rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isSubmitting
@@ -1675,7 +2189,8 @@ function StatCard({
   value: string
   theme: AdminTheme
 }) {
-  const c = getThemeTokens(theme)
+  const c =
+    getThemeTokens(theme)
 
   return (
     <div

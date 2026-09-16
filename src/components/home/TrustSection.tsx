@@ -1,662 +1,366 @@
+import { useEffect, useRef } from 'react'
+import { ArrowRight, ArrowUpRight, Check } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import {
-    ArrowRight,
-    BadgeCheck,
-    CheckCircle2,
-    FileCheck2,
-    MessageCircle,
-    ReceiptText,
-    Sparkles,
-} from 'lucide-react'
-
-const trustPoints = [
-    {
-        number: '01',
-        icon: FileCheck2,
-        title: 'Start With The Brief',
-        description:
-            'Kebutuhan dan scope project dibahas terlebih dahulu agar kedua pihak memahami apa yang akan dikerjakan.',
-        label: 'Clarity',
-        accent: 'violet',
-    },
-    {
-        number: '02',
-        icon: MessageCircle,
-        title: 'Discuss Before Commit',
-        description:
-            'Untuk project custom, kamu bisa mengirim Request Quote tanpa harus langsung menentukan atau membayar harga.',
-        label: 'Communication',
-        accent: 'cyan',
-    },
-    {
-        number: '03',
-        icon: ReceiptText,
-        title: 'See The Final Quote',
-        description:
-            'Setelah kebutuhan direview, harga final dan detail DP diberikan melalui quotation sebelum kamu memutuskan.',
-        label: 'Transparency',
-        accent: 'pink',
-    },
-    {
-        number: '04',
-        icon: BadgeCheck,
-        title: 'You Approve The Project',
-        description:
-            'Kamu memiliki kesempatan untuk meninjau quotation terlebih dahulu sebelum menerima dan melanjutkan ke pembayaran DP.',
-        label: 'Approval',
-        accent: 'amber',
-    },
-]
-
-const processSteps = [
-    {
-        number: '01',
-        title: 'Request',
-        description: 'Ceritakan kebutuhan',
-    },
-    {
-        number: '02',
-        title: 'Review',
-        description: 'Kami memahami scope',
-    },
-    {
-        number: '03',
-        title: 'Quote',
-        description: 'Harga final diberikan',
-    },
-    {
-        number: '04',
-        title: 'Approve',
-        description: 'Kamu menentukan lanjut',
-    },
-]
-
-function getAccentClasses(accent: string) {
-    switch (accent) {
-        case 'cyan':
-            return {
-                icon: 'bg-cyan-50 text-cyan-600 border-cyan-100 group-hover:bg-cyan-100 group-hover:border-cyan-200',
-                glow: 'bg-cyan-400/10',
-                line: 'from-cyan-400',
-                number: 'text-cyan-600/60',
-            }
-
-        case 'pink':
-            return {
-                icon: 'bg-pink-50 text-pink-600 border-pink-100 group-hover:bg-pink-100 group-hover:border-pink-200',
-                glow: 'bg-pink-400/10',
-                line: 'from-pink-400',
-                number: 'text-pink-600/60',
-            }
-
-        case 'amber':
-            return {
-                icon: 'bg-amber-50 text-amber-600 border-amber-100 group-hover:bg-amber-100 group-hover:border-amber-200',
-                glow: 'bg-amber-400/10',
-                line: 'from-amber-400',
-                number: 'text-amber-600/60',
-            }
-
-        default:
-            return {
-                icon: 'bg-violet-50 text-violet-600 border-violet-100 group-hover:bg-violet-100 group-hover:border-violet-200',
-                glow: 'bg-violet-400/10',
-                line: 'from-violet-500',
-                number: 'text-violet-600/60',
-            }
-    }
-}
 
 export function TrustSection() {
+    const sectionRef = useRef<HTMLElement | null>(null)
+
+    useEffect(() => {
+        const section = sectionRef.current
+        if (!section) return
+
+        const items = section.querySelectorAll('[data-reveal]')
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('is-visible')
+                        observer.unobserve(entry.target)
+                    }
+                })
+            },
+            { threshold: 0.08 },
+        )
+
+        items.forEach((item) => observer.observe(item))
+
+        return () => observer.disconnect()
+    }, [])
+
+    const process = [
+        {
+            number: '01',
+            title: 'Start with the idea.',
+            description:
+                'Kami memahami kebutuhan, goals, dan konteks project terlebih dahulu sebelum menentukan approach yang tepat.',
+        },
+        {
+            number: '02',
+            title: 'Shape the direction.',
+            description:
+                'Ide diterjemahkan menjadi konsep, visual, dan technical direction yang jelas agar proses tetap focused.',
+        },
+        {
+            number: '03',
+            title: 'Turn it into work.',
+            description:
+                'Creative thinking dan technology kami satukan untuk menghasilkan karya digital yang functional, relevant, dan siap digunakan.',
+        },
+        {
+            number: '04',
+            title: 'Grow it together.',
+            description:
+                'Project tidak berhenti saat selesai. Kami tetap membuka ruang untuk improvement, development, dan kebutuhan berikutnya.',
+        },
+    ]
+
+    const principles = [
+        {
+            title: 'Listen first.',
+            description:
+                'Memahami kebutuhan dan konteks sebelum menentukan solusi.',
+        },
+        {
+            title: 'Make it clear.',
+            description:
+                'Setiap keputusan punya purpose, direction, dan alasan yang jelas.',
+        },
+        {
+            title: 'Build together.',
+            description:
+                'Kolaborasi dan komunikasi menjadi bagian penting dari setiap proses.',
+        },
+    ]
+
     return (
         <section
-            aria-labelledby="trust-section-title"
-            className="relative isolate overflow-hidden bg-white py-20 sm:py-24 lg:py-32"
+            ref={sectionRef}
+            className="relative overflow-hidden bg-white text-zinc-950"
         >
-            {/* =========================================================
-                SUBTLE BACKGROUND
-            ========================================================== */}
-
+            {/* Background */}
             <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
+                className="pointer-events-none absolute inset-0"
             >
-                {/* Soft purple accent */}
-                <div className="trustSoftGlow absolute -left-32 top-0 h-[420px] w-[420px] rounded-full bg-violet-100/70 blur-[120px]" />
-
-                {/* Soft pink accent */}
-                <div className="trustSoftGlowTwo absolute -right-32 top-[35%] h-[420px] w-[420px] rounded-full bg-pink-100/50 blur-[120px]" />
-
-                {/* Very subtle grid */}
-                <div className="trustGrid absolute inset-0 opacity-[0.025]" />
-
-                {/* Small moving light */}
-                <div className="trustLight absolute left-0 top-[28%] h-px w-[35%] bg-gradient-to-r from-transparent via-violet-400/30 to-transparent" />
-
                 <div
-                    className="trustLight trustLightDelay absolute right-0 top-[72%] h-px w-[30%] bg-gradient-to-l from-transparent via-pink-400/20 to-transparent"
+                    className="absolute inset-0 opacity-[0.018]"
+                    style={{
+                        backgroundImage:
+                            'linear-gradient(to right, #111 1px, transparent 1px), linear-gradient(to bottom, #111 1px, transparent 1px)',
+                        backgroundSize: '100px 100px',
+                    }}
                 />
+
+                <div className="absolute right-[8%] top-[24%] h-2 w-2 rounded-full bg-[#7C3AED]" />
+
+                <div className="absolute left-[3%] top-[63%] h-1.5 w-1.5 rounded-full bg-[#7C3AED]" />
             </div>
 
-            {/* =========================================================
-                CONTENT
-            ========================================================== */}
+            <div className="relative mx-auto max-w-[1600px] px-6 py-16 sm:px-8 sm:py-20 lg:px-12 lg:py-24 xl:px-16">
+                {/* Section Header */}
+                <div
+                    data-reveal
+                    className="reveal-item mb-12 flex items-center justify-between border-t border-black/10 pt-4 opacity-0 translate-y-4 transition-all duration-700 ease-out [&.is-visible]:translate-y-0 [&.is-visible]:opacity-100 sm:mb-14"
+                >
+                    <div className="flex items-center gap-3">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#7C3AED]" />
 
-            <div className="mx-auto max-w-[1240px] px-5 sm:px-8 lg:px-10">
+                        <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-neutral-500 sm:text-[10px]">
+                            39Production / How We Work
+                        </span>
+                    </div>
 
-                {/* =====================================================
-                    INTRO
-                ====================================================== */}
+                    <span className="hidden font-mono text-[9px] tracking-[0.16em] text-neutral-400 sm:block">
+                        39 / 02
+                    </span>
+                </div>
 
-                <div className="grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
+                {/* Introduction */}
+                <div className="grid gap-8 lg:grid-cols-[0.7fr_1.3fr] lg:gap-16 xl:grid-cols-[0.65fr_1.35fr]">
+                    <div
+                        data-reveal
+                        className="reveal-item max-w-md opacity-0 translate-y-4 transition-all delay-100 duration-700 ease-out [&.is-visible]:translate-y-0 [&.is-visible]:opacity-100"
+                    >
+                        <p className="text-sm font-medium leading-7 text-neutral-600 sm:text-[15px] sm:leading-7">
+                            Setiap project punya kebutuhan yang berbeda.
+                            That's why we don't believe in a one-size-fits-all
+                            approach.
+                        </p>
 
-                    {/* =================================================
-                        LEFT — INTRODUCTION
-                    ================================================== */}
+                        <div className="mt-6 flex items-center gap-3">
+                            <span className="h-px w-10 bg-[#7C3AED]" />
 
-                    <div className="relative">
+                            <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-neutral-400">
+                                Idea / Direction / Production
+                            </span>
+                        </div>
+                    </div>
 
-                        <div
-                            aria-hidden="true"
-                            className="absolute -left-8 top-0 h-40 w-40 rounded-full bg-violet-100/60 blur-[80px]"
-                        />
+                    <div
+                        data-reveal
+                        className="reveal-item max-w-4xl opacity-0 translate-y-4 transition-all delay-150 duration-700 ease-out [&.is-visible]:translate-y-0 [&.is-visible]:opacity-100"
+                    >
+                        <p className="mb-4 text-[9px] font-bold uppercase tracking-[0.22em] text-[#7C3AED]">
+                            Our Approach
+                        </p>
 
-                        <div className="relative">
-
-                            {/* Label */}
-
-                            <div className="inline-flex items-center gap-2 rounded-full border border-violet-100 bg-violet-50 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-600">
-                                <Sparkles
-                                    aria-hidden="true"
-                                    className="h-3.5 w-3.5"
-                                />
-
-                                <span>Why 39Production</span>
-                            </div>
-
-                            {/* Heading */}
-
-                            <h2
-                                id="trust-section-title"
-                                className="mt-6 max-w-xl font-display text-4xl font-bold leading-[1.06] tracking-tight text-neutral-950 sm:text-5xl lg:text-[3.6rem]"
-                            >
-                                A clearer way to
-                                <br className="hidden sm:block" />
-
-                                <span className="gradient-text">
-                                    {' '}build together.
+                        <h2 className="text-[clamp(2.5rem,4.8vw,5rem)] font-black leading-[0.9] tracking-[-0.065em] text-black">
+                            From idea
+                            <span className="text-neutral-300">
+                                {' '}
+                                to something
+                            </span>
+                            <br className="hidden sm:block" />
+                            <span className="relative inline-block">
+                                <span className="relative z-10">
+                                    worth making.
                                 </span>
-                            </h2>
 
-                            {/* Description */}
+                                <span
+                                    aria-hidden="true"
+                                    className="absolute bottom-[1%] left-0 right-[-3%] z-0 h-[0.1em] bg-[#7C3AED]"
+                                />
+                            </span>
+                        </h2>
 
-                            <p className="mt-6 max-w-lg text-[15px] leading-7 text-neutral-600 sm:text-base sm:leading-8">
-                                Project yang baik bukan hanya tentang hasil akhir.
-                                Proses yang jelas membantu ide berkembang menjadi
-                                sesuatu yang benar-benar sesuai kebutuhan.
+                        <p className="mt-6 max-w-2xl text-sm font-medium leading-7 text-neutral-500 sm:text-[15px]">
+                            39Production works between creativity, technology,
+                            and entertainment untuk mengubah ideas, needs,
+                            dan challenges menjadi digital works yang relevant
+                            dan siap digunakan.
+                        </p>
+                    </div>
+                </div>
+
+                {/* Process */}
+                <div className="mt-20 sm:mt-24">
+                    <div
+                        data-reveal
+                        className="reveal-item mb-7 flex flex-col gap-2 opacity-0 translate-y-4 transition-all duration-700 ease-out [&.is-visible]:translate-y-0 [&.is-visible]:opacity-100 sm:flex-row sm:items-end sm:justify-between"
+                    >
+                        <div>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-[#7C3AED]">
+                                Our Process
                             </p>
 
-                            {/* Trust statement */}
-
-                            <div className="mt-8 flex items-start gap-3.5">
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-violet-100 bg-violet-50">
-                                    <CheckCircle2 className="h-4 w-4 text-violet-600" />
-                                </div>
-
-                                <div>
-                                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-neutral-400">
-                                        Customer-first process
-                                    </p>
-
-                                    <p className="mt-1 text-sm text-neutral-600">
-                                        Understand first. Quote clearly. Build together.
-                                    </p>
-                                </div>
-                            </div>
-
+                            <h3 className="mt-2 text-2xl font-black tracking-[-0.045em] text-black sm:text-3xl">
+                                Cara kami bekerja.
+                            </h3>
                         </div>
+
+                        <p className="max-w-sm text-xs leading-6 text-neutral-500 sm:text-sm">
+                            A simple process untuk menjaga setiap project tetap
+                            clear, focused, dan flexible.
+                        </p>
                     </div>
 
-                    {/* =================================================
-                        RIGHT — APPROACH CARD
-                    ================================================== */}
-
-                    <div className="relative">
-
-                        <div className="trustApproachCard relative overflow-hidden rounded-3xl border border-neutral-200 bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.06)] sm:p-8 lg:p-9">
-
-                            {/* Subtle top accent */}
-
+                    <div className="border-t border-black/10">
+                        {process.map((item, index) => (
                             <div
-                                aria-hidden="true"
-                                className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/60 to-transparent"
-                            />
+                                key={item.number}
+                                data-reveal
+                                className="reveal-item group grid gap-4 border-b border-black/10 py-5 opacity-0 translate-y-4 transition-all duration-700 ease-out [&.is-visible]:translate-y-0 [&.is-visible]:opacity-100 md:grid-cols-[64px_0.75fr_1fr_auto] md:items-center md:gap-8 lg:py-6"
+                                style={{
+                                    transitionDelay: `${index * 70 + 100}ms`,
+                                }}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <span className="font-mono text-[9px] font-bold tracking-[0.15em] text-[#7C3AED]">
+                                        {item.number}
+                                    </span>
 
-                            {/* Decorative circle */}
-
-                            <div
-                                aria-hidden="true"
-                                className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-violet-100/70 blur-[80px]"
-                            />
-
-                            <div
-                                aria-hidden="true"
-                                className="absolute -bottom-24 -left-24 h-52 w-52 rounded-full bg-pink-100/50 blur-[80px]"
-                            />
-
-                            {/* Top metadata */}
-
-                            <div className="relative flex items-center justify-between border-b border-neutral-100 pb-5">
-
-                                <div>
-                                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">
-                                        Our Approach
-                                    </p>
-
-                                    <p className="mt-1.5 text-sm font-medium text-neutral-700">
-                                        Built around your project.
-                                    </p>
+                                    <span className="h-px w-5 bg-black/10 md:hidden" />
                                 </div>
 
-                                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-violet-100 bg-violet-50">
-                                    <Sparkles className="h-4 w-4 text-violet-600" />
+                                <h4 className="text-lg font-black tracking-[-0.035em] text-black transition-transform duration-300 group-hover:translate-x-1 sm:text-xl">
+                                    {item.title}
+                                </h4>
+
+                                <p className="max-w-xl text-xs font-medium leading-6 text-neutral-500 sm:text-sm">
+                                    {item.description}
+                                </p>
+
+                                <div className="hidden h-9 w-9 items-center justify-center rounded-full border border-black/10 text-neutral-300 transition-all duration-300 group-hover:border-[#7C3AED] group-hover:bg-[#7C3AED] group-hover:text-white md:flex">
+                                    <ArrowUpRight
+                                        size={14}
+                                        className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                                    />
                                 </div>
-
                             </div>
-
-                            {/* Main quote */}
-
-                            <div className="relative py-7 sm:py-8">
-
-                                <p className="max-w-2xl font-display text-2xl font-semibold leading-[1.3] tracking-tight text-neutral-900 sm:text-3xl">
-                                    You should know what happens
-                                    <span className="text-violet-600"> before </span>
-                                    your project moves forward.
-                                </p>
-
-                                <p className="mt-4 max-w-xl text-sm leading-7 text-neutral-500">
-                                    That is why custom projects begin with a request,
-                                    continue through a clear quotation, and only move
-                                    to checkout after the quote is accepted.
-                                </p>
-
-                            </div>
-
-                            {/* =================================================
-                                PROCESS
-                            ================================================== */}
-
-                            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-
-                                {processSteps.map((step, index) => (
-                                    <div
-                                        key={step.number}
-                                        className="group relative rounded-2xl border border-neutral-100 bg-neutral-50/70 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-100 hover:bg-violet-50/30"
-                                    >
-                                        <div className="flex items-center justify-between">
-
-                                            <span className="font-mono text-[9px] font-semibold tracking-[0.18em] text-violet-500/70">
-                                                {step.number}
-                                            </span>
-
-                                            {index < processSteps.length - 1 && (
-                                                <span className="hidden h-px w-4 bg-neutral-200 lg:block" />
-                                            )}
-
-                                        </div>
-
-                                        <p className="mt-4 text-sm font-semibold text-neutral-800">
-                                            {step.title}
-                                        </p>
-
-                                        <p className="mt-1 text-[11px] leading-5 text-neutral-500">
-                                            {step.description}
-                                        </p>
-                                    </div>
-                                ))}
-
-                            </div>
-
-                        </div>
+                        ))}
                     </div>
                 </div>
 
-                {/* =====================================================
-                    TRUST PRINCIPLES
-                ====================================================== */}
-
+                {/* Principles */}
                 <div className="mt-20 sm:mt-24">
+                    <div
+                        data-reveal
+                        className="reveal-item grid gap-8 opacity-0 translate-y-4 transition-all duration-700 ease-out [&.is-visible]:translate-y-0 [&.is-visible]:opacity-100 lg:grid-cols-[0.65fr_1.35fr] lg:gap-16"
+                    >
+                        <div>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-[#7C3AED]">
+                                Our Principles
+                            </p>
 
-                    {/* Section header */}
+                            <h3 className="mt-3 max-w-md text-3xl font-black leading-[0.92] tracking-[-0.055em] text-black sm:text-4xl">
+                                Built with
+                                <span className="text-neutral-300">
+                                    {' '}
+                                    purpose.
+                                </span>
+                            </h3>
 
-                    <div className="mb-7 flex items-center gap-4">
+                            <p className="mt-5 max-w-sm text-xs leading-6 text-neutral-500 sm:text-sm">
+                                Prinsip sederhana yang kami gunakan untuk
+                                menjaga quality of work dan hubungan yang baik
+                                dengan setiap partner.
+                            </p>
+                        </div>
 
-                        <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.22em] text-neutral-400">
-                            What You Can Expect
-                        </span>
-
-                        <div className="h-px flex-1 bg-gradient-to-r from-neutral-200 to-transparent" />
-
-                    </div>
-
-                    {/* =================================================
-                        CARDS
-                    ================================================== */}
-
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-                        {trustPoints.map((point) => {
-                            const Icon = point.icon
-                            const accent = getAccentClasses(point.accent)
-
-                            return (
-                                <article
-                                    key={point.number}
-                                    className="group relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.035)] transition-all duration-500 hover:-translate-y-1 hover:border-neutral-300 hover:shadow-[0_18px_45px_rgba(0,0,0,0.07)] sm:p-6 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                        <div className="grid border-t border-black/10 sm:grid-cols-3 sm:border-t-0">
+                            {principles.map((principle, index) => (
+                                <div
+                                    key={principle.title}
+                                    className={`group py-6 sm:px-6 sm:py-2 ${index !== 0
+                                            ? 'border-t border-black/10 sm:border-l sm:border-t-0'
+                                            : ''
+                                        }`}
                                 >
-
-                                    {/* Hover glow */}
-
-                                    <div
-                                        aria-hidden="true"
-                                        className={`pointer-events-none absolute -right-16 -top-16 h-36 w-36 rounded-full ${accent.glow} opacity-0 blur-[65px] transition-opacity duration-500 group-hover:opacity-100`}
-                                    />
-
-                                    {/* Top accent */}
-
-                                    <div
-                                        aria-hidden="true"
-                                        className={`absolute left-0 top-0 h-[2px] w-0 bg-gradient-to-r ${accent.line} to-transparent transition-all duration-500 group-hover:w-24`}
-                                    />
-
-                                    <div className="relative">
-
-                                        {/* Header */}
-
-                                        <div className="flex items-center justify-between">
-
-                                            <span
-                                                className={`font-mono text-[10px] font-semibold tracking-[0.2em] ${accent.number}`}
-                                            >
-                                                {point.number}
-                                            </span>
-
-                                            <span className="rounded-full border border-neutral-100 bg-neutral-50 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-neutral-400">
-                                                {point.label}
-                                            </span>
-
-                                        </div>
-
-                                        {/* Icon */}
-
-                                        <div
-                                            className={`mt-7 flex h-11 w-11 items-center justify-center rounded-xl border transition-all duration-400 group-hover:-translate-y-1 group-hover:scale-105 ${accent.icon} motion-reduce:transition-none motion-reduce:group-hover:translate-y-0 motion-reduce:group-hover:scale-100`}
-                                        >
-                                            <Icon className="h-5 w-5" />
-                                        </div>
-
-                                        {/* Content */}
-
-                                        <h3 className="mt-5 text-[17px] font-semibold tracking-tight text-neutral-900">
-                                            {point.title}
-                                        </h3>
-
-                                        <p className="mt-3 text-sm leading-6 text-neutral-500">
-                                            {point.description}
-                                        </p>
-
-                                        {/* Bottom */}
-
-                                        <div className="mt-6 flex items-center gap-2 border-t border-neutral-100 pt-4">
-
-                                            <CheckCircle2 className="h-3.5 w-3.5 text-violet-500/60" />
-
-                                            <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-neutral-400">
-                                                Part of the process
-                                            </span>
-
-                                        </div>
-
+                                    <div className="mb-5 flex h-8 w-8 items-center justify-center rounded-full border border-black/10 transition-all duration-300 group-hover:border-[#7C3AED] group-hover:bg-[#7C3AED] group-hover:text-white">
+                                        <Check
+                                            className="h-3.5 w-3.5"
+                                            strokeWidth={2}
+                                        />
                                     </div>
 
-                                    {/* Shine */}
+                                    <h4 className="text-base font-black tracking-[-0.025em] text-black">
+                                        {principle.title}
+                                    </h4>
 
-                                    <div
-                                        aria-hidden="true"
-                                        className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-1000 group-hover:translate-x-full"
-                                    />
-
-                                </article>
-                            )
-                        })}
-
+                                    <p className="mt-2 max-w-[210px] text-xs leading-6 text-neutral-500 sm:text-sm">
+                                        {principle.description}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
-                {/* =====================================================
-                    BOTTOM CTA
-                ====================================================== */}
+                {/* CTA */}
+                <div
+                    data-reveal
+                    className="reveal-item relative mt-20 overflow-hidden rounded-[1.5rem] bg-black px-6 py-8 text-white opacity-0 translate-y-4 transition-all duration-700 ease-out [&.is-visible]:translate-y-0 [&.is-visible]:opacity-100 sm:px-8 sm:py-9 lg:mt-24 lg:px-10 lg:py-10"
+                >
+                    <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute -right-20 -top-24 h-60 w-60 rounded-full bg-[#7C3AED] opacity-70"
+                    />
 
-                <div className="mt-16 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50 sm:mt-20">
+                    <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute right-[14%] top-1/2 h-24 w-24 -translate-y-1/2 rounded-full border border-white/10"
+                    />
 
-                    <div className="flex flex-col gap-6 px-5 py-6 sm:px-7 sm:py-7 lg:flex-row lg:items-center lg:justify-between lg:px-9">
+                    <div className="relative z-10 flex flex-col gap-7 sm:flex-row sm:items-end sm:justify-between">
+                        <div className="max-w-2xl">
+                            <p className="mb-3 text-[9px] font-bold uppercase tracking-[0.22em] text-[#E78FBA]">
+                                39Production / Start Something
+                            </p>
 
-                        <div className="flex items-start gap-3.5">
+                            <h3 className="text-[clamp(2rem,3.8vw,4rem)] font-black leading-[0.9] tracking-[-0.06em]">
+                                Have a project
+                                <span className="text-white/35">
+                                    {' '}
+                                    in mind?
+                                </span>
+                            </h3>
 
-                            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-violet-100 bg-white shadow-sm">
-                                <FileCheck2 className="h-4 w-4 text-violet-600" />
-                            </div>
-
-                            <div>
-
-                                <p className="text-sm font-semibold text-neutral-800">
-                                    Punya project yang belum punya bentuk yang jelas?
-                                </p>
-
-                                <p className="mt-1 max-w-2xl text-sm leading-6 text-neutral-500">
-                                    Mulai dengan menceritakan kebutuhanmu. Tidak perlu
-                                    langsung menentukan harga atau paket.
-                                </p>
-
-                            </div>
+                            <p className="mt-4 max-w-xl text-xs leading-6 text-white/50 sm:text-sm">
+                                Punya idea atau project yang sedang disiapkan?
+                                Ceritakan kebutuhanmu, and let's figure out the
+                                next step together.
+                            </p>
                         </div>
 
                         <Link
                             to="/contact"
-                            className="group inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-3 rounded-xl bg-neutral-950 px-5 py-3.5 text-sm font-semibold text-white shadow-sm outline-none transition-all duration-300 hover:-translate-y-0.5 hover:bg-neutral-800 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:w-auto"
+                            className="group inline-flex shrink-0 items-center justify-center gap-3 rounded-full bg-white px-5 py-3.5 text-[10px] font-bold uppercase tracking-[0.12em] text-black transition-all duration-300 hover:bg-[#7C3AED] hover:text-white"
                         >
-                            <span>Start With Your Idea</span>
+                            Start a Project
 
                             <ArrowRight
-                                aria-hidden="true"
-                                className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1"
+                                size={14}
+                                className="transition-transform duration-300 group-hover:translate-x-1"
                             />
                         </Link>
+                    </div>
 
+                    <div className="relative z-10 mt-7 flex items-center justify-between border-t border-white/10 pt-4">
+                        <span className="text-[8px] font-semibold tracking-[0.18em] text-white/30">
+                            39PRODUCTION
+                        </span>
+
+                        <span className="hidden text-[8px] font-medium uppercase tracking-[0.18em] text-white/25 sm:block">
+                            Creating Digital Works. Producing Stories. Sharing
+                            Gratitude.
+                        </span>
                     </div>
                 </div>
-
-                {/* =====================================================
-                    BOTTOM STATEMENT
-                ====================================================== */}
-
-                <div className="mt-8 flex flex-col gap-2 border-t border-neutral-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
-
-                    <p className="text-xs text-neutral-400 sm:text-sm">
-                        Clear communication creates better work.
-                    </p>
-
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-300">
-                        39 — Sankyuu Production
-                    </span>
-
-                </div>
-
             </div>
 
-            {/* =========================================================
-                ANIMATIONS
-            ========================================================== */}
-
             <style>{`
-
-                /* =====================================================
-                   BACKGROUND MOVEMENT
-                ====================================================== */
-
-                .trustSoftGlow {
-                    animation: trustSoftGlowMove 14s ease-in-out infinite;
+                .reveal-item {
+                    will-change: transform, opacity;
                 }
-
-                .trustSoftGlowTwo {
-                    animation: trustSoftGlowMoveTwo 17s ease-in-out infinite;
-                }
-
-                .trustGrid {
-                    background-image:
-                        linear-gradient(
-                            to right,
-                            rgba(115, 115, 115, 0.45) 1px,
-                            transparent 1px
-                        ),
-                        linear-gradient(
-                            to bottom,
-                            rgba(115, 115, 115, 0.45) 1px,
-                            transparent 1px
-                        );
-
-                    background-size: 72px 72px;
-
-                    mask-image: linear-gradient(
-                        to bottom,
-                        transparent 0%,
-                        black 18%,
-                        black 78%,
-                        transparent 100%
-                    );
-
-                    animation: trustGridMove 22s linear infinite;
-                }
-
-                .trustLight {
-                    animation: trustLightMove 10s ease-in-out infinite;
-                }
-
-                .trustLightDelay {
-                    animation-delay: 4s;
-                }
-
-                /* =====================================================
-                   APPROACH CARD
-                ====================================================== */
-
-                .trustApproachCard {
-                    animation: trustCardFloat 7s ease-in-out infinite;
-                }
-
-                /* =====================================================
-                   KEYFRAMES
-                ====================================================== */
-
-                @keyframes trustSoftGlowMove {
-                    0%,
-                    100% {
-                        transform: translate3d(0, 0, 0) scale(1);
-                    }
-
-                    50% {
-                        transform: translate3d(45px, 25px, 0) scale(1.08);
-                    }
-                }
-
-                @keyframes trustSoftGlowMoveTwo {
-                    0%,
-                    100% {
-                        transform: translate3d(0, 0, 0) scale(1);
-                    }
-
-                    50% {
-                        transform: translate3d(-40px, -25px, 0) scale(1.06);
-                    }
-                }
-
-                @keyframes trustGridMove {
-                    from {
-                        background-position: 0 0;
-                    }
-
-                    to {
-                        background-position: 72px 72px;
-                    }
-                }
-
-                @keyframes trustLightMove {
-                    0%,
-                    100% {
-                        transform: translateX(-12%);
-                        opacity: 0;
-                    }
-
-                    25% {
-                        opacity: 0.25;
-                    }
-
-                    50% {
-                        transform: translateX(12%);
-                        opacity: 0.5;
-                    }
-
-                    75% {
-                        opacity: 0.2;
-                    }
-                }
-
-                @keyframes trustCardFloat {
-                    0%,
-                    100% {
-                        transform: translateY(0);
-                    }
-
-                    50% {
-                        transform: translateY(-5px);
-                    }
-                }
-
-                /* =====================================================
-                   REDUCED MOTION
-                ====================================================== */
 
                 @media (prefers-reduced-motion: reduce) {
-
-                    .trustSoftGlow,
-                    .trustSoftGlowTwo,
-                    .trustGrid,
-                    .trustLight,
-                    .trustApproachCard {
-                        animation: none !important;
-                    }
-
-                    * {
-                        scroll-behavior: auto !important;
+                    .reveal-item {
+                        opacity: 1 !important;
+                        transform: none !important;
+                        transition: none !important;
                     }
                 }
-
-                /* =====================================================
-                   MOBILE
-                ====================================================== */
-
-                @media (max-width: 639px) {
-
-                    .trustApproachCard {
-                        animation-duration: 9s;
-                    }
-
-                    .trustGrid {
-                        background-size: 56px 56px;
-                        opacity: 0.018;
-                    }
-                }
-
             `}</style>
         </section>
     )

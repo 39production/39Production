@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useState,
   type FormEvent,
 } from 'react'
@@ -7,9 +8,11 @@ import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   ArrowRight,
+  ArrowUpRight,
   Briefcase,
   CheckCircle2,
   Loader2,
+  MoveUpRight,
   ShieldCheck,
   Sparkles,
   Tag,
@@ -20,16 +23,18 @@ import {
 const API_BASE_URL =
   'https://39production-api.39production.workers.dev'
 
+type ServicePricingType =
+  | 'fixed'
+  | 'starting_from'
+  | 'custom_quote'
+
 interface Service {
   id: number
   name: string
   category?: string
   description: string
   price: number | null
-  pricing_type?:
-  | 'fixed'
-  | 'starting_from'
-  | 'custom_quote'
+  pricing_type: ServicePricingType
   starting_price?: number | null
   status: 'Active' | 'Draft'
   image_url?: string | null
@@ -129,10 +134,158 @@ interface PaymentStatusResponse {
   warning?: string | null
 }
 
+const categoryColors: Record<string, string> = {
+  Development:
+    'border-violet-200 bg-violet-50 text-violet-700',
+  Design:
+    'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
+  Multimedia:
+    'border-indigo-200 bg-indigo-50 text-indigo-700',
+  Entertainment:
+    'border-violet-200 bg-violet-50 text-violet-700',
+  Creative:
+    'border-purple-200 bg-purple-50 text-purple-700',
+}
+
+function formatPrice(price: number | null | undefined) {
+  if (
+    price === null ||
+    price === undefined ||
+    Number.isNaN(Number(price))
+  ) {
+    return null
+  }
+
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(Number(price))
+}
+
+function normalizePricingType(
+  pricingType: unknown,
+  price: unknown,
+): ServicePricingType {
+  if (
+    pricingType === 'fixed' ||
+    pricingType === 'starting_from' ||
+    pricingType === 'custom_quote'
+  ) {
+    return pricingType
+  }
+
+  return price !== null && price !== undefined
+    ? 'fixed'
+    : 'custom_quote'
+}
+
+function isPromotionValid(
+  promotion: Promotion,
+) {
+  if (promotion.status !== 'Active') {
+    return false
+  }
+
+  const now = new Date()
+
+  const start = new Date(
+    promotion.start_date.includes('T')
+      ? promotion.start_date
+      : promotion.start_date.replace(' ', 'T'),
+  )
+
+  const end = new Date(
+    promotion.end_date.includes('T')
+      ? promotion.end_date
+      : promotion.end_date.replace(' ', 'T'),
+  )
+
+  return now >= start && now <= end
+}
+
+function getDiscountLabel(
+  promotion: Promotion,
+) {
+  if (promotion.discount_type === 'Percentage') {
+    return `${promotion.discount_value}% OFF`
+  }
+
+  return `${formatPrice(
+    promotion.discount_value,
+  )} OFF`
+}
+
+function calculateDiscount(
+  service: Service,
+  promotion: Promotion | null,
+) {
+  if (
+    !promotion ||
+    service.pricing_type !== 'fixed' ||
+    service.price === null
+  ) {
+    return 0
+  }
+
+  const basePrice = Number(service.price) || 0
+
+  if (
+    promotion.discount_type ===
+    'Percentage'
+  ) {
+    return Math.min(
+      basePrice,
+      Math.round(
+        basePrice *
+        (Number(promotion.discount_value) /
+          100),
+      ),
+    )
+  }
+
+  return Math.min(
+    basePrice,
+    Number(promotion.discount_value),
+  )
+}
+
+function getPricingLabel(
+  service: Service,
+) {
+  switch (service.pricing_type) {
+    case 'starting_from':
+      return 'Starting From'
+    case 'custom_quote':
+      return 'Custom Quote'
+    default:
+      return 'Fixed Price'
+  }
+}
+
+function getPricingText(
+  service: Service,
+) {
+  switch (service.pricing_type) {
+    case 'starting_from':
+      return (
+        formatPrice(service.starting_price) ??
+        'Discuss your needs'
+      )
+
+    case 'custom_quote':
+      return 'Let’s discuss'
+
+    default:
+      return (
+        formatPrice(service.price) ??
+        'Contact us'
+      )
+  }
+}
+
 export function ServiceDetailPage() {
-  const { id } = useParams<{
-    id: string
-  }>()
+  const { id } = useParams<{ id: string }>()
 
   const [service, setService] =
     useState<Service | null>(null)
@@ -209,88 +362,48 @@ export function ServiceDetailPage() {
 
   const needsQuote = !isFixedService
 
-  const formatPrice = (price: number) =>
-    new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      maximumFractionDigits: 0,
-    }).format(Number(price) || 0)
-
-  const isPromotionValid = (
-    promo: Promotion,
-  ) => {
-    if (promo.status !== 'Active') {
-      return false
-    }
-
-    const now = new Date()
-
-    const start = new Date(
-      promo.start_date.includes('T')
-        ? promo.start_date
-        : promo.start_date.replace(
-          ' ',
-          'T',
-        ),
-    )
-
-    const end = new Date(
-      promo.end_date.includes('T')
-        ? promo.end_date
-        : promo.end_date.replace(
-          ' ',
-          'T',
-        ),
-    )
-
-    return now >= start && now <= end
-  }
-
-  const calculateDiscount = () => {
-    if (
-      !service ||
-      !promotion ||
-      !isFixedService
-    ) {
+  const discount = useMemo(() => {
+    if (!service) {
       return 0
     }
 
-    const basePrice =
-      Number(service.price) || 0
-
-    if (
-      promotion.discount_type ===
-      'Percentage'
-    ) {
-      return Math.min(
-        basePrice,
-        Math.round(
-          basePrice *
-          (Number(
-            promotion.discount_value,
-          ) / 100),
-        ),
-      )
-    }
-
-    return Math.min(
-      basePrice,
-      Number(promotion.discount_value),
+    return calculateDiscount(
+      service,
+      promotion,
     )
-  }
+  }, [service, promotion])
 
-  const getDiscountLabel = () => {
-    if (!promotion) {
-      return ''
-    }
+  const basePrice =
+    service && isFixedService
+      ? Number(service.price) || 0
+      : 0
 
-    return promotion.discount_type ===
-      'Percentage'
-      ? `${promotion.discount_value}% OFF`
-      : `${formatPrice(
-        promotion.discount_value,
-      )} OFF`
-  }
+  const finalPrice = isFixedService
+    ? Math.max(
+      0,
+      basePrice - discount,
+    )
+    : 0
+
+  const startingPrice =
+    service && isStartingFromService
+      ? Number(service.starting_price) || 0
+      : 0
+
+  const estimatedDp =
+    Math.ceil(finalPrice / 2)
+
+  const estimatedRemaining =
+    Math.max(
+      0,
+      finalPrice - estimatedDp,
+    )
+
+  const categoryClass =
+    categoryColors[
+    service?.category ?? ''
+    ] ??
+    'border-zinc-200 bg-zinc-50 text-zinc-600'
 
   const normalizeWhatsAppNumber = (
     phone: string,
@@ -366,7 +479,8 @@ export function ServiceDetailPage() {
       '',
       'Saya baru saja mengirim request quotation melalui website.',
       '',
-      `Request Number: ${quoteSubmitted?.quoteNumber ?? '-'
+      `Request Number: ${quoteSubmitted?.quoteNumber ??
+      '-'
       }`,
       `Layanan: ${quoteSubmitted?.serviceName ??
       service?.name ??
@@ -384,7 +498,9 @@ export function ServiceDetailPage() {
   }
 
   useEffect(() => {
-    const fetchService = async () => {
+    let mounted = true
+
+    async function fetchService() {
       if (!id) {
         setError(
           'ID layanan tidak ditemukan.',
@@ -427,11 +543,17 @@ export function ServiceDetailPage() {
           )
         }
 
+        if (!mounted) {
+          return
+        }
+
         setService({
           ...data,
           pricing_type:
-            data.pricing_type ??
-            'fixed',
+            normalizePricingType(
+              data.pricing_type,
+              data.price,
+            ),
           price:
             data.price !== null &&
               data.price !== undefined
@@ -453,6 +575,10 @@ export function ServiceDetailPage() {
           err,
         )
 
+        if (!mounted) {
+          return
+        }
+
         setService(null)
 
         setError(
@@ -461,24 +587,32 @@ export function ServiceDetailPage() {
             : 'Terjadi kesalahan saat mengambil data layanan.',
         )
       } finally {
-        setLoading(false)
+        if (mounted) {
+          setLoading(false)
+        }
       }
     }
 
     void fetchService()
+
+    return () => {
+      mounted = false
+    }
   }, [id])
 
   useEffect(() => {
-    const fetchPromotion = async () => {
-      if (
-        !id ||
-        !service ||
-        !isFixedService
-      ) {
-        setPromotion(null)
-        return
-      }
+    if (
+      !id ||
+      !service ||
+      !isFixedService
+    ) {
+      setPromotion(null)
+      return
+    }
 
+    let mounted = true
+
+    async function fetchPromotion() {
       try {
         const response = await fetch(
           `${API_BASE_URL}/api/promotions`,
@@ -488,26 +622,23 @@ export function ServiceDetailPage() {
         )
 
         if (!response.ok) {
-          setPromotion(null)
           return
         }
 
         const result =
           await response.json()
 
-        const promotions =
+        const promotions: Promotion[] =
           Array.isArray(result)
             ? result
-            : Array.isArray(
-              result?.data,
-            )
+            : Array.isArray(result?.data)
               ? result.data
               : []
 
         const activePromotion =
           promotions
             .filter(
-              (item: Promotion) =>
+              (item) =>
                 item.target_type ===
                 'Service' &&
                 Number(item.service_id) ===
@@ -515,26 +646,31 @@ export function ServiceDetailPage() {
                 isPromotionValid(item),
             )
             .sort(
-              (
-                a: Promotion,
-                b: Promotion,
-              ) => b.id - a.id,
+              (a, b) => b.id - a.id,
             )[0] ?? null
 
-        setPromotion(
-          activePromotion,
-        )
+        if (mounted) {
+          setPromotion(
+            activePromotion,
+          )
+        }
       } catch (err) {
         console.error(
           'Fetch promotion error:',
           err,
         )
 
-        setPromotion(null)
+        if (mounted) {
+          setPromotion(null)
+        }
       }
     }
 
     void fetchPromotion()
+
+    return () => {
+      mounted = false
+    }
   }, [
     id,
     service,
@@ -579,34 +715,41 @@ export function ServiceDetailPage() {
     setFormError('')
 
     if (!customerName.trim()) {
-      return setFormError(
+      setFormError(
         'Nama wajib diisi.',
       )
+      return
     }
 
     if (!customerEmail.trim()) {
-      return setFormError(
+      setFormError(
         'Email wajib diisi.',
       )
+      return
     }
 
     if (!customerPhone.trim()) {
-      return setFormError(
+      setFormError(
         'Nomor WhatsApp wajib diisi.',
       )
+      return
     }
 
     if (needsQuote) {
       if (!projectName.trim()) {
-        return setFormError(
+        setFormError(
           'Nama project wajib diisi.',
         )
+        return
       }
 
-      if (!projectDescription.trim()) {
-        return setFormError(
+      if (
+        !projectDescription.trim()
+      ) {
+        setFormError(
           'Deskripsi project wajib diisi.',
         )
+        return
       }
     }
 
@@ -672,7 +815,8 @@ export function ServiceDetailPage() {
             quote?.quote_number ??
             'REQUEST',
           ),
-          serviceName: service.name,
+          serviceName:
+            service.name,
         })
 
         return
@@ -758,99 +902,95 @@ export function ServiceDetailPage() {
     }
 
     let active = true
-
     let intervalId:
       | number
       | undefined
 
-    const checkPayment =
-      async () => {
-        if (!active) {
+    const checkPayment = async () => {
+      if (!active) {
+        return
+      }
+
+      try {
+        setCheckingPayment(true)
+
+        const response = await fetch(
+          `${API_BASE_URL}/api/payments/${encodeURIComponent(
+            paymentData.payment_reference,
+          )}/status`,
+          {
+            cache: 'no-store',
+          },
+        )
+
+        const result =
+          await response.json()
+
+        if (!response.ok) {
+          throw new Error(
+            result?.message ||
+            `Gagal mengecek pembayaran (${response.status}).`,
+          )
+        }
+
+        const status =
+          (result?.data ??
+            result) as PaymentStatusResponse
+
+        if (status.order) {
+          setCreatedOrder(
+            status.order,
+          )
+
+          setCheckingPayment(false)
+
+          if (
+            intervalId !==
+            undefined
+          ) {
+            window.clearInterval(
+              intervalId,
+            )
+          }
+
           return
         }
 
-        try {
-          setCheckingPayment(true)
-
-          const response = await fetch(
-            `${API_BASE_URL}/api/payments/${encodeURIComponent(
-              paymentData.payment_reference,
-            )}/status`,
-            {
-              cache: 'no-store',
-            },
+        if (
+          status.status ===
+          'FAILED' ||
+          status.status ===
+          'EXPIRED' ||
+          status.status ===
+          'CANCELLED'
+        ) {
+          setFormError(
+            'Pembayaran DP belum berhasil. QRIS ini sudah tidak dapat digunakan.',
           )
 
-          const result =
-            await response.json()
-
-          if (!response.ok) {
-            throw new Error(
-              result?.message ||
-              `Gagal mengecek pembayaran (${response.status}).`,
-            )
-          }
-
-          const status =
-            (result?.data ??
-              result) as PaymentStatusResponse
-
-          if (status.order) {
-            setCreatedOrder(
-              status.order,
-            )
-
-            setCheckingPayment(false)
-
-            if (
-              intervalId !==
-              undefined
-            ) {
-              window.clearInterval(
-                intervalId,
-              )
-            }
-
-            return
-          }
+          setPaymentData(null)
+          setCheckingPayment(false)
 
           if (
-            status.status ===
-            'FAILED' ||
-            status.status ===
-            'EXPIRED' ||
-            status.status ===
-            'CANCELLED'
+            intervalId !==
+            undefined
           ) {
-            setFormError(
-              'Pembayaran DP belum berhasil. QRIS ini sudah tidak dapat digunakan.',
-            )
-
-            setPaymentData(null)
-            setCheckingPayment(false)
-
-            if (
-              intervalId !==
-              undefined
-            ) {
-              window.clearInterval(
-                intervalId,
-              )
-            }
-          }
-        } catch (err) {
-          console.error(
-            'Payment status error:',
-            err,
-          )
-        } finally {
-          if (active) {
-            setCheckingPayment(
-              false,
+            window.clearInterval(
+              intervalId,
             )
           }
         }
+      } catch (err) {
+        console.error(
+          'Payment status error:',
+          err,
+        )
+      } finally {
+        if (active) {
+          setCheckingPayment(false)
+        }
       }
+    }
 
     void checkPayment()
 
@@ -876,451 +1016,635 @@ export function ServiceDetailPage() {
     createdOrder,
   ])
 
-  const discount =
-    service && isFixedService
-      ? calculateDiscount()
-      : 0
-
-  const basePrice =
-    service && isFixedService
-      ? Number(service.price) || 0
-      : 0
-
-  const finalPrice = isFixedService
-    ? Math.max(
-      0,
-      basePrice - discount,
-    )
-    : 0
-
-  const startingPrice =
-    service && isStartingFromService
-      ? Number(
-        service.starting_price,
-      ) || 0
-      : 0
-
-  const estimatedDp =
-    Math.ceil(finalPrice / 2)
-
-  const estimatedRemaining =
-    Math.max(
-      0,
-      finalPrice - estimatedDp,
-    )
-
   if (loading) {
     return (
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-5">
-        <div className="pointer-events-none absolute left-0 top-0 h-80 w-80 rounded-full bg-violet-100 blur-[110px]" />
+      <section className="relative isolate flex min-h-screen items-center justify-center overflow-hidden bg-white text-zinc-950">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 opacity-70"
+          style={{
+            backgroundImage: `
+              linear-gradient(to right, rgba(24,24,27,0.035) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(24,24,27,0.035) 1px, transparent 1px)
+            `,
+            backgroundSize: '72px 72px',
+          }}
+        />
 
-        <div className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 rounded-full bg-pink-100 blur-[110px]" />
+        <div className="relative w-full max-w-md px-6">
+          <div className="border-y border-black/10 py-8 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center border border-violet-200 bg-violet-50 text-violet-600">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
 
-        <div className="relative w-full max-w-sm rounded-3xl border border-neutral-200 bg-white p-8 text-center shadow-[0_20px_70px_rgba(0,0,0,0.07)]">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-50">
-            <Loader2 className="h-7 w-7 animate-spin text-violet-600" />
+            <p className="mt-5 text-[10px] font-black uppercase tracking-[0.22em] text-violet-600">
+              39Production / Services
+            </p>
+
+            <h1 className="mt-2 text-2xl font-black tracking-[-0.04em]">
+              Loading service
+            </h1>
+
+            <p className="mt-2 text-sm text-zinc-500">
+              Menyiapkan detail layanan...
+            </p>
           </div>
-
-          <p className="mt-5 text-lg font-bold text-neutral-950">
-            Loading service
-          </p>
-
-          <p className="mt-1 text-sm text-neutral-500">
-            Menyiapkan detail layanan...
-          </p>
         </div>
-      </div>
+      </section>
     )
   }
 
   if (error || !service) {
     return (
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-5">
-        <div className="pointer-events-none absolute left-0 top-0 h-80 w-80 rounded-full bg-violet-100 blur-[110px]" />
+      <section className="relative isolate flex min-h-screen items-center justify-center overflow-hidden bg-white px-5 text-zinc-950">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 opacity-70"
+          style={{
+            backgroundImage: `
+              linear-gradient(to right, rgba(24,24,27,0.035) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(24,24,27,0.035) 1px, transparent 1px)
+            `,
+            backgroundSize: '72px 72px',
+          }}
+        />
 
-        <div className="relative w-full max-w-lg rounded-3xl border border-neutral-200 bg-white p-8 text-center shadow-[0_20px_70px_rgba(0,0,0,0.07)] sm:p-10">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 text-red-600">
-            <Briefcase className="h-8 w-8" />
+        <div className="relative w-full max-w-xl border border-black/10 bg-white p-8 text-center sm:p-12">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center border border-red-200 bg-red-50 text-red-600">
+            <Briefcase className="h-6 w-6" />
           </div>
 
-          <h1 className="mt-5 text-2xl font-black text-neutral-950">
+          <p className="mt-6 text-[10px] font-black uppercase tracking-[0.2em] text-violet-600">
+            39Production / Services
+          </p>
+
+          <h1 className="mt-2 text-3xl font-black tracking-[-0.045em]">
             Service tidak ditemukan
           </h1>
 
-          <p className="mt-3 text-sm leading-6 text-neutral-500">
+          <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-zinc-500">
             {error ||
               'Layanan yang kamu cari tidak tersedia.'}
           </p>
 
           <Link
             to="/services"
-            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-neutral-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-violet-600"
+            className="mt-8 inline-flex items-center gap-3 border border-black bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-white transition hover:border-violet-600 hover:bg-violet-600"
           >
             <ArrowLeft className="h-4 w-4" />
-            Kembali ke Services
+            Back to Services
           </Link>
         </div>
-      </div>
+      </section>
     )
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-white">
+    <section className="relative isolate min-h-screen overflow-hidden bg-white text-zinc-950">
       {/* =====================================================
-        BACKGROUND
-    ====================================================== */}
+          BACKGROUND
+      ====================================================== */}
+
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 overflow-hidden"
-      >
-        <div className="absolute -left-44 top-20 h-[430px] w-[430px] rounded-full bg-violet-100/70 blur-[130px]" />
+        className="pointer-events-none absolute inset-0 -z-10 opacity-70"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, rgba(24,24,27,0.035) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(24,24,27,0.035) 1px, transparent 1px)
+          `,
+          backgroundSize: '72px 72px',
+        }}
+      />
 
-        <div className="absolute -right-44 top-[35%] h-[450px] w-[450px] rounded-full bg-pink-100/60 blur-[130px]" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-[8%] top-[17%] h-2 w-2 rounded-full bg-violet-600"
+      />
 
-        <div className="absolute bottom-[5%] left-[32%] h-[350px] w-[350px] rounded-full bg-fuchsia-100/40 blur-[120px]" />
-      </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-[12%] top-[42%] h-1.5 w-1.5 rounded-full bg-violet-500"
+      />
 
-      {/* =====================================================
-        MAIN PAGE
-    ====================================================== */}
-      <main className="relative mx-auto max-w-7xl px-4 pb-16 pt-24 sm:px-6 sm:pb-20 sm:pt-28 lg:px-8 lg:pb-24">
+      <main className="relative mx-auto max-w-[1600px] px-5 pb-20 pt-28 sm:px-8 sm:pt-32 lg:px-12 lg:pb-28 lg:pt-20">
+        {/* =====================================================
+            TOP LINE
+        ====================================================== */}
+
+        <div className="mb-10 flex items-center justify-between border-b border-black/10 pb-5 sm:mb-14">
+          <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-500 sm:text-xs">
+            <span className="text-zinc-950">
+              39Production
+            </span>
+
+            <span className="h-1 w-1 rounded-full bg-violet-600" />
+
+            <Link
+              to="/services"
+              className="transition hover:text-violet-600"
+            >
+              Services
+            </Link>
+
+            <span className="text-zinc-300">
+              /
+            </span>
+
+            <span className="hidden text-zinc-400 sm:inline">
+              Detail
+            </span>
+          </div>
+
+          <div className="hidden items-center gap-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400 sm:flex">
+            <span>Digital</span>
+            <span>/</span>
+            <span>Creative</span>
+            <span>/</span>
+            <span>Entertainment</span>
+          </div>
+        </div>
+
+        {/* =====================================================
+            BACK
+        ====================================================== */}
+
         <Link
           to="/services"
-          className="group mb-7 inline-flex items-center gap-2 text-sm font-medium text-neutral-500 transition hover:text-violet-700 sm:mb-9"
+          className="group mb-10 inline-flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500 transition hover:text-violet-600 sm:mb-14"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-neutral-200 bg-white shadow-sm transition group-hover:border-violet-200 group-hover:bg-violet-50">
-            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+          <span className="flex h-8 w-8 items-center justify-center border border-black/10 bg-white transition group-hover:border-violet-300 group-hover:bg-violet-50">
+            <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1" />
           </span>
 
           Back to Services
         </Link>
 
-        <div className="grid items-start gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:gap-16">
-          {/* =================================================
-            IMAGE
-        ================================================== */}
-          <div className="lg:sticky lg:top-28">
-            <div className="relative">
-              <div className="pointer-events-none absolute -inset-6 rounded-[42px] bg-violet-100/50 blur-3xl" />
+        {/* =====================================================
+            HERO DETAIL
+        ====================================================== */}
 
-              <div className="relative aspect-[4/3] overflow-hidden rounded-[2rem] border border-neutral-200 bg-neutral-100 shadow-[0_25px_80px_rgba(0,0,0,0.09)] sm:aspect-square">
+        <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
+          {/* IMAGE */}
+
+          <div className="lg:sticky lg:top-28 lg:self-start">
+            <div className="relative">
+              <div className="absolute -left-4 top-8 hidden h-px w-20 bg-violet-600 lg:block" />
+
+              <div className="relative aspect-[4/3] overflow-hidden border border-black/10 bg-zinc-100 shadow-[0_25px_70px_rgba(0,0,0,0.08)] sm:aspect-[5/4]">
                 {service.image_url ? (
                   <>
                     <img
                       src={service.image_url}
                       alt={service.name}
-                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 hover:scale-[1.02]"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 hover:scale-[1.025]"
                       onError={(event) => {
-                        event.currentTarget.style.display =
-                          'none'
+                        event.currentTarget.style.display = 'none'
                       }}
                     />
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/70 via-neutral-950/5 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent" />
 
-                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 via-transparent to-pink-500/10" />
-                  </>
-                ) : (
-                  <>
-                    <div className="absolute inset-0 bg-gradient-to-br from-violet-100 via-white to-pink-100" />
+                    <div className="absolute left-5 top-5 border border-white/25 bg-black/70 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-white backdrop-blur-sm">
+                      39Production
+                    </div>
 
-                    <div
-                      className="absolute inset-0 opacity-[0.05]"
-                      style={{
-                        backgroundImage: `
-                        linear-gradient(rgba(124,58,237,0.8) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(124,58,237,0.8) 1px, transparent 1px)
-                      `,
-                        backgroundSize: '38px 38px',
-                      }}
-                    />
+                    <div className="absolute bottom-5 left-5 right-5">
+                      <div className="border-l-2 border-violet-500 pl-4">
+                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/60">
+                          Service
+                        </p>
 
-                    <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-200/40 blur-3xl" />
-
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="flex h-28 w-28 items-center justify-center rounded-[28px] border border-violet-200 bg-white/90 text-violet-600 shadow-xl backdrop-blur-md sm:h-32 sm:w-32">
-                        <Briefcase className="h-14 w-14 sm:h-16 sm:w-16" />
+                        <p className="mt-1 text-lg font-black tracking-[-0.025em] text-white sm:text-xl">
+                          {service.name}
+                        </p>
                       </div>
                     </div>
                   </>
-                )}
+                ) : (
+                  <>
+                    <div className="absolute inset-0 bg-zinc-50" />
 
-                <div className="absolute left-4 top-4 sm:left-5 sm:top-5">
-                  <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/90 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-800 shadow-sm backdrop-blur-md">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    Available
-                  </span>
+                    <div
+                      className="absolute inset-0 opacity-[0.055]"
+                      style={{
+                        backgroundImage: `
+                          linear-gradient(rgba(124,58,237,1) 1px, transparent 1px),
+                          linear-gradient(90deg, rgba(124,58,237,1) 1px, transparent 1px)
+                        `,
+                        backgroundSize: '60px 60px',
+                      }}
+                    />
+
+                    <div className="absolute right-8 top-8 text-[11rem] font-black leading-none tracking-[-0.12em] text-zinc-200">
+                      39
+                    </div>
+
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="flex h-28 w-28 items-center justify-center border border-violet-200 bg-white text-violet-600 shadow-xl sm:h-36 sm:w-36">
+                        <Briefcase className="h-12 w-12 sm:h-16 sm:w-16" />
+                      </div>
+                    </div>
+
+                    <div className="absolute bottom-6 left-6">
+                      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-violet-600">
+                        39Production Service
+                      </p>
+
+                      <p className="mt-1 text-xl font-black tracking-[-0.04em]">
+                        {service.name}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Image metadata */}
+
+              <div className="mt-4 grid grid-cols-2 border-y border-black/10">
+                <div className="border-r border-black/10 px-4 py-4">
+                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                    Category
+                  </p>
+
+                  <p className="mt-1 text-sm font-bold text-zinc-950">
+                    {service.category ||
+                      'Creative Service'}
+                  </p>
                 </div>
 
-                {promotion && isFixedService && (
-                  <div className="absolute right-4 top-4 sm:right-5 sm:top-5">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-pink-200 bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-pink-700 shadow-sm backdrop-blur-md">
-                      <Tag className="h-3 w-3" />
-                      {getDiscountLabel()}
-                    </span>
-                  </div>
-                )}
+                <div className="px-4 py-4">
+                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                    Availability
+                  </p>
 
-                <div className="absolute bottom-4 left-4 right-4 sm:bottom-5 sm:left-5 sm:right-5">
-                  <div className="rounded-2xl border border-white/20 bg-neutral-950/40 p-4 backdrop-blur-md">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/65">
-                      {service.category ||
-                        '39Production Service'}
-                    </p>
-
-                    <p className="mt-1 text-sm font-semibold text-white sm:text-base">
-                      {service.name}
-                    </p>
+                  <div className="mt-1 flex items-center gap-2 text-sm font-bold text-zinc-950">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    Available
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* =================================================
-            SERVICE DETAILS
-        ================================================== */}
-          <div>
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-violet-700 sm:text-xs">
-              <Sparkles className="h-3.5 w-3.5" />
-              Service
+          {/* CONTENT */}
+
+          <div className="max-w-4xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.17em] ${categoryClass}`}
+              >
+                {service.category ||
+                  '39Production'}
+              </span>
+
+              <span className="border border-black/10 bg-white px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.17em] text-zinc-500">
+                {getPricingLabel(service)}
+              </span>
             </div>
 
-            {service.category && (
-              <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-violet-600 sm:text-xs">
-                {service.category}
-              </p>
-            )}
-
-            <h1 className="max-w-3xl text-4xl font-black leading-[1.02] tracking-[-0.045em] text-neutral-950 sm:text-5xl lg:text-6xl">
-              {service.name}
-            </h1>
-
-            {/* Pricing */}
             <div className="mt-7">
-              {isFixedService ? (
-                <>
-                  {promotion && discount > 0 && (
-                    <p className="text-sm text-neutral-400 line-through sm:text-base">
-                      {formatPrice(basePrice)}
-                    </p>
-                  )}
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-violet-600">
+                01 / Service Detail
+              </p>
 
-                  <div className="mt-1 flex flex-wrap items-center gap-3">
-                    <span className="text-3xl font-black tracking-tight text-neutral-950 sm:text-4xl">
-                      {formatPrice(finalPrice)}
-                    </span>
-
-                    {promotion && discount > 0 && (
-                      <span className="rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700">
-                        Save {formatPrice(discount)}
-                      </span>
-                    )}
-                  </div>
-                </>
-              ) : isStartingFromService ? (
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-700 sm:text-xs">
-                    Starting Price
-                  </p>
-
-                  <span className="mt-1 block text-3xl font-black tracking-tight text-neutral-950 sm:text-4xl">
-                    Mulai dari {formatPrice(startingPrice)}
-                  </span>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-pink-600 sm:text-xs">
-                    Pricing
-                  </p>
-
-                  <span className="mt-1 block text-3xl font-black tracking-tight text-neutral-950 sm:text-4xl">
-                    Custom Quote
-                  </span>
-                </div>
-              )}
+              <h1 className="mt-4 max-w-4xl text-[clamp(3rem,7vw,7rem)] font-black leading-[0.86] tracking-[-0.07em]">
+                {service.name}
+              </h1>
             </div>
 
-            {/* Promotion */}
-            {promotion && isFixedService && (
-              <div className="mt-7 overflow-hidden rounded-2xl border border-pink-200 bg-gradient-to-r from-pink-50 via-white to-violet-50">
-                <div className="flex items-start gap-3.5 p-4 sm:gap-4 sm:p-5">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pink-100 text-pink-700 sm:h-11 sm:w-11">
-                    <Tag className="h-5 w-5" />
-                  </div>
+            {/* PRICE */}
 
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-pink-700">
-                      Special Promotion
-                    </p>
+            <div className="mt-10 border-y border-black/10 py-6">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                    {promotion &&
+                      isFixedService &&
+                      discount > 0
+                      ? 'Current Offer'
+                      : getPricingLabel(
+                        service,
+                      )}
+                  </p>
 
-                    <h2 className="mt-1 text-sm font-bold text-neutral-950 sm:text-base">
-                      {promotion.title}
-                    </h2>
-
-                    <p className="mt-1 text-xs leading-5 text-neutral-500 sm:text-sm">
-                      {promotion.description}
-                    </p>
-
-                    <div className="mt-3 inline-flex items-center rounded-lg border border-dashed border-pink-200 bg-white px-3 py-1.5">
-                      <span className="text-xs text-neutral-500">
-                        Code:
+                  {isFixedService ? (
+                    <div className="mt-2 flex flex-wrap items-baseline gap-3">
+                      <span className="text-3xl font-black tracking-[-0.04em] text-violet-600 sm:text-4xl">
+                        {formatPrice(
+                          finalPrice,
+                        )}
                       </span>
 
-                      <span className="ml-2 font-mono text-xs font-bold text-pink-700">
-                        {promotion.code}
+                      {promotion &&
+                        discount > 0 && (
+                          <span className="text-sm text-zinc-400 line-through">
+                            {formatPrice(
+                              basePrice,
+                            )}
+                          </span>
+                        )}
+                    </div>
+                  ) : isStartingFromService ? (
+                    <div className="mt-2">
+                      <span className="text-3xl font-black tracking-[-0.04em] text-zinc-950 sm:text-4xl">
+                        Mulai dari{' '}
+                        {formatPrice(
+                          startingPrice,
+                        )}
                       </span>
+                    </div>
+                  ) : (
+                    <div className="mt-2">
+                      <span className="text-3xl font-black tracking-[-0.04em] text-zinc-950 sm:text-4xl">
+                        Custom Quote
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {promotion &&
+                  isFixedService && (
+                    <div className="flex items-center gap-2 border border-violet-200 bg-violet-50 px-3 py-2 text-violet-700">
+                      <Tag className="h-3.5 w-3.5" />
+
+                      <span className="text-[9px] font-black uppercase tracking-[0.16em]">
+                        {getDiscountLabel(
+                          promotion,
+                        )}
+                      </span>
+                    </div>
+                  )}
+              </div>
+            </div>
+
+            {/* PROMOTION */}
+
+            {promotion &&
+              isFixedService && (
+                <div className="mt-8 border border-violet-200 bg-violet-50">
+                  <div className="grid sm:grid-cols-[auto_1fr_auto]">
+                    <div className="flex items-center justify-center bg-violet-600 p-5 text-white">
+                      <Tag className="h-5 w-5" />
+                    </div>
+
+                    <div className="p-5">
+                      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-violet-700">
+                        Special Promotion
+                      </p>
+
+                      <h2 className="mt-1 text-base font-black tracking-tight text-zinc-950">
+                        {promotion.title}
+                      </h2>
+
+                      <p className="mt-1 text-xs leading-5 text-zinc-600 sm:text-sm">
+                        {promotion.description}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center border-t border-violet-200 px-5 py-4 sm:border-l sm:border-t-0">
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">
+                          Code
+                        </p>
+
+                        <p className="mt-1 font-mono text-sm font-black text-violet-700">
+                          {promotion.code}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Description */}
-            <div className="mt-7">
-              <p className="text-sm leading-7 text-neutral-600 sm:text-base sm:leading-8">
+            {/* DESCRIPTION */}
+
+            <div className="mt-10">
+              <div className="mb-4 flex items-center gap-3">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600">
+                  02
+                </span>
+
+                <span className="h-px w-10 bg-violet-600" />
+
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                  Overview
+                </span>
+              </div>
+
+              <p className="max-w-3xl text-base leading-8 text-zinc-600 sm:text-lg">
                 {service.description}
               </p>
             </div>
 
-            {/* Benefits */}
-            <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-              <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-700">
-                  <Zap className="h-4 w-4" />
-                </div>
+            {/* VALUE */}
 
-                <p className="mt-3 text-sm font-semibold text-neutral-950">
-                  Fast Process
-                </p>
+            <div className="mt-12">
+              <div className="mb-5 flex items-center gap-3">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600">
+                  03
+                </span>
 
-                <p className="mt-1 text-xs leading-5 text-neutral-500">
-                  Proses kerja terstruktur
-                </p>
+                <span className="h-px w-10 bg-violet-600" />
+
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                  Why Work With Us
+                </span>
               </div>
 
-              <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-pink-50 text-pink-700">
-                  <ShieldCheck className="h-4 w-4" />
+              <div className="grid border-l border-t border-black/10 sm:grid-cols-3">
+                <div className="border-b border-r border-black/10 p-5">
+                  <div className="flex h-10 w-10 items-center justify-center border border-violet-200 bg-violet-50 text-violet-600">
+                    <Zap className="h-4 w-4" />
+                  </div>
+
+                  <p className="mt-5 text-sm font-black tracking-tight">
+                    Structured Process
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-zinc-500">
+                    Proses kerja dirancang
+                    dengan alur yang jelas
+                    dari awal hingga
+                    delivery.
+                  </p>
                 </div>
 
-                <p className="mt-3 text-sm font-semibold text-neutral-950">
-                  Professional
-                </p>
+                <div className="border-b border-r border-black/10 p-5">
+                  <div className="flex h-10 w-10 items-center justify-center border border-violet-200 bg-violet-50 text-violet-600">
+                    <ShieldCheck className="h-4 w-4" />
+                  </div>
 
-                <p className="mt-1 text-xs leading-5 text-neutral-500">
-                  Dikerjakan secara profesional
-                </p>
-              </div>
+                  <p className="mt-5 text-sm font-black tracking-tight">
+                    Professional
+                  </p>
 
-              <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-fuchsia-50 text-fuchsia-700">
-                  <Sparkles className="h-4 w-4" />
+                  <p className="mt-2 text-xs leading-5 text-zinc-500">
+                    Dikerjakan dengan
+                    standar produksi
+                    profesional dan
+                    komunikasi yang jelas.
+                  </p>
                 </div>
 
-                <p className="mt-3 text-sm font-semibold text-neutral-950">
-                  Custom
-                </p>
+                <div className="border-b border-r border-black/10 p-5">
+                  <div className="flex h-10 w-10 items-center justify-center border border-violet-200 bg-violet-50 text-violet-600">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
 
-                <p className="mt-1 text-xs leading-5 text-neutral-500">
-                  Menyesuaikan kebutuhan
-                </p>
+                  <p className="mt-5 text-sm font-black tracking-tight">
+                    Tailored
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-zinc-500">
+                    Pendekatan disesuaikan
+                    dengan kebutuhan dan
+                    tujuan project.
+                  </p>
+                </div>
               </div>
             </div>
 
             {/* CTA */}
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => {
-                  setFormError('')
-                  setCreatedOrder(null)
-                  setPaymentData(null)
-                  setShowCheckout(true)
-                }}
-                className="group inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-neutral-950 px-6 text-sm font-bold text-white shadow-[0_15px_35px_rgba(0,0,0,0.10)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-violet-600 hover:shadow-[0_18px_40px_rgba(124,58,237,0.18)]"
-              >
-                {needsQuote
-                  ? 'Request Quote'
-                  : 'Pesan Layanan'}
 
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </button>
+            <div className="mt-12 border-t border-black/10 pt-7">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormError('')
+                    setCreatedOrder(null)
+                    setPaymentData(null)
+                    setShowCheckout(true)
+                  }}
+                  className="group inline-flex min-h-13 flex-1 items-center justify-between border border-black bg-black px-5 text-xs font-black uppercase tracking-[0.15em] text-white transition-all duration-300 hover:border-violet-600 hover:bg-violet-600"
+                >
+                  <span>
+                    {needsQuote
+                      ? 'Request Quote'
+                      : 'Pesan Layanan'}
+                  </span>
 
-              <Link
-                to="/services"
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-6 text-sm font-semibold text-neutral-800 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
-              >
-                Lihat Layanan Lain
-              </Link>
-            </div>
+                  <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+                </button>
 
-            {isFixedService && (
-              <div className="mt-6 rounded-2xl border border-violet-200 bg-violet-50/70 p-4 sm:p-5">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-violet-700 shadow-sm">
-                    <ShieldCheck className="h-4 w-4" />
-                  </div>
+                <Link
+                  to="/services"
+                  className="inline-flex min-h-13 items-center justify-center gap-3 border border-black/10 bg-white px-6 text-xs font-black uppercase tracking-[0.15em] text-zinc-700 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                >
+                  Other Services
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+
+              {isFixedService && (
+                <div className="mt-5 flex items-start gap-3 border-l-2 border-violet-600 bg-violet-50/60 p-4">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" />
 
                   <div>
-                    <p className="text-sm font-semibold text-neutral-950">
-                      Pembayaran DP 50%
+                    <p className="text-xs font-black text-zinc-950">
+                      DP 50% untuk memulai
                     </p>
 
-                    <p className="mt-1 text-xs leading-5 text-neutral-500 sm:text-sm">
-                      Order number akan dibuat setelah pembayaran
-                      DP berhasil diverifikasi. Sisa pembayaran
-                      ditagihkan setelah project selesai.
+                    <p className="mt-1 text-[11px] leading-5 text-zinc-500">
+                      Order number dibuat setelah
+                      pembayaran DP berhasil
+                      diverifikasi. Sisa pembayaran
+                      akan ditagihkan setelah project
+                      selesai.
                     </p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+
+              {needsQuote && (
+                <div className="mt-5 border border-black/10 bg-zinc-50 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.17em] text-violet-600">
+                    Pricing Note
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-zinc-500">
+                    {isStartingFromService
+                      ? `Layanan dimulai dari ${formatPrice(
+                        startingPrice,
+                      )}. Harga tersebut merupakan harga awal dan bukan harga final.`
+                      : 'Harga ditentukan berdasarkan scope, kebutuhan, kompleksitas, dan hasil yang ingin dicapai.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* =====================================================
+            SERVICE FOOTER
+        ====================================================== */}
+
+        <div className="mt-20 border-t border-black/10 pt-5 sm:mt-28">
+          <div className="flex flex-col justify-between gap-3 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 sm:flex-row sm:items-center">
+            <span>
+              39Production / Digital / Creative /
+              Entertainment
+            </span>
+
+            <span className="inline-flex items-center gap-2">
+              Creating Digital Works
+              <MoveUpRight className="h-3 w-3 text-violet-600" />
+            </span>
           </div>
         </div>
       </main>
 
       {/* =====================================================
-        QUOTE SUCCESS MODAL
-    ====================================================== */}
-      {quoteSubmitted && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-neutral-950/50 p-4 backdrop-blur-sm">
-          <div className="relative my-4 w-full max-w-lg overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.20)]">
-            <div className="h-1 w-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-pink-500" />
+          QUOTE SUCCESS MODAL
+      ====================================================== */}
 
-            <div className="p-6 text-center sm:p-8">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-                <CheckCircle2 className="h-8 w-8" />
+      {quoteSubmitted && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-lg overflow-hidden border border-black/10 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.2)]">
+            <div className="h-1 w-full bg-violet-600" />
+
+            <div className="p-7 sm:p-9">
+              <div className="flex items-start justify-between gap-6">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-violet-600">
+                    Request Submitted
+                  </p>
+
+                  <h2 className="mt-2 text-3xl font-black tracking-[-0.05em]">
+                    Request berhasil.
+                  </h2>
+                </div>
+
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-emerald-200 bg-emerald-50 text-emerald-600">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
               </div>
 
-              <h2 className="mt-5 text-2xl font-black text-neutral-950">
-                Request Berhasil Dikirim
-              </h2>
-
-              <p className="mt-3 text-sm leading-6 text-neutral-500">
-                Request kamu sudah masuk ke sistem 39Production.
-                Harga final belum ditentukan. Silakan konfirmasi
-                melalui WhatsApp agar admin dapat membahas kebutuhan
-                project dan harga dengan kamu.
+              <p className="mt-5 text-sm leading-6 text-zinc-500">
+                Request kamu sudah masuk ke
+                sistem 39Production. Harga final
+                akan dibahas bersama admin
+                berdasarkan scope project.
               </p>
 
-              <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-left">
+              <div className="mt-6 border-y border-black/10 py-5">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-xs text-neutral-500">
+                  <span className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">
                     Request Number
                   </span>
 
-                  <span className="font-mono text-sm font-bold text-violet-700">
+                  <span className="font-mono text-sm font-black text-violet-600">
                     {quoteSubmitted.quoteNumber}
                   </span>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between gap-4">
-                  <span className="text-xs text-neutral-500">
-                    Layanan
+                <div className="mt-4 flex items-center justify-between gap-4">
+                  <span className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">
+                    Service
                   </span>
 
-                  <span className="max-w-[60%] text-right text-sm font-semibold text-neutral-900">
+                  <span className="max-w-[60%] text-right text-sm font-bold text-zinc-950">
                     {quoteSubmitted.serviceName}
                   </span>
                 </div>
@@ -1328,18 +1652,22 @@ export function ServiceDetailPage() {
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 <a
-                  href={getAdminWhatsAppUrl() || '#'}
+                  href={
+                    getAdminWhatsAppUrl() ||
+                    '#'
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(event) => {
-                    if (!getAdminWhatsAppUrl()) {
+                    if (
+                      !getAdminWhatsAppUrl()
+                    ) {
                       event.preventDefault()
                     }
                   }}
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-neutral-950 px-5 text-sm font-bold text-white transition hover:bg-violet-600"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 border border-black bg-black px-5 text-xs font-black uppercase tracking-[0.12em] text-white transition hover:border-violet-600 hover:bg-violet-600"
                 >
-                  Konfirmasi via WhatsApp
-
+                  Confirm WhatsApp
                   <ArrowRight className="h-4 w-4" />
                 </a>
 
@@ -1348,23 +1676,25 @@ export function ServiceDetailPage() {
                   onClick={() =>
                     setQuoteSubmitted(null)
                   }
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-5 text-sm font-semibold text-neutral-800 transition hover:border-violet-200 hover:bg-violet-50"
+                  className="inline-flex min-h-12 items-center justify-center border border-black/10 bg-white px-5 text-xs font-black uppercase tracking-[0.12em] text-zinc-700 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
                 >
-                  Selesai
+                  Close
                 </button>
               </div>
 
               {!getAdminWhatsAppUrl() && (
                 <p className="mt-4 text-xs text-amber-600">
-                  Nomor WhatsApp admin belum dikonfigurasi pada
-                  environment frontend.
+                  Nomor WhatsApp admin belum
+                  dikonfigurasi pada environment
+                  frontend.
                 </p>
               )}
 
-              <p className="mt-5 text-xs leading-5 text-neutral-500">
-                Setelah admin menentukan harga final, kamu akan
-                menerima link quotation untuk melihat detail deal,
-                menerima quotation, dan membayar DP.
+              <p className="mt-5 border-l-2 border-violet-500 pl-4 text-xs leading-5 text-zinc-500">
+                Setelah harga final ditentukan,
+                admin akan memberikan quotation
+                untuk proses persetujuan dan
+                pembayaran DP.
               </p>
             </div>
           </div>
@@ -1372,11 +1702,11 @@ export function ServiceDetailPage() {
       )}
 
       {/* =====================================================
-        CHECKOUT MODAL
-    ====================================================== */}
+          CHECKOUT MODAL
+      ====================================================== */}
+
       {showCheckout && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-neutral-950/50 p-3 backdrop-blur-sm sm:p-5">
-          {/* Backdrop */}
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-3 backdrop-blur-sm sm:p-5">
           <div
             className="fixed inset-0"
             onClick={() => {
@@ -1386,32 +1716,20 @@ export function ServiceDetailPage() {
             }}
           />
 
-          {/* =====================================================
-        CHECKOUT MODAL
-    ====================================================== */}
-          <div className="relative mx-auto my-3 w-full max-w-2xl sm:my-6">
-            <div className="overflow-hidden rounded-[1.5rem] border border-neutral-200 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.20)] sm:rounded-3xl">
-              {/* Accent line */}
-              <div className="h-1 w-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-pink-500" />
+          <div className="relative mx-auto my-3 w-full max-w-2xl sm:my-8">
+            <div className="overflow-hidden border border-black/10 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.25)]">
+              <div className="h-1 w-full bg-violet-600" />
 
-              {/* =================================================
-            MODAL CONTENT
-        ================================================= */}
-              <div className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain sm:max-h-[calc(100dvh-3rem)]">
-                {/* =================================================
-              HEADER
-          ================================================= */}
-                <div className="flex items-start justify-between gap-4 border-b border-neutral-200 bg-white p-5 sm:p-6">
-                  <div className="min-w-0 pr-2">
-                    <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-violet-700">
-                      <Briefcase className="h-3.5 w-3.5" />
+              <div className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto sm:max-h-[calc(100dvh-4rem)]">
+                {/* HEADER */}
 
-                      {needsQuote
-                        ? 'Project Request'
-                        : 'Checkout'}
-                    </div>
+                <div className="flex items-start justify-between gap-5 border-b border-black/10 p-5 sm:p-7">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-violet-600">
+                      39Production / Checkout
+                    </p>
 
-                    <h2 className="text-xl font-black text-neutral-950 sm:text-2xl">
+                    <h2 className="mt-2 text-2xl font-black tracking-[-0.045em]">
                       {createdOrder
                         ? 'Order Berhasil'
                         : paymentData
@@ -1423,13 +1741,13 @@ export function ServiceDetailPage() {
                             : 'Pesan Layanan'}
                     </h2>
 
-                    <p className="mt-1 max-w-xl text-xs leading-5 text-neutral-500 sm:text-sm">
+                    <p className="mt-1 max-w-xl text-xs leading-5 text-zinc-500 sm:text-sm">
                       {createdOrder
                         ? 'Pembayaran DP telah diverifikasi.'
                         : paymentData
                           ? 'Selesaikan pembayaran DP 50% melalui DANA QRIS.'
                           : needsQuote
-                            ? 'Kirim kebutuhan project terlebih dahulu. Harga final akan dibahas dengan admin sebelum pembayaran.'
+                            ? 'Kirim kebutuhan project terlebih dahulu. Harga final akan dibahas dengan admin.'
                             : 'Isi data berikut untuk melanjutkan pembayaran DP 50%.'}
                     </p>
                   </div>
@@ -1438,60 +1756,69 @@ export function ServiceDetailPage() {
                     type="button"
                     disabled={isSubmitting}
                     onClick={closeCheckout}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-neutral-200 bg-white text-neutral-500 transition hover:bg-neutral-50 hover:text-neutral-900 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:w-10"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center border border-black/10 bg-white text-zinc-500 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <X className="h-5 w-5" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
 
-                {/* =================================================
-              FORM
-          ================================================= */}
-                {!createdOrder && !paymentData ? (
+                {/* FORM */}
+
+                {!createdOrder &&
+                  !paymentData ? (
                   <form
-                    onSubmit={handleCheckout}
-                    className="space-y-5 p-5 sm:space-y-6 sm:p-6"
+                    onSubmit={
+                      handleCheckout
+                    }
+                    className="space-y-6 p-5 sm:p-7"
                   >
-                    {/* Service summary */}
-                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-neutral-400">
+                    {/* SERVICE SUMMARY */}
+
+                    <div className="border-y border-black/10 bg-zinc-50 px-4 py-5">
+                      <div className="flex items-start justify-between gap-5">
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
                             Service
                           </p>
 
-                          <p className="mt-1 text-sm font-bold text-neutral-950 sm:text-base">
+                          <p className="mt-1 text-base font-black tracking-tight text-zinc-950">
                             {service.name}
+                          </p>
+
+                          <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-violet-600">
+                            {getPricingLabel(
+                              service,
+                            )}
                           </p>
                         </div>
 
-                        <div className="shrink-0 text-right">
+                        <div className="text-right">
                           {isFixedService ? (
                             <>
-                              {promotion &&
-                                discount > 0 && (
-                                  <p className="text-xs text-neutral-400 line-through">
+                              {discount >
+                                0 && (
+                                  <p className="text-xs text-zinc-400 line-through">
                                     {formatPrice(
                                       basePrice,
                                     )}
                                   </p>
                                 )}
 
-                              <p className="text-base font-bold text-neutral-950 sm:text-lg">
+                              <p className="text-lg font-black text-violet-600">
                                 {formatPrice(
                                   finalPrice,
                                 )}
                               </p>
                             </>
                           ) : isStartingFromService ? (
-                            <p className="text-right text-sm font-bold text-neutral-950 sm:text-base">
+                            <p className="text-sm font-black">
                               Mulai dari{' '}
                               {formatPrice(
                                 startingPrice,
                               )}
                             </p>
                           ) : (
-                            <p className="text-sm font-bold text-pink-600 sm:text-base">
+                            <p className="text-sm font-black text-violet-600">
                               Custom Quote
                             </p>
                           )}
@@ -1499,289 +1826,375 @@ export function ServiceDetailPage() {
                       </div>
                     </div>
 
-                    {/* Customer information */}
-                    <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
-                      <div className="sm:col-span-2">
-                        <label
-                          htmlFor="customerName"
-                          className="mb-2 block text-sm font-semibold text-neutral-800"
-                        >
-                          Nama Lengkap
-                        </label>
+                    {/* CUSTOMER */}
 
-                        <input
-                          id="customerName"
-                          type="text"
-                          value={customerName}
-                          onChange={(e) =>
-                            setCustomerName(
-                              e.target.value,
-                            )
-                          }
-                          placeholder="Masukkan nama lengkap"
-                          disabled={isSubmitting}
-                          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
-                        />
+                    <div>
+                      <div className="mb-4 flex items-center gap-3">
+                        <span className="text-[9px] font-black uppercase tracking-[0.18em] text-violet-600">
+                          01
+                        </span>
+
+                        <span className="h-px w-8 bg-violet-600" />
+
+                        <span className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                          Customer Information
+                        </span>
                       </div>
 
-                      <div>
-                        <label
-                          htmlFor="customerEmail"
-                          className="mb-2 block text-sm font-semibold text-neutral-800"
-                        >
-                          Email
-                        </label>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="sm:col-span-2">
+                          <label
+                            htmlFor="customerName"
+                            className="mb-2 block text-xs font-bold text-zinc-800"
+                          >
+                            Nama Lengkap
+                          </label>
 
-                        <input
-                          id="customerEmail"
-                          type="email"
-                          value={customerEmail}
-                          onChange={(e) =>
-                            setCustomerEmail(
-                              e.target.value,
-                            )
-                          }
-                          placeholder="nama@email.com"
-                          disabled={isSubmitting}
-                          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
-                        />
-                      </div>
+                          <input
+                            id="customerName"
+                            type="text"
+                            value={
+                              customerName
+                            }
+                            onChange={(event) =>
+                              setCustomerName(
+                                event.target
+                                  .value,
+                              )
+                            }
+                            placeholder="Masukkan nama lengkap"
+                            disabled={
+                              isSubmitting
+                            }
+                            className="w-full border border-black/10 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
+                          />
+                        </div>
 
-                      <div>
-                        <label
-                          htmlFor="customerPhone"
-                          className="mb-2 block text-sm font-semibold text-neutral-800"
-                        >
-                          Nomor WhatsApp
-                        </label>
+                        <div>
+                          <label
+                            htmlFor="customerEmail"
+                            className="mb-2 block text-xs font-bold text-zinc-800"
+                          >
+                            Email
+                          </label>
 
-                        <input
-                          id="customerPhone"
-                          type="tel"
-                          value={customerPhone}
-                          onChange={(e) =>
-                            setCustomerPhone(
-                              e.target.value,
-                            )
-                          }
-                          placeholder="08xxxxxxxxxx"
-                          disabled={isSubmitting}
-                          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
-                        />
+                          <input
+                            id="customerEmail"
+                            type="email"
+                            value={
+                              customerEmail
+                            }
+                            onChange={(event) =>
+                              setCustomerEmail(
+                                event.target
+                                  .value,
+                              )
+                            }
+                            placeholder="nama@email.com"
+                            disabled={
+                              isSubmitting
+                            }
+                            className="w-full border border-black/10 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
+                          />
+                        </div>
+
+                        <div>
+                          <label
+                            htmlFor="customerPhone"
+                            className="mb-2 block text-xs font-bold text-zinc-800"
+                          >
+                            Nomor WhatsApp
+                          </label>
+
+                          <input
+                            id="customerPhone"
+                            type="tel"
+                            value={
+                              customerPhone
+                            }
+                            onChange={(event) =>
+                              setCustomerPhone(
+                                event.target
+                                  .value,
+                              )
+                            }
+                            placeholder="08xxxxxxxxxx"
+                            disabled={
+                              isSubmitting
+                            }
+                            className="w-full border border-black/10 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    {/* Quote fields */}
+                    {/* QUOTE */}
+
                     {needsQuote && (
-                      <div className="space-y-5 rounded-2xl border border-violet-200 bg-violet-50/60 p-4 sm:p-5">
-                        <div>
-                          <p className="text-sm font-bold text-neutral-950">
-                            Detail Project
+                      <div className="border border-violet-200 bg-violet-50/50 p-5">
+                        <div className="mb-5">
+                          <div className="flex items-center gap-3">
+                            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-violet-600">
+                              02
+                            </span>
+
+                            <span className="h-px w-8 bg-violet-600" />
+
+                            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-violet-700">
+                              Project Brief
+                            </span>
+                          </div>
+
+                          <p className="mt-3 text-xs leading-5 text-zinc-500 sm:text-sm">
+                            Data ini membantu
+                            tim menentukan
+                            scope dan penawaran
+                            yang sesuai.
                           </p>
-
-                          <p className="mt-1 text-xs leading-5 text-neutral-500 sm:text-sm">
-                            Data ini membantu admin menghitung scope
-                            dan memberikan penawaran harga yang sesuai.
-                          </p>
                         </div>
 
-                        <div>
-                          <label
-                            htmlFor="projectName"
-                            className="mb-2 block text-sm font-semibold text-neutral-800"
-                          >
-                            Nama Project
-                          </label>
-
-                          <input
-                            id="projectName"
-                            type="text"
-                            value={projectName}
-                            onChange={(e) =>
-                              setProjectName(
-                                e.target.value,
-                              )
-                            }
-                            placeholder="Contoh: Website Company Profile"
-                            disabled={isSubmitting}
-                            className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
-                          />
-                        </div>
-
-                        <div>
-                          <label
-                            htmlFor="projectDescription"
-                            className="mb-2 block text-sm font-semibold text-neutral-800"
-                          >
-                            Deskripsi Project
-                          </label>
-
-                          <textarea
-                            id="projectDescription"
-                            value={projectDescription}
-                            onChange={(e) =>
-                              setProjectDescription(
-                                e.target.value,
-                              )
-                            }
-                            placeholder="Jelaskan kebutuhan, fitur, atau hasil yang diinginkan..."
-                            rows={4}
-                            disabled={isSubmitting}
-                            className="w-full resize-none rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
-                          />
-                        </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
+                        <div className="space-y-4">
                           <div>
                             <label
-                              htmlFor="budgetRange"
-                              className="mb-2 block text-sm font-semibold text-neutral-800"
+                              htmlFor="projectName"
+                              className="mb-2 block text-xs font-bold text-zinc-800"
                             >
-                              Budget
+                              Nama Project
                             </label>
 
                             <input
-                              id="budgetRange"
+                              id="projectName"
                               type="text"
-                              value={budgetRange}
-                              onChange={(e) =>
-                                setBudgetRange(
-                                  e.target.value,
+                              value={
+                                projectName
+                              }
+                              onChange={(event) =>
+                                setProjectName(
+                                  event.target
+                                    .value,
                                 )
                               }
-                              placeholder="Contoh: Rp3–5 juta"
-                              disabled={isSubmitting}
-                              className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
+                              placeholder="Contoh: Website Company Profile"
+                              disabled={
+                                isSubmitting
+                              }
+                              className="w-full border border-black/10 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
                             />
                           </div>
 
                           <div>
                             <label
-                              htmlFor="deadline"
-                              className="mb-2 block text-sm font-semibold text-neutral-800"
+                              htmlFor="projectDescription"
+                              className="mb-2 block text-xs font-bold text-zinc-800"
                             >
-                              Target Deadline
+                              Deskripsi Project
+                            </label>
+
+                            <textarea
+                              id="projectDescription"
+                              value={
+                                projectDescription
+                              }
+                              onChange={(event) =>
+                                setProjectDescription(
+                                  event.target
+                                    .value,
+                                )
+                              }
+                              placeholder="Jelaskan kebutuhan, fitur, atau hasil yang diinginkan..."
+                              rows={4}
+                              disabled={
+                                isSubmitting
+                              }
+                              className="w-full resize-none border border-black/10 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
+                            />
+                          </div>
+
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <div>
+                              <label
+                                htmlFor="budgetRange"
+                                className="mb-2 block text-xs font-bold text-zinc-800"
+                              >
+                                Budget
+                              </label>
+
+                              <input
+                                id="budgetRange"
+                                type="text"
+                                value={
+                                  budgetRange
+                                }
+                                onChange={(
+                                  event,
+                                ) =>
+                                  setBudgetRange(
+                                    event.target
+                                      .value,
+                                  )
+                                }
+                                placeholder="Contoh: Rp3–5 juta"
+                                disabled={
+                                  isSubmitting
+                                }
+                                className="w-full border border-black/10 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
+                              />
+                            </div>
+
+                            <div>
+                              <label
+                                htmlFor="deadline"
+                                className="mb-2 block text-xs font-bold text-zinc-800"
+                              >
+                                Target Deadline
+                              </label>
+
+                              <input
+                                id="deadline"
+                                type="date"
+                                value={
+                                  deadline
+                                }
+                                onChange={(
+                                  event,
+                                ) =>
+                                  setDeadline(
+                                    event.target
+                                      .value,
+                                  )
+                                }
+                                disabled={
+                                  isSubmitting
+                                }
+                                className="w-full border border-black/10 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label
+                              htmlFor="referenceUrl"
+                              className="mb-2 block text-xs font-bold text-zinc-800"
+                            >
+                              Reference URL
                             </label>
 
                             <input
-                              id="deadline"
-                              type="date"
-                              value={deadline}
-                              onChange={(e) =>
-                                setDeadline(
-                                  e.target.value,
+                              id="referenceUrl"
+                              type="url"
+                              value={
+                                referenceUrl
+                              }
+                              onChange={(event) =>
+                                setReferenceUrl(
+                                  event.target
+                                    .value,
                                 )
                               }
-                              disabled={isSubmitting}
-                              className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
+                              placeholder="https://..."
+                              disabled={
+                                isSubmitting
+                              }
+                              className="w-full border border-black/10 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
                             />
                           </div>
-                        </div>
 
-                        <div>
-                          <label
-                            htmlFor="referenceUrl"
-                            className="mb-2 block text-sm font-semibold text-neutral-800"
-                          >
-                            Reference URL
-                          </label>
+                          <div>
+                            <label
+                              htmlFor="additionalRequirements"
+                              className="mb-2 block text-xs font-bold text-zinc-800"
+                            >
+                              Kebutuhan Tambahan
+                            </label>
 
-                          <input
-                            id="referenceUrl"
-                            type="url"
-                            value={referenceUrl}
-                            onChange={(e) =>
-                              setReferenceUrl(
-                                e.target.value,
-                              )
-                            }
-                            placeholder="https://..."
-                            disabled={isSubmitting}
-                            className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
-                          />
-                        </div>
-
-                        <div>
-                          <label
-                            htmlFor="additionalRequirements"
-                            className="mb-2 block text-sm font-semibold text-neutral-800"
-                          >
-                            Kebutuhan Tambahan
-                          </label>
-
-                          <textarea
-                            id="additionalRequirements"
-                            value={
-                              additionalRequirements
-                            }
-                            onChange={(e) =>
-                              setAdditionalRequirements(
-                                e.target.value,
-                              )
-                            }
-                            placeholder="Tambahkan catatan atau kebutuhan khusus (opsional)..."
-                            rows={3}
-                            disabled={isSubmitting}
-                            className="w-full resize-none rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
-                          />
+                            <textarea
+                              id="additionalRequirements"
+                              value={
+                                additionalRequirements
+                              }
+                              onChange={(event) =>
+                                setAdditionalRequirements(
+                                  event.target
+                                    .value,
+                                )
+                              }
+                              placeholder="Catatan atau kebutuhan khusus..."
+                              rows={3}
+                              disabled={
+                                isSubmitting
+                              }
+                              className="w-full resize-none border border-black/10 bg-white px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
+                            />
+                          </div>
                         </div>
                       </div>
                     )}
 
-                    {/* Pricing */}
+                    {/* PRICING */}
+
                     {isFixedService ? (
-                      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                      <div className="border-y border-black/10 py-5">
                         <div className="space-y-3">
                           <div className="flex justify-between gap-4 text-sm">
-                            <span className="text-neutral-500">
+                            <span className="text-zinc-500">
                               Harga layanan
                             </span>
 
-                            <span className="font-medium text-neutral-800">
-                              {formatPrice(basePrice)}
+                            <span className="font-bold text-zinc-900">
+                              {formatPrice(
+                                basePrice,
+                              )}
                             </span>
                           </div>
 
-                          {discount > 0 && (
-                            <div className="flex justify-between gap-4 text-sm">
-                              <span className="text-pink-600">
-                                Discount
-                              </span>
+                          {discount >
+                            0 && (
+                              <div className="flex justify-between gap-4 text-sm">
+                                <span className="text-violet-600">
+                                  Discount
+                                </span>
 
-                              <span className="font-medium text-pink-600">
-                                -{formatPrice(discount)}
-                              </span>
-                            </div>
-                          )}
+                                <span className="font-bold text-violet-600">
+                                  -
+                                  {formatPrice(
+                                    discount,
+                                  )}
+                                </span>
+                              </div>
+                            )}
 
-                          <div className="border-t border-neutral-200 pt-3">
+                          <div className="border-t border-black/10 pt-4">
                             <div className="flex justify-between gap-4">
-                              <span className="font-semibold text-neutral-950">
+                              <span className="font-black">
                                 Total
                               </span>
 
-                              <span className="text-xl font-black text-neutral-950">
-                                {formatPrice(finalPrice)}
+                              <span className="text-xl font-black text-violet-600">
+                                {formatPrice(
+                                  finalPrice,
+                                )}
                               </span>
                             </div>
                           </div>
 
                           <div className="flex justify-between gap-4 text-sm">
-                            <span className="font-medium text-violet-700">
+                            <span className="font-bold text-violet-600">
                               DP 50%
                             </span>
 
-                            <span className="font-bold text-violet-700">
-                              {formatPrice(estimatedDp)}
+                            <span className="font-black text-violet-600">
+                              {formatPrice(
+                                estimatedDp,
+                              )}
                             </span>
                           </div>
 
                           <div className="flex justify-between gap-4 text-sm">
-                            <span className="text-neutral-500">
-                              Sisa setelah DP
+                            <span className="text-zinc-500">
+                              Sisa pembayaran
                             </span>
 
-                            <span className="font-medium text-neutral-800">
+                            <span className="font-bold text-zinc-800">
                               {formatPrice(
                                 estimatedRemaining,
                               )}
@@ -1790,128 +2203,144 @@ export function ServiceDetailPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-4">
-                        <p className="text-sm font-semibold text-neutral-950">
-                          Harga akan ditentukan melalui Quote
+                      <div className="border border-violet-200 bg-violet-50/60 p-5">
+                        <p className="text-sm font-black text-zinc-950">
+                          Harga akan ditentukan
+                          melalui Quote
                         </p>
 
-                        <p className="mt-1 text-xs leading-5 text-neutral-500 sm:text-sm">
+                        <p className="mt-2 text-xs leading-5 text-zinc-500 sm:text-sm">
                           {isStartingFromService
                             ? `Layanan dimulai dari ${formatPrice(
                               startingPrice,
                             )}. Angka ini hanya harga awal, bukan harga final.`
                             : 'Admin akan menentukan harga berdasarkan scope dan kebutuhan project.'}{' '}
-                          Kamu dan admin akan membahas detail serta harga
-                          terlebih dahulu. Setelah deal disetujui, barulah
-                          pembayaran DP dapat dilakukan.
+                          Pembayaran belum
+                          dilakukan pada tahap
+                          request ini.
                         </p>
                       </div>
                     )}
 
+                    {/* ERROR */}
+
                     {formError && (
-                      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-600">
+                      <div className="border border-red-200 bg-red-50 px-4 py-3 text-xs leading-5 text-red-600">
                         {formError}
                       </div>
                     )}
 
+                    {/* SUBMIT */}
+
                     <button
                       type="submit"
-                      disabled={isSubmitting}
-                      className="group flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-neutral-950 px-5 text-sm font-bold text-white shadow-[0_15px_35px_rgba(0,0,0,0.10)] transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={
+                        isSubmitting
+                      }
+                      className="group flex min-h-13 w-full items-center justify-between border border-black bg-black px-5 text-xs font-black uppercase tracking-[0.14em] text-white transition hover:border-violet-600 hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {isSubmitting ? (
-                        <>
+                      <span className="flex items-center gap-3">
+                        {isSubmitting && (
                           <Loader2 className="h-4 w-4 animate-spin" />
+                        )}
 
-                          {needsQuote
-                            ? 'Mengirim Request Quote...'
-                            : 'Membuat Pembayaran...'}
-                        </>
-                      ) : (
-                        <>
-                          {needsQuote
+                        {isSubmitting
+                          ? needsQuote
+                            ? 'Sending Request...'
+                            : 'Creating Payment...'
+                          : needsQuote
                             ? 'Kirim Request Quote'
-                            : 'Pay DP 50% via DANA QRIS'}
+                            : 'Pay DP 50% via QRIS'}
+                      </span>
 
-                          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                        </>
+                      {!isSubmitting && (
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                       )}
                     </button>
 
-                    <p className="text-center text-[11px] leading-5 text-neutral-500 sm:text-xs">
+                    <p className="text-center text-[10px] leading-5 text-zinc-400">
                       {needsQuote
-                        ? 'Setelah request dikirim, admin akan menghubungi kamu untuk membahas scope dan harga. Pembayaran belum dilakukan pada tahap ini.'
-                        : 'Order number baru dibuat setelah pembayaran DP berhasil diverifikasi oleh server.'}
+                        ? 'Pembayaran belum dilakukan. Admin akan menghubungi kamu untuk pembahasan scope dan harga.'
+                        : 'Order number dibuat setelah pembayaran DP berhasil diverifikasi oleh server.'}
                     </p>
                   </form>
-                ) : !createdOrder && paymentData ? (
+                ) : !createdOrder &&
+                  paymentData ? (
                   /* =================================================
                      QRIS
                   ================================================== */
-                  <div className="p-5 sm:p-6">
-                    <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-700">
-                            DP 50%
-                          </p>
 
-                          <p className="mt-1 text-2xl font-black text-violet-700">
-                            {formatPrice(
-                              paymentData.dp_amount,
-                            )}
-                          </p>
-                        </div>
+                  <div className="p-5 sm:p-7">
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      <div className="border border-violet-200 bg-violet-50 p-5">
+                        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-violet-600">
+                          DP 50%
+                        </p>
 
-                        <div className="text-right">
-                          <p className="text-xs text-neutral-500">
-                            Sisa pembayaran
-                          </p>
+                        <p className="mt-2 text-3xl font-black tracking-[-0.04em] text-violet-600">
+                          {formatPrice(
+                            paymentData.dp_amount,
+                          )}
+                        </p>
+                      </div>
 
-                          <p className="mt-1 font-bold text-neutral-900">
-                            {formatPrice(
-                              paymentData.remaining_amount,
-                            )}
-                          </p>
-                        </div>
+                      <div className="border border-black/10 bg-zinc-50 p-5">
+                        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                          Remaining
+                        </p>
+
+                        <p className="mt-2 text-2xl font-black tracking-[-0.04em]">
+                          {formatPrice(
+                            paymentData.remaining_amount,
+                          )}
+                        </p>
                       </div>
                     </div>
 
-                    <div className="mt-5 rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
+                    <div className="mt-6 border border-black/10 bg-white p-5">
                       {paymentData.qr_image ? (
                         <img
-                          src={paymentData.qr_image}
+                          src={
+                            paymentData.qr_image
+                          }
                           alt="DANA QRIS payment code"
                           className="mx-auto h-56 w-56 object-contain sm:h-64 sm:w-64"
                         />
                       ) : paymentData.qr_url ? (
                         <a
-                          href={paymentData.qr_url}
+                          href={
+                            paymentData.qr_url
+                          }
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="mx-auto flex h-56 w-56 items-center justify-center rounded-xl border border-neutral-200 bg-neutral-50 text-center text-sm font-semibold text-neutral-700 sm:h-64 sm:w-64"
+                          className="mx-auto flex h-56 w-56 items-center justify-center border border-black/10 bg-zinc-50 text-center text-xs font-black uppercase tracking-[0.1em] text-zinc-700 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 sm:h-64 sm:w-64"
                         >
                           Open DANA QRIS
                         </a>
                       ) : (
-                        <div className="mx-auto flex min-h-40 max-w-sm items-center justify-center break-all rounded-xl bg-neutral-50 p-5 text-center font-mono text-xs text-neutral-700">
-                          {paymentData.qr_content}
+                        <div className="mx-auto flex min-h-40 max-w-sm items-center justify-center break-all bg-zinc-50 p-5 text-center font-mono text-xs text-zinc-700">
+                          {
+                            paymentData.qr_content
+                          }
                         </div>
                       )}
                     </div>
 
-                    <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-xs leading-5 text-neutral-500 sm:text-sm">
-                      <p className="font-semibold text-neutral-900">
-                        Cara pembayaran
+                    <div className="mt-5 border-l-2 border-violet-600 bg-violet-50/60 p-4 text-xs leading-5 text-zinc-500">
+                      <p className="font-black text-zinc-950">
+                        Pembayaran melalui
+                        DANA QRIS
                       </p>
 
                       <p className="mt-1">
-                        Scan QRIS menggunakan aplikasi DANA. Setelah
-                        pembayaran berhasil, sistem akan memverifikasi
-                        transaksi secara otomatis.
+                        Scan QRIS menggunakan
+                        aplikasi DANA. Sistem
+                        akan mengecek status
+                        pembayaran secara
+                        otomatis.
                       </p>
 
-                      <p className="mt-2">
+                      <p className="mt-2 font-semibold text-violet-700">
                         {checkingPayment
                           ? 'Sedang mengecek status pembayaran...'
                           : 'Menunggu verifikasi pembayaran...'}
@@ -1925,13 +2354,13 @@ export function ServiceDetailPage() {
                           paymentData.qr_content,
                         )
                       }
-                      className="mt-4 min-h-11 w-full rounded-xl border border-neutral-200 bg-white text-xs font-semibold text-neutral-800 transition hover:border-violet-200 hover:bg-violet-50"
+                      className="mt-4 min-h-11 w-full border border-black/10 bg-white text-[10px] font-black uppercase tracking-[0.14em] text-zinc-700 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
                     >
                       Copy QRIS Content
                     </button>
 
                     {formError && (
-                      <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-5 text-red-600">
+                      <div className="mt-4 border border-red-200 bg-red-50 p-3 text-xs text-red-600">
                         {formError}
                       </div>
                     )}
@@ -1940,89 +2369,106 @@ export function ServiceDetailPage() {
                   /* =================================================
                      ORDER SUCCESS
                   ================================================== */
-                  <div className="p-5 text-center sm:p-8">
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-                      <CheckCircle2 className="h-8 w-8" />
+
+                  <div className="p-6 sm:p-8">
+                    <div className="flex items-start justify-between gap-6 border-b border-black/10 pb-6">
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-600">
+                          DP Payment Verified
+                        </p>
+
+                        <h2 className="mt-2 text-3xl font-black tracking-[-0.05em]">
+                          Order berhasil dibuat
+                        </h2>
+
+                        <p className="mt-2 text-sm leading-6 text-zinc-500">
+                          Pembayaran DP 50%
+                          sudah diverifikasi.
+                          Order resmi tercatat
+                          di sistem.
+                        </p>
+                      </div>
+
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-emerald-200 bg-emerald-50 text-emerald-600">
+                        <CheckCircle2 className="h-6 w-6" />
+                      </div>
                     </div>
 
-                    <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600">
-                      DP Payment Verified
-                    </p>
-
-                    <h2 className="mt-2 text-2xl font-black text-neutral-950">
-                      Order berhasil dibuat
-                    </h2>
-
-                    <p className="mt-2 text-sm leading-6 text-neutral-500">
-                      Pembayaran DP 50% sudah diverifikasi. Order sekarang
-                      resmi tercatat.
-                    </p>
-
-                    <div className="mt-6 rounded-2xl border border-violet-200 bg-violet-50 p-5">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-neutral-500">
+                    <div className="mt-6 border border-violet-200 bg-violet-50 p-5">
+                      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
                         Order Number
                       </p>
 
-                      <p className="mt-2 break-all font-mono text-lg font-bold tracking-wider text-violet-700 sm:text-xl">
-                        {createdOrder.order_number}
+                      <p className="mt-2 break-all font-mono text-xl font-black tracking-[0.08em] text-violet-600">
+                        {
+                          createdOrder.order_number
+                        }
                       </p>
                     </div>
 
-                    <div className="mt-5 space-y-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-left">
+                    <div className="mt-5 border-y border-black/10 py-5">
                       <div className="flex justify-between gap-4 text-sm">
-                        <span className="text-neutral-500">
+                        <span className="text-zinc-500">
                           Layanan
                         </span>
 
-                        <span className="max-w-[60%] text-right font-medium text-neutral-900">
-                          {createdOrder.product_name}
+                        <span className="max-w-[60%] text-right font-bold text-zinc-950">
+                          {
+                            createdOrder.product_name
+                          }
                         </span>
                       </div>
 
-                      <div className="flex justify-between gap-4 text-sm">
-                        <span className="text-neutral-500">
+                      <div className="mt-3 flex justify-between gap-4 text-sm">
+                        <span className="text-zinc-500">
                           Quantity
                         </span>
 
-                        <span className="font-medium text-neutral-900">
-                          {createdOrder.quantity}
+                        <span className="font-bold">
+                          {
+                            createdOrder.quantity
+                          }
                         </span>
                       </div>
 
-                      {(createdOrder.discount_amount ?? 0) > 0 && (
-                        <div className="flex justify-between gap-4 text-sm">
-                          <span className="text-neutral-500">
-                            Discount
+                      {(createdOrder.discount_amount ??
+                        0) > 0 && (
+                          <div className="mt-3 flex justify-between gap-4 text-sm">
+                            <span className="text-zinc-500">
+                              Discount
+                            </span>
+
+                            <span className="font-bold text-violet-600">
+                              -
+                              {formatPrice(
+                                createdOrder.discount_amount ??
+                                0,
+                              )}
+                            </span>
+                          </div>
+                        )}
+
+                      <div className="mt-4 border-t border-black/10 pt-4">
+                        <div className="flex justify-between gap-4">
+                          <span className="font-black">
+                            Total
                           </span>
 
-                          <span className="font-medium text-pink-600">
-                            -
+                          <span className="text-xl font-black text-violet-600">
                             {formatPrice(
-                              createdOrder.discount_amount ?? 0,
+                              createdOrder.final_total ??
+                              createdOrder.total_price,
                             )}
                           </span>
                         </div>
-                      )}
-
-                      <div className="flex justify-between gap-4 border-t border-neutral-200 pt-3">
-                        <span className="font-semibold text-neutral-950">
-                          Total
-                        </span>
-
-                        <span className="text-xl font-black text-neutral-950">
-                          {formatPrice(
-                            createdOrder.final_total ??
-                            createdOrder.total_price,
-                          )}
-                        </span>
                       </div>
 
-                      <div className="flex justify-between gap-4 text-sm">
-                        <span className="text-violet-700">
+                      <div className="mt-3 flex justify-between gap-4 text-sm">
+                        <span className="font-bold text-violet-600">
                           DP dibayar
                         </span>
 
-                        <span className="font-bold text-violet-700">
+                        <span className="font-black text-violet-600">
                           {formatPrice(
                             createdOrder.dp_amount ??
                             Math.ceil(
@@ -2035,34 +2481,36 @@ export function ServiceDetailPage() {
                         </span>
                       </div>
 
-                      <div className="flex justify-between gap-4 text-sm">
-                        <span className="text-neutral-500">
+                      <div className="mt-3 flex justify-between gap-4 text-sm">
+                        <span className="text-zinc-500">
                           Sisa pembayaran
                         </span>
 
-                        <span className="font-medium text-neutral-900">
+                        <span className="font-bold text-zinc-900">
                           {formatPrice(
                             createdOrder.remaining_amount ??
-                            (Number(
+                            Number(
                               createdOrder.final_total ??
                               createdOrder.total_price,
                             ) -
-                              (createdOrder.dp_amount ??
-                                Math.ceil(
-                                  Number(
-                                    createdOrder.final_total ??
-                                    createdOrder.total_price,
-                                  ) / 2,
-                                ))),
+                            (createdOrder.dp_amount ??
+                              Math.ceil(
+                                Number(
+                                  createdOrder.final_total ??
+                                  createdOrder.total_price,
+                                ) / 2,
+                              )),
                           )}
                         </span>
                       </div>
                     </div>
 
-                    <div className="mt-5 rounded-xl border border-violet-200 bg-violet-50 p-4 text-left text-xs leading-5 text-neutral-500">
-                      Order akan diproses oleh admin. Setelah pekerjaan
-                      selesai, admin akan menerbitkan invoice untuk sisa
-                      pembayaran 50%.
+                    <div className="mt-5 border-l-2 border-violet-600 bg-violet-50/60 p-4 text-xs leading-5 text-zinc-500">
+                      Order akan diproses oleh
+                      admin. Setelah pekerjaan
+                      selesai, admin akan
+                      menerbitkan invoice untuk
+                      sisa pembayaran 50%.
                     </div>
 
                     <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -2070,10 +2518,9 @@ export function ServiceDetailPage() {
                         href={createWhatsAppUrl()}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-neutral-950 px-5 text-sm font-bold text-white transition hover:bg-violet-600"
+                        className="inline-flex min-h-12 items-center justify-center gap-2 border border-black bg-black px-5 text-xs font-black uppercase tracking-[0.12em] text-white transition hover:border-violet-600 hover:bg-violet-600"
                       >
-                        Hubungi via WhatsApp
-
+                        WhatsApp
                         <ArrowRight className="h-4 w-4" />
                       </a>
 
@@ -2081,17 +2528,18 @@ export function ServiceDetailPage() {
                         to={getTrackUrl(
                           createdOrder.order_number,
                         )}
-                        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-5 text-sm font-semibold text-neutral-800 transition hover:border-violet-200 hover:bg-violet-50"
+                        className="inline-flex min-h-12 items-center justify-center gap-2 border border-black/10 bg-white px-5 text-xs font-black uppercase tracking-[0.12em] text-zinc-700 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
                       >
                         Track Order
+                        <ArrowUpRight className="h-4 w-4" />
                       </Link>
                     </div>
 
                     <Link
                       to="/services"
-                      className="mt-3 flex min-h-11 w-full items-center justify-center rounded-xl px-5 text-sm text-neutral-500 transition hover:text-neutral-900"
+                      className="mt-4 flex min-h-10 items-center justify-center text-[10px] font-black uppercase tracking-[0.14em] text-zinc-400 transition hover:text-violet-600"
                     >
-                      Kembali ke Services
+                      Back to Services
                     </Link>
                   </div>
                 ) : null}
@@ -2100,6 +2548,19 @@ export function ServiceDetailPage() {
           </div>
         </div>
       )}
-    </div>
+
+      <style>{`
+        @media (prefers-reduced-motion: reduce) {
+          *,
+          *::before,
+          *::after {
+            scroll-behavior: auto !important;
+            transition-duration: 0.01ms !important;
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+          }
+        }
+      `}</style>
+    </section>
   )
 }
