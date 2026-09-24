@@ -1,0 +1,4 @@
+User - agent: *
+    Allow: /
+
+Sitemap: https://39production.github.io/39Production/sitemap.xml
