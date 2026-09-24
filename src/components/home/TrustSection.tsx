@@ -263,8 +263,8 @@ export function TrustSection() {
                                 <div
                                     key={principle.title}
                                     className={`group py-6 sm:px-6 sm:py-2 ${index !== 0
-                                            ? 'border-t border-black/10 sm:border-l sm:border-t-0'
-                                            : ''
+                                        ? 'border-t border-black/10 sm:border-l sm:border-t-0'
+                                        : ''
                                         }`}
                                 >
                                     <div className="mb-5 flex h-8 w-8 items-center justify-center rounded-full border border-black/10 transition-all duration-300 group-hover:border-[#7C3AED] group-hover:bg-[#7C3AED] group-hover:text-white">

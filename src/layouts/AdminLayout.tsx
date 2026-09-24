@@ -40,6 +40,7 @@ import {
   Check,
   ExternalLink,
   FileText,
+  MessageSquareQuote,
   Sun,
   Moon,
 } from 'lucide-react'
@@ -66,6 +67,7 @@ const iconMap: Record<
   ClipboardList,
   Bell,
   FileText,
+  MessageSquareQuote,
 }
 
 type ThemeMode = 'dark' | 'light'
@@ -619,6 +621,7 @@ export function AdminLayout() {
     '/admin/idol',
     '/admin/promotions',
     '/admin/news',
+    '/admin/testimonials',
   ]
 
   const systemPaths = [
@@ -984,7 +987,6 @@ export function AdminLayout() {
       >
         {/* ====================================================
             SIDEBAR HEADER
-            39PRODUCTION LOGO — tetap pakai Logo.tsx
         ==================================================== */}
         <div
           className={`
@@ -1240,7 +1242,6 @@ export function AdminLayout() {
                     group.id
                   }
                 >
-                  {/* Group Header */}
                   <button
                     type="button"
                     onClick={() =>
@@ -1292,7 +1293,6 @@ export function AdminLayout() {
                     />
                   </button>
 
-                  {/* Group Items */}
                   <div
                     className={`
                       grid
@@ -1418,7 +1418,6 @@ export function AdminLayout() {
 
         {/* ====================================================
             SIDEBAR FOOTER
-            Logout only
         ==================================================== */}
         <div
           className={`
@@ -1502,7 +1501,6 @@ export function AdminLayout() {
             ${border}
           `}
         >
-          {/* Mobile Menu */}
           <button
             type="button"
             onClick={() =>
@@ -1524,7 +1522,6 @@ export function AdminLayout() {
             <Menu className="h-5 w-5" />
           </button>
 
-          {/* Page title */}
           <h1
             className={`
               text-lg
@@ -1692,7 +1689,6 @@ export function AdminLayout() {
                     ${border}
                   `}
                 >
-                  {/* Notification header */}
                   <div
                     className={`
                       flex
@@ -1762,7 +1758,6 @@ export function AdminLayout() {
                       )}
                   </div>
 
-                  {/* Notification list */}
                   <div className="max-h-[24rem] overflow-y-auto">
                     {notifications.length ===
                       0 ? (
@@ -1980,7 +1975,6 @@ export function AdminLayout() {
 
           {/* ==================================================
               ADMIN PROFILE
-              Hanya icon
           ================================================== */}
           <div
             className={`
@@ -2040,7 +2034,6 @@ export function AdminLayout() {
             backdrop-blur-sm
           "
         >
-          {/* Backdrop */}
           <button
             type="button"
             className="
@@ -2056,7 +2049,6 @@ export function AdminLayout() {
             aria-label="Close logout dialog"
           />
 
-          {/* Modal */}
           <div
             className={`
               relative

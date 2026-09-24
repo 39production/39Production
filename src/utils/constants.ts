@@ -33,11 +33,6 @@ export const APP_COPYRIGHT = `© ${new Date().getFullYear()} 39Production. All r
 //
 // Jangan menambahkan "/" di akhir URL.
 //
-// Contoh:
-// ${API_BASE_URL}/api/products
-// ${API_BASE_URL}/api/orders
-// ${API_BASE_URL}/api/admin/members
-//
 
 export const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL ||
@@ -50,7 +45,6 @@ export const API_BASE_URL = (
 // ============================================================
 //
 // Centralized endpoint configuration.
-// Jangan menulis URL Worker secara manual di masing-masing page.
 //
 
 export const API_ENDPOINTS = {
@@ -78,6 +72,8 @@ export const API_ENDPOINTS = {
   news: '/api/news',
 
   promotions: '/api/promotions',
+
+  testimonials: '/api/testimonials',
 
   quotes: '/api/quotes',
 
@@ -125,6 +121,8 @@ export const API_ENDPOINTS = {
     documents: '/api/admin/documents',
 
     auditLogs: '/api/admin/audit-logs',
+
+    testimonials: '/api/admin/testimonials',
   },
 } as const
 
@@ -139,7 +137,7 @@ export const API_ENDPOINTS = {
 //
 // atau:
 //
-// fetch(buildApiUrl('/api/admin/members'))
+// fetch(buildApiUrl(API_ENDPOINTS.admin.members))
 //
 
 export function buildApiUrl(endpoint: string): string {
@@ -159,12 +157,16 @@ export function buildApiUrl(endpoint: string): string {
 // AUTH STORAGE
 // ============================================================
 //
-// Key disentralisasi agar seluruh halaman menggunakan
-// storage key yang sama.
+// Satu token authentication digunakan oleh seluruh aplikasi.
+//
+// Login di src/lib/auth.ts menyimpan token ke:
+// 39production_auth_token
+//
+// Semua helper API harus membaca token yang sama.
 //
 
 export const AUTH_STORAGE_KEYS = {
-  token: '39production_admin_token',
+  token: '39production_auth_token',
   user: '39production_admin_user',
 } as const
 
@@ -300,15 +302,6 @@ export const ORDER_STATUSES = [
 // ============================================================
 // ADMIN ORDER STATUS
 // ============================================================
-//
-// Status yang digunakan pada sistem order backend.
-//
-// Catatan:
-// Worker yang sekarang juga memiliki status order tersendiri.
-// Konstanta ini dipakai untuk UI business system dan nantinya
-// harus disamakan dengan enum/status yang kita implementasikan
-// di Worker.
-//
 
 export const ADMIN_ORDER_STATUSES = [
   {
@@ -551,14 +544,6 @@ export const REVENUE_SHARING_STATUSES = [
 // ============================================================
 // REVENUE SHARING CONFIGURATION
 // ============================================================
-//
-// Default company reserve.
-//
-// PENTING:
-// Nilai ini adalah konfigurasi default UI.
-// Perhitungan final revenue sharing tetap harus dilakukan
-// oleh Worker berdasarkan data D1, bukan dipercaya dari frontend.
-//
 
 export const DEFAULT_COMPANY_RESERVE_PERCENTAGE = 20
 
@@ -651,6 +636,7 @@ export const AUDIT_ENTITY_TYPES = [
   'Payment',
   'Settings',
   'Admin User',
+  'Testimonial',
 ] as const
 
 
@@ -778,6 +764,7 @@ export const CUSTOMER_NAV_LINKS = [
 //   Idol Production
 //   Promotions
 //   News
+//   Testimonials
 //
 // System
 //   Settings
@@ -894,6 +881,12 @@ export const ADMIN_NAV_LINKS = [
     path: '/admin/news',
     label: 'News',
     icon: 'Newspaper',
+  },
+
+  {
+    path: '/admin/testimonials',
+    label: 'Testimonials',
+    icon: 'MessageSquareQuote',
   },
 
   // ==========================================================
@@ -1022,6 +1015,11 @@ export const ADMIN_NAV_GROUPS = [
         label: 'News',
         icon: 'Newspaper',
       },
+      {
+        path: '/admin/testimonials',
+        label: 'Testimonials',
+        icon: 'MessageSquareQuote',
+      },
     ],
   },
 
@@ -1147,12 +1145,6 @@ export function getAuthHeaders(
 // ============================================================
 //
 // Helper umum untuk request ke Worker.
-//
-// Contoh:
-//
-// const data = await apiRequest<Member[]>(
-//   '/api/admin/members',
-// )
 //
 
 export async function apiRequest<T>(

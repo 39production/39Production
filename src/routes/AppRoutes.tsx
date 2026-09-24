@@ -37,6 +37,7 @@ import { AdminPromotionsPage } from '@/pages/admin/AdminPromotionsPage'
 import { AdminNewsPage } from '@/pages/admin/AdminNewsPage'
 import { AdminSettingsPage } from '@/pages/admin/AdminSettingsPage'
 import { AdminQuotesPage } from '@/pages/admin/AdminQuotesPage'
+import { AdminTestimonialsPage } from '@/pages/admin/AdminTestimonialsPage'
 
 // ============================================================
 // BUSINESS MANAGEMENT PAGES
@@ -218,7 +219,7 @@ export function AppRoutes() {
             ====================================================== */}
 
             <Route
-                path='/admin/access'
+                path="/admin/access"
                 element={<LoginPage />}
             />
 
@@ -329,6 +330,17 @@ export function AppRoutes() {
                     <Route
                         path="news"
                         element={<AdminNewsPage />}
+                    />
+
+                    {/* =================================================
+                        TESTIMONIALS
+                        Customer submits from Track Order.
+                        Admin reviews and publishes testimonials.
+                    ================================================== */}
+
+                    <Route
+                        path="testimonials"
+                        element={<AdminTestimonialsPage />}
                     />
 
                     {/* =================================================

@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowUpRight, Play } from 'lucide-react'
@@ -27,30 +26,30 @@ export function HeroSection() {
   }, [])
 
   return (
-    <section className="relative isolate overflow-hidden bg-white">
+    <section className="relative isolate overflow-hidden bg-white text-black">
       {/* =========================================================
           HERO
       ========================================================= */}
-      <div className="relative z-10 mx-auto max-w-[1600px] px-6 sm:px-8 lg:px-12 xl:px-16">
-        <div className="relative min-h-[calc(100vh-80px)] py-12 sm:py-14 lg:py-16">
+      <div className="relative z-10 mx-auto max-w-[1600px] px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16">
+        <div className="relative flex min-h-[calc(100svh-72px)] flex-col py-7 sm:min-h-[calc(100svh-80px)] sm:py-10 md:py-12 lg:min-h-[calc(100vh-80px)] lg:py-14 xl:py-16">
 
           {/* -----------------------------------------------------
               TOP BRAND LINE
           ----------------------------------------------------- */}
-          <div className="hero-item relative z-30 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-lg font-black tracking-[-0.06em] text-black">
+          <div className="hero-item relative z-30 flex items-center justify-between gap-4 border-b border-black/10 pb-4 sm:pb-5">
+            <div className="min-w-0 flex items-center gap-2.5 sm:gap-3">
+              <span className="shrink-0 text-base font-black tracking-[-0.06em] text-black sm:text-lg">
                 39Production
               </span>
 
-              <span className="hidden h-2 w-2 rounded-full bg-violet-600 sm:block" />
+              <span className="hidden h-1.5 w-1.5 shrink-0 rounded-full bg-violet-600 sm:block sm:h-2 sm:w-2" />
 
-              <span className="hidden text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400 sm:block">
+              <span className="hidden truncate text-[9px] font-semibold uppercase tracking-[0.16em] text-neutral-400 sm:block sm:text-[10px] sm:tracking-[0.2em]">
                 Digital Production House
               </span>
             </div>
 
-            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-neutral-400">
+            <span className="shrink-0 text-right text-[8px] font-bold uppercase tracking-[0.16em] text-neutral-400 sm:text-[9px] sm:tracking-[0.2em]">
               Indonesia / 2026
             </span>
           </div>
@@ -58,26 +57,35 @@ export function HeroSection() {
           {/* -----------------------------------------------------
               MAIN HERO COMPOSITION
           ----------------------------------------------------- */}
-          <div className="relative mt-8 sm:mt-10 lg:mt-1">
+          <div className="relative mt-7 flex-1 sm:mt-9 lg:mt-8 xl:mt-4">
 
-            {/* Small decorative accent */}
+            {/* Decorative accent */}
             <div
               aria-hidden="true"
               className="
                 pointer-events-none
                 absolute
-                left-[42%]
-                top-[-34px]
+                left-[68%]
+                top-[12px]
                 z-0
-                h-14
-                w-14
+                h-8
+                w-8
                 rounded-full
-                bg-violet-600
-                opacity-90
-                sm:h-20
-                sm:w-20
-                lg:h-24
-                lg:w-24
+                bg-gradient-to-br
+                from-fuchsia-500
+                to-violet-600
+                opacity-80
+                blur-[0.5px]
+                sm:left-[58%]
+                sm:top-[4px]
+                sm:h-12
+                sm:w-12
+                lg:left-[42%]
+                lg:top-[-34px]
+                lg:h-20
+                lg:w-20
+                xl:h-24
+                xl:w-24
               "
             />
 
@@ -90,10 +98,10 @@ export function HeroSection() {
                 z-10
                 grid
                 items-center
-                gap-8
-                lg:grid-cols-[0.82fr_1.18fr]
+                gap-6
+                lg:grid-cols-[0.86fr_1.14fr]
                 lg:gap-8
-                xl:grid-cols-[0.78fr_1.22fr]
+                xl:grid-cols-[0.8fr_1.2fr]
                 xl:gap-10
               "
             >
@@ -101,24 +109,27 @@ export function HeroSection() {
               {/* -------------------------------------------------
                   LEFT — HEADLINE
               ------------------------------------------------- */}
-              <div className="relative z-20">
-                <p className="hero-item mb-5 text-[10px] font-bold uppercase tracking-[0.28em] text-neutral-500 sm:text-xs">
+              <div className="relative z-20 order-2 lg:order-none">
+
+                {/* Creative × Technology × Entertainment */}
+                <p className="hero-item mb-4 text-[8px] font-bold uppercase tracking-[0.22em] text-neutral-500 sm:mb-5 sm:text-[10px] sm:tracking-[0.28em] md:text-xs">
                   Creative × Technology × Entertainment
                 </p>
 
+                {/* Headline */}
                 <h1
                   className="
                     hero-item
-                    max-w-[720px]
-                    text-[3.6rem]
+                    max-w-[760px]
+                    text-[2.95rem]
                     font-black
-                    leading-[0.84]
-                    tracking-[-0.08em]
+                    leading-[0.9]
+                    tracking-[-0.075em]
                     text-black
                     sm:text-6xl
                     md:text-7xl
-                    lg:text-[6.1rem]
-                    xl:text-[7.4rem]
+                    lg:text-[5.6rem]
+                    xl:text-[7.1rem]
                   "
                 >
                   We turn
@@ -133,13 +144,17 @@ export function HeroSection() {
                       aria-hidden="true"
                       className="
                         absolute
-                        -bottom-1
+                        bottom-0
                         left-0
-                        right-[-5%]
+                        right-[-3%]
                         z-0
-                        h-[0.13em]
-                        bg-violet-600
-                        sm:-bottom-2
+                        h-[0.11em]
+                        bg-gradient-to-r
+                        from-fuchsia-500
+                        via-violet-500
+                        to-violet-600
+                        sm:-bottom-1
+                        sm:h-[0.12em]
                       "
                     />
                   </span>
@@ -155,9 +170,101 @@ export function HeroSection() {
                   </span>
                 </h1>
 
+                {/* -------------------------------------------------
+                    MOBILE VIDEO / LOGO
+                    Hanya dipindahkan ke sini pada mobile.
+                    Desktop tetap menggunakan video di sebelah kanan.
+                ------------------------------------------------- */}
+                {/* -------------------------------------------------
+    MOBILE VIDEO / LOGO
+    Full-bleed + centered
+------------------------------------------------- */}
+                <div
+                  className="
+    hero-video
+    relative
+    left-1/2
+    -ml-[50vw]
+    flex
+    w-screen
+    items-center
+    justify-center
+    py-3
+    sm:py-4
+    lg:hidden
+  "
+                >
+                  <div
+                    className="
+      relative
+      flex
+      w-full
+      items-center
+      justify-center
+    "
+                  >
+                    <video
+                      ref={videoRef}
+                      src={heroBackground}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      preload="metadata"
+                      className="
+        block
+        h-auto
+        w-screen
+        max-w-none
+        object-contain
+      "
+                      style={{
+                        filter:
+                          'brightness(1.03) contrast(6.54) saturate(1.88)',
+                      }}
+                    />
+
+                    {/* Very subtle white integration */}
+                    <div
+                      aria-hidden="true"
+                      className="
+        pointer-events-none
+        absolute
+        inset-0
+        bg-gradient-to-r
+        from-white/10
+        via-transparent
+        to-white/5
+      "
+                    />
+
+                    {/* Showreel */}
+                    <div
+                      className="
+        absolute
+        bottom-3
+        left-1/2
+        flex
+        -translate-x-1/2
+        items-center
+        gap-2
+        sm:bottom-4
+      "
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black text-white shadow-lg sm:h-10 sm:w-10">
+                        <Play size={11} fill="currentColor" />
+                      </span>
+
+                      <span className="text-[8px] font-bold uppercase tracking-[0.18em] text-black sm:text-[9px] sm:tracking-[0.2em]">
+                        Showreel
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Description */}
-                <div className="hero-item mt-8 max-w-[440px] sm:mt-10">
-                  <p className="text-sm leading-7 text-neutral-600 sm:text-base sm:leading-8">
+                <div className="hero-item mt-6 max-w-[440px] sm:mt-8 md:mt-9">
+                  <p className="max-w-[38rem] text-[13px] leading-6 text-neutral-600 sm:text-sm sm:leading-7 md:text-base md:leading-8">
                     From digital products and creative visuals
                     to entertainment projects — we build ideas
                     into something people can see, use, and
@@ -166,30 +273,36 @@ export function HeroSection() {
                 </div>
 
                 {/* CTA */}
-                <div className="hero-item mt-7 flex flex-wrap items-center gap-3 sm:mt-8">
+                <div className="hero-item mt-6 flex flex-col gap-2.5 sm:mt-7 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
                   <Link
                     to="/contact"
                     className="
                       group
                       inline-flex
+                      w-full
                       items-center
+                      justify-center
                       gap-3
                       rounded-full
                       bg-black
-                      px-6
+                      px-5
                       py-3.5
-                      text-xs
+                      text-[11px]
                       font-bold
                       text-white
                       transition-all
                       duration-300
                       hover:bg-violet-600
+                      sm:w-auto
+                      sm:px-6
+                      sm:py-3.5
+                      sm:text-xs
                     "
                   >
                     Start a Project
 
                     <ArrowUpRight
-                      size={15}
+                      size={14}
                       className="
                         transition-transform
                         duration-300
@@ -204,26 +317,32 @@ export function HeroSection() {
                     className="
                       group
                       inline-flex
+                      w-full
                       items-center
+                      justify-center
                       gap-3
                       rounded-full
                       border
                       border-black
-                      px-6
+                      px-5
                       py-3.5
-                      text-xs
+                      text-[11px]
                       font-bold
                       text-black
                       transition-all
                       duration-300
                       hover:bg-black
                       hover:text-white
+                      sm:w-auto
+                      sm:px-6
+                      sm:py-3.5
+                      sm:text-xs
                     "
                   >
                     Explore Services
 
                     <ArrowUpRight
-                      size={15}
+                      size={14}
                       className="
                         transition-transform
                         duration-300
@@ -237,33 +356,37 @@ export function HeroSection() {
 
               {/* -------------------------------------------------
                   RIGHT — VIDEO
+                  Desktop only
               ------------------------------------------------- */}
               <div
                 className="
                   hero-video
                   relative
-                  flex
-                  min-h-[360px]
+                  order-1
+                  hidden
+                  min-h-0
                   items-center
                   justify-center
-                  lg:min-h-[560px]
-                  xl:min-h-[640px]
+                  pt-1
+                  pb-1
+                  lg:order-none
+                  lg:flex
+                  lg:min-h-[500px]
+                  lg:pt-0
+                  xl:min-h-[590px]
                 "
               >
-                {/* Video only — no background shadow / glow */}
                 <div
                   className="
                     relative
                     z-10
                     flex
                     w-full
-                    max-w-[900px]
                     items-center
                     justify-center
                   "
                 >
                   <video
-                    ref={videoRef}
                     src={heroBackground}
                     autoPlay
                     muted
@@ -283,7 +406,7 @@ export function HeroSection() {
                     }}
                   />
 
-                  {/* Very subtle white integration only */}
+                  {/* Very subtle white integration */}
                   <div
                     aria-hidden="true"
                     className="
@@ -291,19 +414,19 @@ export function HeroSection() {
                       absolute
                       inset-0
                       bg-gradient-to-r
-                      from-white/15
+                      from-white/10
                       via-transparent
                       to-white/5
                     "
                   />
 
                   {/* Showreel */}
-                  <div className="absolute bottom-4 left-4 flex items-center gap-2 sm:bottom-6 sm:left-6">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black text-white shadow-lg">
-                      <Play size={12} fill="currentColor" />
+                  <div className="absolute bottom-2 left-2 flex items-center gap-2 sm:bottom-4 sm:left-4 md:bottom-6 md:left-6">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black text-white shadow-lg sm:h-10 sm:w-10">
+                      <Play size={11} fill="currentColor" />
                     </span>
 
-                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black">
+                    <span className="text-[8px] font-bold uppercase tracking-[0.18em] text-black sm:text-[9px] sm:tracking-[0.2em]">
                       Showreel
                     </span>
                   </div>
@@ -339,14 +462,17 @@ export function HeroSection() {
                 hero-item
                 relative
                 z-30
-                mt-12
+                mt-9
                 border-t
                 border-black/10
-                pt-6
-                lg:mt-16
+                pt-5
+                sm:mt-10
+                sm:pt-6
+                lg:mt-12
+                xl:mt-16
               "
             >
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-0">
+              <div className="grid grid-cols-1 gap-0 sm:grid-cols-3">
 
                 {/* Digital */}
                 <Link
@@ -354,30 +480,37 @@ export function HeroSection() {
                   className="
                     group
                     flex
+                    min-h-[58px]
                     items-center
                     gap-4
+                    border-b
+                    border-black/10
+                    py-3
+                    sm:min-h-0
+                    sm:border-b-0
                     sm:border-r
-                    sm:border-black/10
-                    sm:pr-8
+                    sm:py-0
+                    sm:pr-7
+                    md:pr-8
                   "
                 >
-                  <span className="text-[9px] font-bold text-violet-600">
+                  <span className="w-5 shrink-0 text-[9px] font-bold text-violet-600">
                     01
                   </span>
 
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-bold tracking-[-0.02em] text-black">
                         Digital
                       </p>
 
                       <ArrowUpRight
                         size={14}
-                        className="text-neutral-300 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-violet-600"
+                        className="shrink-0 text-neutral-300 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-violet-600"
                       />
                     </div>
 
-                    <p className="mt-1 text-[10px] text-neutral-400">
+                    <p className="mt-0.5 text-[10px] text-neutral-400">
                       Web · App · Game
                     </p>
                   </div>
@@ -389,30 +522,37 @@ export function HeroSection() {
                   className="
                     group
                     flex
+                    min-h-[58px]
                     items-center
                     gap-4
+                    border-b
+                    border-black/10
+                    py-3
+                    sm:min-h-0
+                    sm:border-b-0
                     sm:border-r
-                    sm:border-black/10
-                    sm:px-8
+                    sm:px-7
+                    sm:py-0
+                    md:px-8
                   "
                 >
-                  <span className="text-[9px] font-bold text-violet-600">
+                  <span className="w-5 shrink-0 text-[9px] font-bold text-violet-600">
                     02
                   </span>
 
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-bold tracking-[-0.02em] text-black">
                         Creative
                       </p>
 
                       <ArrowUpRight
                         size={14}
-                        className="text-neutral-300 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-violet-600"
+                        className="shrink-0 text-neutral-300 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-violet-600"
                       />
                     </div>
 
-                    <p className="mt-1 text-[10px] text-neutral-400">
+                    <p className="mt-0.5 text-[10px] text-neutral-400">
                       Design · Animation · Visual
                     </p>
                   </div>
@@ -424,28 +564,33 @@ export function HeroSection() {
                   className="
                     group
                     flex
+                    min-h-[58px]
                     items-center
                     gap-4
-                    sm:pl-8
+                    py-3
+                    sm:min-h-0
+                    sm:py-0
+                    sm:pl-7
+                    md:pl-8
                   "
                 >
-                  <span className="text-[9px] font-bold text-violet-600">
+                  <span className="w-5 shrink-0 text-[9px] font-bold text-violet-600">
                     03
                   </span>
 
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-bold tracking-[-0.02em] text-black">
                         Entertainment
                       </p>
 
                       <ArrowUpRight
                         size={14}
-                        className="text-neutral-300 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-violet-600"
+                        className="shrink-0 text-neutral-300 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-violet-600"
                       />
                     </div>
 
-                    <p className="mt-1 text-[10px] text-neutral-400">
+                    <p className="mt-0.5 text-[10px] text-neutral-400">
                       Music · Idol · Production
                     </p>
                   </div>
@@ -454,7 +599,7 @@ export function HeroSection() {
             </div>
 
             {/* Bottom statement */}
-            <div className="hero-item mt-7 hidden items-center justify-between lg:flex">
+            <div className="hero-item mt-6 hidden items-center justify-between lg:flex">
               <p className="text-[9px] font-medium uppercase tracking-[0.22em] text-neutral-400">
                 Creating Digital Works. Producing Stories. Sharing Gratitude.
               </p>
@@ -486,16 +631,20 @@ export function HeroSection() {
           }}
         />
 
-        {/* Small violet accent only */}
+        {/* Violet accent */}
         <div
           className="
             absolute
-            left-[34%]
-            top-[16%]
-            h-3
-            w-3
+            left-[70%]
+            top-[18%]
+            h-2
+            w-2
             rounded-full
             bg-violet-600
+            sm:left-[34%]
+            sm:top-[16%]
+            sm:h-3
+            sm:w-3
           "
         />
       </div>
@@ -528,6 +677,18 @@ export function HeroSection() {
           }
         }
 
+        @keyframes heroVideoRevealMobile {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
         .hero-item {
           opacity: 0;
           animation:
@@ -542,13 +703,38 @@ export function HeroSection() {
           animation:
             heroVideoReveal
             1s
+            140ms
             cubic-bezier(0.22, 1, 0.36, 0.18)
             forwards;
         }
 
+        .hero-item:nth-child(1) {
+          animation-delay: 80ms;
+        }
+
+        .hero-item:nth-child(2) {
+          animation-delay: 160ms;
+        }
+
         @media (max-width: 1023px) {
           .hero-video {
-            animation-name: heroReveal;
+            animation-name: heroVideoRevealMobile;
+          }
+        }
+
+        @media (max-width: 639px) {
+          .hero-item {
+            animation-duration: 0.7s;
+          }
+
+          .hero-video {
+            animation-duration: 0.8s;
+          }
+        }
+
+        @media (max-width: 420px) {
+          .hero-video {
+            margin-top: 1px;
           }
         }
 

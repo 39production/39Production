@@ -15,6 +15,7 @@ import {
   MoveUpRight,
   ShieldCheck,
   Sparkles,
+  Star,
   Tag,
   X,
   Zap,
@@ -112,6 +113,17 @@ interface PaymentData {
   qr_url?: string | null
   qr_image?: string | null
   expires_at: string
+}
+
+interface Testimonial {
+  id: number
+  customer_name: string
+  company?: string | null
+  rating: number
+  message: string
+  status?: 'Pending' | 'Published' | 'Rejected'
+  created_at?: string
+  updated_at?: string
 }
 
 interface PaymentStatusResponse {
@@ -351,6 +363,12 @@ export function ServiceDetailPage() {
 
   const [formError, setFormError] =
     useState('')
+
+  const [testimonials, setTestimonials] =
+    useState<Testimonial[]>([])
+
+  const [testimonialsLoading, setTestimonialsLoading] =
+    useState(true)
 
   const isFixedService =
     (service?.pricing_type ?? 'fixed') ===
@@ -676,6 +694,79 @@ export function ServiceDetailPage() {
     service,
     isFixedService,
   ])
+
+  useEffect(() => {
+    let mounted = true
+
+    async function fetchTestimonials() {
+      try {
+        setTestimonialsLoading(true)
+
+        const response = await fetch(
+          `${API_BASE_URL}/api/testimonials`,
+          {
+            cache: 'no-store',
+          },
+        )
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch testimonials (${response.status})`,
+          )
+        }
+
+        const result = await response.json()
+
+        const data = Array.isArray(result)
+          ? result
+          : Array.isArray(result?.data)
+            ? result.data
+            : []
+
+        const publishedTestimonials = data
+          .filter(
+            (item: Testimonial) =>
+              item.status === undefined ||
+              item.status === 'Published',
+          )
+          .map((item: Testimonial) => ({
+            ...item,
+            rating: Math.min(
+              5,
+              Math.max(
+                1,
+                Number(item.rating) || 5,
+              ),
+            ),
+          }))
+
+        if (!mounted) {
+          return
+        }
+
+        setTestimonials(publishedTestimonials)
+      } catch (err) {
+        console.error(
+          'Fetch testimonials error:',
+          err,
+        )
+
+        if (mounted) {
+          setTestimonials([])
+        }
+      } finally {
+        if (mounted) {
+          setTestimonialsLoading(false)
+        }
+      }
+    }
+
+    void fetchTestimonials()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const resetCheckout = () => {
     setQuoteSubmitted(null)
@@ -1575,6 +1666,81 @@ export function ServiceDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* =====================================================
+            TESTIMONIALS
+        ====================================================== */}
+
+        {!testimonialsLoading && testimonials.length > 0 && (
+          <section className="mt-20 border-t border-black/10 pt-12 sm:mt-28 sm:pt-16">
+            <div className="grid gap-8 lg:grid-cols-[0.7fr_1.3fr] lg:gap-16">
+              <div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600">
+                    04
+                  </span>
+
+                  <span className="h-px w-10 bg-violet-600" />
+
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                    Client Stories
+                  </span>
+                </div>
+
+                <h2 className="mt-5 max-w-md text-3xl font-black tracking-[-0.05em] sm:text-4xl">
+                  What clients say about working with us.
+                </h2>
+
+                <p className="mt-4 max-w-md text-sm leading-6 text-zinc-500">
+                  Pengalaman dari client yang telah bekerja bersama 39Production.
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {testimonials.slice(0, 4).map((testimonial) => (
+                  <article
+                    key={testimonial.id}
+                    className="border border-black/10 bg-white p-5 transition hover:border-violet-200 hover:shadow-[0_18px_50px_rgba(0,0,0,0.06)]"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-1" aria-label={`${testimonial.rating} dari 5 bintang`}>
+                        {Array.from({ length: 5 }).map((_, index) => (
+                          <Star
+                            key={index}
+                            className={`h-3.5 w-3.5 ${index < testimonial.rating
+                                ? 'fill-violet-500 text-violet-500'
+                                : 'text-zinc-200'
+                              }`}
+                          />
+                        ))}
+                      </div>
+
+                      <span className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-300">
+                        39P
+                      </span>
+                    </div>
+
+                    <p className="mt-5 text-sm leading-6 text-zinc-600">
+                      “{testimonial.message}”
+                    </p>
+
+                    <div className="mt-6 border-t border-black/10 pt-4">
+                      <p className="text-xs font-black text-zinc-950">
+                        {testimonial.customer_name}
+                      </p>
+
+                      {testimonial.company && (
+                        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+                          {testimonial.company}
+                        </p>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* =====================================================
             SERVICE FOOTER

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+
+import { useEffect, useRef, useState } from 'react'
 import {
   Link,
   useLocation,
@@ -19,8 +20,20 @@ export function Navbar() {
   const [isScrolled, setIsScrolled] =
     useState(false)
 
+  const [mobileSecretActive, setMobileSecretActive] =
+    useState(false)
+
   const location = useLocation()
   const navigate = useNavigate()
+
+  const mobileSecretInputRef =
+    useRef<HTMLInputElement | null>(null)
+
+  const mobileLogoTapCountRef =
+    useRef(0)
+
+  const mobileLogoTapTimerRef =
+    useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /* =========================================================
      SCROLL STATE
@@ -54,6 +67,7 @@ export function Navbar() {
 
   useEffect(() => {
     setIsOpen(false)
+    setMobileSecretActive(false)
   }, [location.pathname])
 
   /* =========================================================
@@ -74,10 +88,10 @@ export function Navbar() {
   }, [isOpen])
 
   /* =========================================================
-     SECRET ADMIN ACCESS
+     SECRET ADMIN ACCESS — DESKTOP
      
      Type:
-       3 → 9
+       portal
 
      Rules:
      - No Enter required
@@ -88,9 +102,12 @@ export function Navbar() {
 
   useEffect(() => {
     let secretSequence = ''
+
     let resetTimer: ReturnType<
       typeof setTimeout
     > | null = null
+
+    const SECRET_KEYWORD = 'portal'
 
     const resetSequence = () => {
       secretSequence = ''
@@ -125,49 +142,44 @@ export function Navbar() {
       }
 
       /*
-       * Hanya menerima angka 3 dan 9.
+       * Hanya menerima karakter yang
+       * memang diperlukan oleh keyword.
        */
+      const key =
+        event.key.toLowerCase()
+
       if (
-        event.key !== '3' &&
-        event.key !== '9'
+        !SECRET_KEYWORD.includes(key)
       ) {
         resetSequence()
         return
       }
 
       /*
-       * Angka pertama harus 3.
+       * Karakter harus mengikuti urutan
+       * keyword: p → o → r → t → a → l
        */
-      if (
-        secretSequence === '' &&
-        event.key === '3'
-      ) {
-        secretSequence = '3'
+      const expectedKey =
+        SECRET_KEYWORD[
+        secretSequence.length
+        ]
 
-        if (resetTimer) {
-          clearTimeout(resetTimer)
-        }
-
-        resetTimer = setTimeout(() => {
-          resetSequence()
-        }, 1500)
-
+      if (key !== expectedKey) {
+        resetSequence()
         return
       }
 
+      secretSequence += key
+
       /*
-       * Setelah 3, angka berikutnya harus 9.
+       * Keyword selesai.
        */
       if (
-        secretSequence === '3' &&
-        event.key === '9'
+        secretSequence ===
+        SECRET_KEYWORD
       ) {
         resetSequence()
 
-        /*
-         * Jangan redirect kalau sudah
-         * berada di halaman admin access.
-         */
         if (
           location.pathname !==
           '/admin/access'
@@ -179,9 +191,16 @@ export function Navbar() {
       }
 
       /*
-       * Sequence tidak valid.
+       * Reset apabila terlalu lama
+       * antara karakter.
        */
-      resetSequence()
+      if (resetTimer) {
+        clearTimeout(resetTimer)
+      }
+
+      resetTimer = setTimeout(() => {
+        resetSequence()
+      }, 1500)
     }
 
     window.addEventListener(
@@ -203,6 +222,131 @@ export function Navbar() {
     location.pathname,
     navigate,
   ])
+
+  /* =========================================================
+     MOBILE SECRET ACCESS
+     
+     Mobile browser tidak selalu mengirim
+     keyboard event ke window.
+
+     Flow:
+       Mobile Menu
+          ↓
+       Tap logo 5x
+          ↓
+       Hidden input aktif
+          ↓
+       Ketik "portal"
+          ↓
+       /admin/access
+  ========================================================== */
+
+  const handleMobileLogoSecret = () => {
+    if (!isOpen) {
+      return
+    }
+
+    mobileLogoTapCountRef.current += 1
+
+    if (
+      mobileLogoTapTimerRef.current
+    ) {
+      clearTimeout(
+        mobileLogoTapTimerRef.current,
+      )
+    }
+
+    /*
+     * Lima tap dalam waktu singkat
+     * mengaktifkan input keyword.
+     */
+    if (
+      mobileLogoTapCountRef.current >=
+      5
+    ) {
+      mobileLogoTapCountRef.current = 0
+
+      setMobileSecretActive(true)
+
+      requestAnimationFrame(() => {
+        mobileSecretInputRef.current?.focus()
+      })
+
+      return
+    }
+
+    mobileLogoTapTimerRef.current =
+      setTimeout(() => {
+        mobileLogoTapCountRef.current = 0
+      }, 1500)
+  }
+
+  /* =========================================================
+     MOBILE SECRET KEYWORD HANDLER
+  ========================================================== */
+
+  const handleMobileSecretInput = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const value =
+      event.target.value
+        .toLowerCase()
+        .replace(/[^a-z]/g, '')
+
+    const keyword = 'portal'
+
+    /*
+     * Batasi hanya karakter keyword.
+     */
+    const normalizedValue =
+      value.slice(
+        0,
+        keyword.length,
+      )
+
+    /*
+     * Jika sequence tidak cocok,
+     * reset input.
+     */
+    if (
+      !keyword.startsWith(
+        normalizedValue,
+      )
+    ) {
+      event.target.value = ''
+      return
+    }
+
+    /*
+     * Keyword lengkap.
+     */
+    if (
+      normalizedValue === keyword
+    ) {
+      event.target.value = ''
+
+      setMobileSecretActive(false)
+      setIsOpen(false)
+
+      navigate('/admin/access')
+    }
+  }
+
+  /* =========================================================
+     CLEANUP MOBILE SECRET TIMER
+  ========================================================== */
+
+  useEffect(() => {
+    return () => {
+      if (
+        mobileLogoTapTimerRef.current
+      ) {
+        clearTimeout(
+          mobileLogoTapTimerRef.current,
+        )
+      }
+    }
+  }, [])
 
   /* =========================================================
      ACTIVE LINK
@@ -328,7 +472,6 @@ export function Navbar() {
                       focus-visible:ring-offset-2
                     `}
                   >
-                    {/* Hover background */}
                     <span
                       aria-hidden="true"
                       className={`
@@ -353,7 +496,6 @@ export function Navbar() {
                       }
                     </span>
 
-                    {/* Active indicator */}
                     {active && (
                       <span
                         aria-hidden="true"
@@ -383,7 +525,6 @@ export function Navbar() {
         ======================================================== */}
 
         <div className="hidden items-center gap-1.5 lg:flex">
-          {/* CTA */}
           <Link
             to="/contact"
             className="
@@ -556,11 +697,38 @@ export function Navbar() {
         `}
       >
         <div className="max-h-[calc(100vh-100px)] overflow-y-auto p-3">
+
           {/* =====================================================
               MOBILE BRAND HEADER
           ====================================================== */}
 
-          <div className="mb-3 flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
+          <button
+            type="button"
+            onClick={
+              handleMobileLogoSecret
+            }
+            aria-label="Sankyuu Production"
+            className="
+              mb-3
+              flex
+              w-full
+              items-center
+              justify-between
+              rounded-xl
+              border
+              border-neutral-200
+              bg-neutral-50
+              px-4
+              py-3
+              text-left
+              outline-none
+              transition-all
+              duration-300
+              active:scale-[0.98]
+              focus-visible:ring-2
+              focus-visible:ring-violet-500
+            "
+          >
             <div className="flex items-center gap-2">
               <Sparkles className="h-3.5 w-3.5 text-violet-600" />
 
@@ -572,7 +740,43 @@ export function Navbar() {
             <span className="text-[9px] font-bold uppercase tracking-widest text-neutral-300">
               39
             </span>
-          </div>
+          </button>
+
+          {/* =====================================================
+              MOBILE SECRET INPUT
+
+              Tidak terlihat pada UI.
+              Hanya aktif setelah logo mobile
+              ditekan 5 kali.
+          ====================================================== */}
+
+          {mobileSecretActive && (
+            <div className="relative h-0 overflow-hidden">
+              <input
+                ref={
+                  mobileSecretInputRef
+                }
+                type="text"
+                inputMode="text"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                aria-label="Portal keyword"
+                value=""
+                onChange={
+                  handleMobileSecretInput
+                }
+                className="
+                  absolute
+                  left-0
+                  top-0
+                  h-px
+                  w-px
+                  opacity-0
+                "
+              />
+            </div>
+          )}
 
           {/* =====================================================
               LINKS
