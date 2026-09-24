@@ -1,9 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-} from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Link,
   useLocation,
@@ -19,8 +14,6 @@ import {
 import { Logo } from './Logo'
 import { NAV_LINKS } from '@/utils/constants'
 
-const SECRET_KEYWORD = 'portal'
-
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isScrolled, setIsScrolled] =
@@ -29,30 +22,20 @@ export function Navbar() {
   const [mobileSecretActive, setMobileSecretActive] =
     useState(false)
 
+  const [mobileSecretValue, setMobileSecretValue] =
+    useState('')
+
   const location = useLocation()
   const navigate = useNavigate()
 
-  /*
-   * IMPORTANT
-   *
-   * Input mobile selalu berada di DOM.
-   * Jangan dibuat conditional berdasarkan
-   * mobileSecretActive karena kita membutuhkan
-   * focus langsung dari gesture pengguna.
-   */
   const mobileSecretInputRef =
     useRef<HTMLInputElement | null>(null)
-
-  const mobileSecretValueRef =
-    useRef('')
 
   const mobileLogoTapCountRef =
     useRef(0)
 
   const mobileLogoTapTimerRef =
-    useRef<ReturnType<typeof setTimeout> | null>(
-      null,
-    )
+    useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /* =========================================================
      SCROLL STATE
@@ -87,13 +70,8 @@ export function Navbar() {
   useEffect(() => {
     setIsOpen(false)
     setMobileSecretActive(false)
-
-    mobileSecretValueRef.current = ''
-
-    if (mobileSecretInputRef.current) {
-      mobileSecretInputRef.current.value = ''
-      mobileSecretInputRef.current.blur()
-    }
+    setMobileSecretValue('')
+    mobileLogoTapCountRef.current = 0
   }, [location.pathname])
 
   /* =========================================================
@@ -102,7 +80,8 @@ export function Navbar() {
 
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden'
+      document.body.style.overflow =
+        'hidden'
     } else {
       document.body.style.overflow = ''
     }
@@ -113,19 +92,16 @@ export function Navbar() {
   }, [isOpen])
 
   /* =========================================================
-     DESKTOP SECRET ADMIN ACCESS
+     SECRET ADMIN ACCESS — DESKTOP
 
-     Keyword:
+     Type:
        portal
 
-     Flow:
-       p → o → r → t → a → l
-
      Rules:
-     - Tidak perlu Enter
-     - Maksimal 1.5 detik antar karakter
-     - Tidak aktif saat mengetik form
-     - Redirect ke /admin/access
+     - No Enter required
+     - Maximum 1.5 seconds between keys
+     - Disabled while typing in form fields
+     - Redirects to /admin/access
   ========================================================== */
 
   useEffect(() => {
@@ -134,6 +110,8 @@ export function Navbar() {
     let resetTimer: ReturnType<
       typeof setTimeout
     > | null = null
+
+    const SECRET_KEYWORD = 'portal'
 
     const resetSequence = () => {
       secretSequence = ''
@@ -151,8 +129,8 @@ export function Navbar() {
         event.target as HTMLElement | null
 
       /*
-       * Jangan aktif ketika user sedang
-       * mengetik pada form.
+       * Jangan aktifkan secret shortcut
+       * ketika user sedang mengetik di form.
        */
       if (
         target &&
@@ -167,13 +145,13 @@ export function Navbar() {
         return
       }
 
+      /*
+       * Hanya menerima karakter yang
+       * memang diperlukan oleh keyword.
+       */
       const key =
         event.key.toLowerCase()
 
-      /*
-       * Hanya menerima karakter yang
-       * memang digunakan keyword.
-       */
       if (
         !SECRET_KEYWORD.includes(key)
       ) {
@@ -182,17 +160,14 @@ export function Navbar() {
       }
 
       /*
-       * Tentukan karakter berikutnya
-       * berdasarkan posisi sequence.
+       * Karakter harus mengikuti urutan
+       * keyword: p → o → r → t → a → l
        */
       const expectedKey =
         SECRET_KEYWORD[
         secretSequence.length
         ]
 
-      /*
-       * Jika urutan salah, reset.
-       */
       if (key !== expectedKey) {
         resetSequence()
         return
@@ -201,7 +176,7 @@ export function Navbar() {
       secretSequence += key
 
       /*
-       * Keyword lengkap.
+       * Keyword selesai.
        */
       if (
         secretSequence ===
@@ -220,8 +195,8 @@ export function Navbar() {
       }
 
       /*
-       * Reset jika user terlalu lama
-       * melanjutkan sequence.
+       * Reset apabila terlalu lama
+       * antara karakter.
        */
       if (resetTimer) {
         clearTimeout(resetTimer)
@@ -253,20 +228,19 @@ export function Navbar() {
   ])
 
   /* =========================================================
-     MOBILE LOGO TAP DETECTOR
+     MOBILE SECRET ACCESS
 
      Flow:
-
-       Open mobile menu
-              ↓
-       Tap Sankyuu Production ×5
-              ↓
-       Portal input aktif
-              ↓
-       Keyboard mobile
-              ↓
-       ketik "portal"
-              ↓
+       Mobile Menu
+          ↓
+       Tap Sankyuu Production 5x
+          ↓
+       Hidden input langsung focus
+          ↓
+       Keyboard mobile muncul
+          ↓
+       Ketik "portal"
+          ↓
        /admin/access
   ========================================================== */
 
@@ -277,9 +251,6 @@ export function Navbar() {
 
     mobileLogoTapCountRef.current += 1
 
-    /*
-     * Reset timer setiap kali ada tap.
-     */
     if (
       mobileLogoTapTimerRef.current
     ) {
@@ -289,7 +260,8 @@ export function Navbar() {
     }
 
     /*
-     * Jika sudah 5 tap.
+     * Lima tap dalam waktu 1.5 detik
+     * mengaktifkan secret input.
      */
     if (
       mobileLogoTapCountRef.current >=
@@ -297,43 +269,22 @@ export function Navbar() {
     ) {
       mobileLogoTapCountRef.current = 0
 
-      /*
-       * Bersihkan sequence sebelumnya.
-       */
-      mobileSecretValueRef.current = ''
-
-      const input =
-        mobileSecretInputRef.current
-
-      if (!input) {
-        return
-      }
-
-      input.value = ''
-
-      /*
-       * Aktifkan visual state.
-       */
       setMobileSecretActive(true)
+      setMobileSecretValue('')
 
       /*
-       * PENTING:
+       * Input sudah selalu ada di DOM.
+       * Jadi focus() tidak bergantung pada
+       * hasil render berikutnya.
        *
-       * Focus langsung dilakukan di dalam
-       * click/tap handler.
-       *
-       * Jangan pakai requestAnimationFrame()
-       * atau setTimeout() untuk focus.
+       * Ini penting untuk browser mobile
+       * agar virtual keyboard dapat muncul.
        */
-      input.focus()
+      mobileSecretInputRef.current?.focus()
 
       return
     }
 
-    /*
-     * Kalau belum 5 tap, beri waktu
-     * maksimal 1.5 detik antar tap.
-     */
     mobileLogoTapTimerRef.current =
       setTimeout(() => {
         mobileLogoTapCountRef.current = 0
@@ -341,91 +292,58 @@ export function Navbar() {
   }
 
   /* =========================================================
-     MOBILE SECRET INPUT
-
-     Menggunakan uncontrolled input.
-     Jadi browser mobile bebas mengisi value
-     tanpa React mengosongkannya kembali.
+     MOBILE SECRET KEYWORD HANDLER
   ========================================================== */
 
   const handleMobileSecretInput = (
-    event: ChangeEvent<HTMLInputElement>,
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const input =
-      event.currentTarget
+    const keyword = 'portal'
 
     const value =
-      input.value
+      event.target.value
         .toLowerCase()
         .replace(/[^a-z]/g, '')
 
-    /*
-     * Ambil maksimal 6 karakter.
-     */
     const normalizedValue =
       value.slice(
         0,
-        SECRET_KEYWORD.length,
+        keyword.length,
       )
 
     /*
-     * Simpan sequence.
-     */
-    mobileSecretValueRef.current =
-      normalizedValue
-
-    /*
-     * Kalau input tidak lagi cocok
-     * dengan awal keyword "portal",
-     * reset sequence.
+     * Jika sequence tidak cocok,
+     * reset input.
      */
     if (
-      !SECRET_KEYWORD.startsWith(
+      !keyword.startsWith(
         normalizedValue,
       )
     ) {
-      mobileSecretValueRef.current = ''
-      input.value = ''
+      setMobileSecretValue('')
       return
     }
+
+    setMobileSecretValue(
+      normalizedValue,
+    )
 
     /*
      * Keyword lengkap.
      */
     if (
-      normalizedValue ===
-      SECRET_KEYWORD
+      normalizedValue === keyword
     ) {
-      mobileSecretValueRef.current = ''
-
-      input.value = ''
-
       setMobileSecretActive(false)
+      setMobileSecretValue('')
       setIsOpen(false)
-
-      input.blur()
 
       navigate('/admin/access')
     }
   }
 
   /* =========================================================
-     MOBILE SECRET INPUT RESET
-  ========================================================== */
-
-  const resetMobileSecret = () => {
-    mobileSecretValueRef.current = ''
-
-    if (mobileSecretInputRef.current) {
-      mobileSecretInputRef.current.value = ''
-      mobileSecretInputRef.current.blur()
-    }
-
-    setMobileSecretActive(false)
-  }
-
-  /* =========================================================
-     CLEANUP
+     CLEANUP MOBILE SECRET TIMER
   ========================================================== */
 
   useEffect(() => {
@@ -458,63 +376,6 @@ export function Navbar() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5 lg:px-6">
-
-      {/* =========================================================
-          MOBILE PORTAL INPUT
-
-          INPUT SELALU ADA DI DOM.
-
-          Ini penting supaya:
-          - focus bisa dilakukan dari tap
-          - keyboard mobile bisa dipanggil
-          - tidak bergantung pada render async
-      ========================================================== */}
-
-      <input
-        ref={
-          mobileSecretInputRef
-        }
-        type="text"
-        inputMode="text"
-        autoCapitalize="none"
-        autoCorrect="off"
-        autoComplete="off"
-        spellCheck={false}
-        tabIndex={-1}
-        aria-label="Portal access keyword"
-        onChange={
-          handleMobileSecretInput
-        }
-        onBlur={() => {
-          /*
-           * Jangan langsung reset jika input
-           * sedang aktif karena beberapa browser
-           * dapat melakukan blur sesaat saat
-           * membuka keyboard.
-           */
-        }}
-        className={`
-fixed
-left - 1 / 2
-top - 1 / 2
-z - [100]
-h - 1
-w - 1
-  - translate - x - 1 / 2
-  - translate - y - 1 / 2
-border - 0
-bg - transparent
-p - 0
-text - transparent
-caret - transparent
-outline - none
-          ${mobileSecretActive
-            ? 'pointer-events-auto opacity-[0.01]'
-            : 'pointer-events-none opacity-0'
-          }
-`}
-      />
-
       {/* =========================================================
           MAIN NAVBAR
       ========================================================== */}
@@ -549,7 +410,6 @@ duration - 500
           }
 `}
       >
-
         {/* =======================================================
             LOGO
         ======================================================== */}
@@ -745,16 +605,12 @@ group - hover: opacity - 100
 
         <button
           type="button"
-          onClick={() => {
-            if (isOpen) {
-              resetMobileSecret()
-            }
-
+          onClick={() =>
             setIsOpen(
               (value) =>
                 !value,
             )
-          }}
+          }
           aria-label={
             isOpen
               ? 'Close navigation menu'
@@ -819,10 +675,9 @@ lg: hidden
             : 'pointer-events-none opacity-0'
           }
 `}
-        onClick={() => {
-          resetMobileSecret()
+        onClick={() =>
           setIsOpen(false)
-        }}
+        }
       />
 
       {/* =========================================================
@@ -898,35 +753,55 @@ lg: hidden
           </button>
 
           {/* =====================================================
-              MOBILE PORTAL STATUS
+              MOBILE SECRET INPUT
+
+              Input sengaja tetap mounted agar focus()
+              bisa dipanggil langsung dari tap kelima.
+
+              Keyboard mobile akan muncul setelah
+              5x tap pada Sankyuu Production.
           ====================================================== */}
 
-          {mobileSecretActive && (
-            <div
-              className="
-                mb-3
-                flex
-                items-center
-                justify-center
-                rounded-xl
-                border
-                border-violet-100
-                bg-violet-50
-                px-4
-                py-2.5
-              "
-            >
-              <span className="
-                text-[9px]
-                font-semibold
-                uppercase
-                tracking-[0.18em]
-                text-violet-600
-              ">
-                Type portal
-              </span>
-            </div>
-          )}
+          <input
+            ref={
+              mobileSecretInputRef
+            }
+            type="text"
+            inputMode="text"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            aria-label="Portal keyword"
+            value={
+              mobileSecretValue
+            }
+            onChange={
+              handleMobileSecretInput
+            }
+            tabIndex={
+              mobileSecretActive
+                ? 0
+                : -1
+            }
+            className={`
+fixed
+left - 1 / 2
+top - 1
+z - [60]
+h - 1
+w - 1
+border - 0
+bg - transparent
+p - 0
+text - transparent
+outline - none
+caret - transparent
+              ${mobileSecretActive
+                ? 'opacity-[0.01]'
+                : 'pointer-events-none opacity-0'
+              }
+`}
+          />
 
           {/* =====================================================
               LINKS
