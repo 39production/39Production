@@ -1,5 +1,9 @@
-
-import { useEffect, useRef, useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from 'react'
 import {
   Link,
   useLocation,
@@ -15,6 +19,8 @@ import {
 import { Logo } from './Logo'
 import { NAV_LINKS } from '@/utils/constants'
 
+const SECRET_KEYWORD = 'portal'
+
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isScrolled, setIsScrolled] =
@@ -26,14 +32,27 @@ export function Navbar() {
   const location = useLocation()
   const navigate = useNavigate()
 
+  /*
+   * IMPORTANT
+   *
+   * Input mobile selalu berada di DOM.
+   * Jangan dibuat conditional berdasarkan
+   * mobileSecretActive karena kita membutuhkan
+   * focus langsung dari gesture pengguna.
+   */
   const mobileSecretInputRef =
     useRef<HTMLInputElement | null>(null)
+
+  const mobileSecretValueRef =
+    useRef('')
 
   const mobileLogoTapCountRef =
     useRef(0)
 
   const mobileLogoTapTimerRef =
-    useRef<ReturnType<typeof setTimeout> | null>(null)
+    useRef<ReturnType<typeof setTimeout> | null>(
+      null,
+    )
 
   /* =========================================================
      SCROLL STATE
@@ -68,6 +87,13 @@ export function Navbar() {
   useEffect(() => {
     setIsOpen(false)
     setMobileSecretActive(false)
+
+    mobileSecretValueRef.current = ''
+
+    if (mobileSecretInputRef.current) {
+      mobileSecretInputRef.current.value = ''
+      mobileSecretInputRef.current.blur()
+    }
   }, [location.pathname])
 
   /* =========================================================
@@ -76,8 +102,7 @@ export function Navbar() {
 
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow =
-        'hidden'
+      document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
     }
@@ -88,16 +113,19 @@ export function Navbar() {
   }, [isOpen])
 
   /* =========================================================
-     SECRET ADMIN ACCESS — DESKTOP
-     
-     Type:
+     DESKTOP SECRET ADMIN ACCESS
+
+     Keyword:
        portal
 
+     Flow:
+       p → o → r → t → a → l
+
      Rules:
-     - No Enter required
-     - Maximum 1.5 seconds between keys
-     - Disabled while typing in form fields
-     - Redirects to /admin/access
+     - Tidak perlu Enter
+     - Maksimal 1.5 detik antar karakter
+     - Tidak aktif saat mengetik form
+     - Redirect ke /admin/access
   ========================================================== */
 
   useEffect(() => {
@@ -106,8 +134,6 @@ export function Navbar() {
     let resetTimer: ReturnType<
       typeof setTimeout
     > | null = null
-
-    const SECRET_KEYWORD = 'portal'
 
     const resetSequence = () => {
       secretSequence = ''
@@ -125,8 +151,8 @@ export function Navbar() {
         event.target as HTMLElement | null
 
       /*
-       * Jangan aktifkan secret shortcut
-       * ketika user sedang mengetik di form.
+       * Jangan aktif ketika user sedang
+       * mengetik pada form.
        */
       if (
         target &&
@@ -141,13 +167,13 @@ export function Navbar() {
         return
       }
 
-      /*
-       * Hanya menerima karakter yang
-       * memang diperlukan oleh keyword.
-       */
       const key =
         event.key.toLowerCase()
 
+      /*
+       * Hanya menerima karakter yang
+       * memang digunakan keyword.
+       */
       if (
         !SECRET_KEYWORD.includes(key)
       ) {
@@ -156,14 +182,17 @@ export function Navbar() {
       }
 
       /*
-       * Karakter harus mengikuti urutan
-       * keyword: p → o → r → t → a → l
+       * Tentukan karakter berikutnya
+       * berdasarkan posisi sequence.
        */
       const expectedKey =
         SECRET_KEYWORD[
         secretSequence.length
         ]
 
+      /*
+       * Jika urutan salah, reset.
+       */
       if (key !== expectedKey) {
         resetSequence()
         return
@@ -172,7 +201,7 @@ export function Navbar() {
       secretSequence += key
 
       /*
-       * Keyword selesai.
+       * Keyword lengkap.
        */
       if (
         secretSequence ===
@@ -191,8 +220,8 @@ export function Navbar() {
       }
 
       /*
-       * Reset apabila terlalu lama
-       * antara karakter.
+       * Reset jika user terlalu lama
+       * melanjutkan sequence.
        */
       if (resetTimer) {
         clearTimeout(resetTimer)
@@ -224,20 +253,20 @@ export function Navbar() {
   ])
 
   /* =========================================================
-     MOBILE SECRET ACCESS
-     
-     Mobile browser tidak selalu mengirim
-     keyboard event ke window.
+     MOBILE LOGO TAP DETECTOR
 
      Flow:
-       Mobile Menu
-          ↓
-       Tap logo 5x
-          ↓
-       Hidden input aktif
-          ↓
-       Ketik "portal"
-          ↓
+
+       Open mobile menu
+              ↓
+       Tap Sankyuu Production ×5
+              ↓
+       Portal input aktif
+              ↓
+       Keyboard mobile
+              ↓
+       ketik "portal"
+              ↓
        /admin/access
   ========================================================== */
 
@@ -248,6 +277,9 @@ export function Navbar() {
 
     mobileLogoTapCountRef.current += 1
 
+    /*
+     * Reset timer setiap kali ada tap.
+     */
     if (
       mobileLogoTapTimerRef.current
     ) {
@@ -257,8 +289,7 @@ export function Navbar() {
     }
 
     /*
-     * Lima tap dalam waktu singkat
-     * mengaktifkan input keyword.
+     * Jika sudah 5 tap.
      */
     if (
       mobileLogoTapCountRef.current >=
@@ -266,15 +297,43 @@ export function Navbar() {
     ) {
       mobileLogoTapCountRef.current = 0
 
+      /*
+       * Bersihkan sequence sebelumnya.
+       */
+      mobileSecretValueRef.current = ''
+
+      const input =
+        mobileSecretInputRef.current
+
+      if (!input) {
+        return
+      }
+
+      input.value = ''
+
+      /*
+       * Aktifkan visual state.
+       */
       setMobileSecretActive(true)
 
-      requestAnimationFrame(() => {
-        mobileSecretInputRef.current?.focus()
-      })
+      /*
+       * PENTING:
+       *
+       * Focus langsung dilakukan di dalam
+       * click/tap handler.
+       *
+       * Jangan pakai requestAnimationFrame()
+       * atau setTimeout() untuk focus.
+       */
+      input.focus()
 
       return
     }
 
+    /*
+     * Kalau belum 5 tap, beri waktu
+     * maksimal 1.5 detik antar tap.
+     */
     mobileLogoTapTimerRef.current =
       setTimeout(() => {
         mobileLogoTapCountRef.current = 0
@@ -282,38 +341,51 @@ export function Navbar() {
   }
 
   /* =========================================================
-     MOBILE SECRET KEYWORD HANDLER
+     MOBILE SECRET INPUT
+
+     Menggunakan uncontrolled input.
+     Jadi browser mobile bebas mengisi value
+     tanpa React mengosongkannya kembali.
   ========================================================== */
 
   const handleMobileSecretInput = (
-    event: React.ChangeEvent<HTMLInputElement>,
+    event: ChangeEvent<HTMLInputElement>,
   ) => {
+    const input =
+      event.currentTarget
+
     const value =
-      event.target.value
+      input.value
         .toLowerCase()
         .replace(/[^a-z]/g, '')
 
-    const keyword = 'portal'
-
     /*
-     * Batasi hanya karakter keyword.
+     * Ambil maksimal 6 karakter.
      */
     const normalizedValue =
       value.slice(
         0,
-        keyword.length,
+        SECRET_KEYWORD.length,
       )
 
     /*
-     * Jika sequence tidak cocok,
-     * reset input.
+     * Simpan sequence.
+     */
+    mobileSecretValueRef.current =
+      normalizedValue
+
+    /*
+     * Kalau input tidak lagi cocok
+     * dengan awal keyword "portal",
+     * reset sequence.
      */
     if (
-      !keyword.startsWith(
+      !SECRET_KEYWORD.startsWith(
         normalizedValue,
       )
     ) {
-      event.target.value = ''
+      mobileSecretValueRef.current = ''
+      input.value = ''
       return
     }
 
@@ -321,19 +393,39 @@ export function Navbar() {
      * Keyword lengkap.
      */
     if (
-      normalizedValue === keyword
+      normalizedValue ===
+      SECRET_KEYWORD
     ) {
-      event.target.value = ''
+      mobileSecretValueRef.current = ''
+
+      input.value = ''
 
       setMobileSecretActive(false)
       setIsOpen(false)
+
+      input.blur()
 
       navigate('/admin/access')
     }
   }
 
   /* =========================================================
-     CLEANUP MOBILE SECRET TIMER
+     MOBILE SECRET INPUT RESET
+  ========================================================== */
+
+  const resetMobileSecret = () => {
+    mobileSecretValueRef.current = ''
+
+    if (mobileSecretInputRef.current) {
+      mobileSecretInputRef.current.value = ''
+      mobileSecretInputRef.current.blur()
+    }
+
+    setMobileSecretActive(false)
+  }
+
+  /* =========================================================
+     CLEANUP
   ========================================================== */
 
   useEffect(() => {
@@ -366,22 +458,79 @@ export function Navbar() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5 lg:px-6">
+
+      {/* =========================================================
+          MOBILE PORTAL INPUT
+
+          INPUT SELALU ADA DI DOM.
+
+          Ini penting supaya:
+          - focus bisa dilakukan dari tap
+          - keyboard mobile bisa dipanggil
+          - tidak bergantung pada render async
+      ========================================================== */}
+
+      <input
+        ref={
+          mobileSecretInputRef
+        }
+        type="text"
+        inputMode="text"
+        autoCapitalize="none"
+        autoCorrect="off"
+        autoComplete="off"
+        spellCheck={false}
+        tabIndex={-1}
+        aria-label="Portal access keyword"
+        onChange={
+          handleMobileSecretInput
+        }
+        onBlur={() => {
+          /*
+           * Jangan langsung reset jika input
+           * sedang aktif karena beberapa browser
+           * dapat melakukan blur sesaat saat
+           * membuka keyboard.
+           */
+        }}
+        className={`
+fixed
+left - 1 / 2
+top - 1 / 2
+z - [100]
+h - 1
+w - 1
+  - translate - x - 1 / 2
+  - translate - y - 1 / 2
+border - 0
+bg - transparent
+p - 0
+text - transparent
+caret - transparent
+outline - none
+          ${mobileSecretActive
+            ? 'pointer-events-auto opacity-[0.01]'
+            : 'pointer-events-none opacity-0'
+          }
+`}
+      />
+
       {/* =========================================================
           MAIN NAVBAR
       ========================================================== */}
 
       <nav
         className={`
-          navbarShell
-          mx-auto
-          flex
-          max-w-7xl
-          items-center
-          justify-between
-          rounded-2xl
-          border
-          transition-all
-          duration-500
+navbarShell
+mx - auto
+flex
+max - w - 7xl
+items - center
+justify - between
+rounded - 2xl
+border
+transition - all
+duration - 500
           ${isScrolled
             ? `
                 border-neutral-200
@@ -398,8 +547,9 @@ export function Navbar() {
                 backdrop-blur-md
               `
           }
-        `}
+`}
       >
+
         {/* =======================================================
             LOGO
         ======================================================== */}
@@ -417,19 +567,19 @@ export function Navbar() {
         <div className="hidden items-center lg:flex">
           <div
             className={`
-              flex
-              items-center
-              gap-0.5
-              rounded-xl
-              px-1
-              py-1
-              transition-all
-              duration-500
+flex
+items - center
+gap - 0.5
+rounded - xl
+px - 1
+py - 1
+transition - all
+duration - 500
               ${isScrolled
                 ? 'border border-neutral-200 bg-neutral-50'
                 : ''
               }
-            `}
+`}
           >
             {NAV_LINKS.map(
               (link) => {
@@ -452,42 +602,42 @@ export function Navbar() {
                         : undefined
                     }
                     className={`
-                      navbarLink
-                      group
-                      relative
-                      rounded-lg
-                      px-3.5
-                      py-2
-                      text-sm
-                      font-medium
-                      outline-none
-                      transition-all
-                      duration-300
+navbarLink
+group
+relative
+rounded - lg
+px - 3.5
+py - 2
+text - sm
+font - medium
+outline - none
+transition - all
+duration - 300
                       ${active
                         ? 'text-violet-600'
                         : 'text-neutral-500 hover:text-neutral-950'
                       }
-                      focus-visible:ring-2
-                      focus-visible:ring-violet-500
-                      focus-visible:ring-offset-2
-                    `}
+focus - visible: ring - 2
+focus - visible: ring - violet - 500
+focus - visible: ring - offset - 2
+  `}
                   >
                     <span
                       aria-hidden="true"
                       className={`
-                        absolute
-                        inset-0
-                        rounded-lg
-                        bg-neutral-50
-                        opacity-0
-                        transition-opacity
-                        duration-300
-                        group-hover:opacity-100
+absolute
+inset - 0
+rounded - lg
+bg - neutral - 50
+opacity - 0
+transition - opacity
+duration - 300
+group - hover: opacity - 100
                         ${active
                           ? 'bg-violet-50 opacity-100'
                           : ''
                         }
-                      `}
+`}
                     />
 
                     <span className="relative z-10">
@@ -595,12 +745,16 @@ export function Navbar() {
 
         <button
           type="button"
-          onClick={() =>
+          onClick={() => {
+            if (isOpen) {
+              resetMobileSecret()
+            }
+
             setIsOpen(
               (value) =>
                 !value,
             )
-          }
+          }}
           aria-label={
             isOpen
               ? 'Close navigation menu'
@@ -611,25 +765,25 @@ export function Navbar() {
           }
           aria-controls="mobile-navigation"
           className={`
-            flex
-            h-10
-            w-10
-            items-center
-            justify-center
-            rounded-xl
-            border
-            outline-none
-            transition-all
-            duration-300
-            lg:hidden
+flex
+h - 10
+w - 10
+items - center
+justify - center
+rounded - xl
+border
+outline - none
+transition - all
+duration - 300
+lg: hidden
             ${isOpen
               ? 'border-violet-200 bg-violet-50 text-violet-600'
               : 'border-neutral-200 bg-white text-neutral-600 hover:border-violet-200 hover:text-violet-600'
             }
-            focus-visible:ring-2
-            focus-visible:ring-violet-500
-            focus-visible:ring-offset-2
-          `}
+focus - visible: ring - 2
+focus - visible: ring - violet - 500
+focus - visible: ring - offset - 2
+  `}
         >
           {isOpen ? (
             <X
@@ -652,22 +806,23 @@ export function Navbar() {
       <div
         aria-hidden={!isOpen}
         className={`
-          fixed
-          inset-0
-          -z-10
-          bg-neutral-950/20
-          backdrop-blur-[2px]
-          transition-opacity
-          duration-300
-          lg:hidden
+fixed
+inset - 0
+  - z - 10
+bg - neutral - 950 / 20
+backdrop - blur - [2px]
+transition - opacity
+duration - 300
+lg: hidden
           ${isOpen
             ? 'pointer-events-auto opacity-100'
             : 'pointer-events-none opacity-0'
           }
-        `}
-        onClick={() =>
+`}
+        onClick={() => {
+          resetMobileSecret()
           setIsOpen(false)
-        }
+        }}
       />
 
       {/* =========================================================
@@ -677,24 +832,24 @@ export function Navbar() {
       <div
         id="mobile-navigation"
         className={`
-          mx-auto
-          mt-2
-          max-w-7xl
-          overflow-hidden
-          rounded-2xl
-          border
-          border-neutral-200
-          bg-white/98
-          shadow-[0_20px_60px_rgba(15,23,42,0.12)]
-          backdrop-blur-xl
-          transition-all
-          duration-500
-          lg:hidden
+mx - auto
+mt - 2
+max - w - 7xl
+overflow - hidden
+rounded - 2xl
+border
+border - neutral - 200
+bg - white / 98
+shadow - [0_20px_60px_rgba(15, 23, 42, 0.12)]
+backdrop - blur - xl
+transition - all
+duration - 500
+lg: hidden
           ${isOpen
             ? 'max-h-[calc(100vh-100px)] translate-y-0 opacity-100'
             : 'pointer-events-none max-h-0 -translate-y-3 opacity-0'
           }
-        `}
+`}
       >
         <div className="max-h-[calc(100vh-100px)] overflow-y-auto p-3">
 
@@ -743,38 +898,33 @@ export function Navbar() {
           </button>
 
           {/* =====================================================
-              MOBILE SECRET INPUT
-
-              Tidak terlihat pada UI.
-              Hanya aktif setelah logo mobile
-              ditekan 5 kali.
+              MOBILE PORTAL STATUS
           ====================================================== */}
 
           {mobileSecretActive && (
-            <div className="relative h-0 overflow-hidden">
-              <input
-                ref={
-                  mobileSecretInputRef
-                }
-                type="text"
-                inputMode="text"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                aria-label="Portal keyword"
-                value=""
-                onChange={
-                  handleMobileSecretInput
-                }
-                className="
-                  absolute
-                  left-0
-                  top-0
-                  h-px
-                  w-px
-                  opacity-0
-                "
-              />
+            <div
+              className="
+                mb-3
+                flex
+                items-center
+                justify-center
+                rounded-xl
+                border
+                border-violet-100
+                bg-violet-50
+                px-4
+                py-2.5
+              "
+            >
+              <span className="
+                text-[9px]
+                font-semibold
+                uppercase
+                tracking-[0.18em]
+                text-violet-600
+              ">
+                Type portal
+              </span>
             </div>
           )}
 
@@ -807,30 +957,30 @@ export function Navbar() {
                         : undefined
                     }
                     className={`
-                      group
-                      relative
-                      flex
-                      min-h-12
-                      items-center
-                      justify-between
-                      overflow-hidden
-                      rounded-xl
-                      px-4
-                      py-3
-                      outline-none
-                      transition-all
-                      duration-300
+group
+relative
+flex
+min - h - 12
+items - center
+justify - between
+overflow - hidden
+rounded - xl
+px - 4
+py - 3
+outline - none
+transition - all
+duration - 300
                       ${active
                         ? 'bg-violet-50 text-violet-700'
                         : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-950'
                       }
-                      focus-visible:ring-2
-                      focus-visible:ring-violet-500
-                    `}
+focus - visible: ring - 2
+focus - visible: ring - violet - 500
+  `}
                     style={{
                       transitionDelay:
                         isOpen
-                          ? `${index * 30}ms`
+                          ? `${index * 30} ms`
                           : '0ms',
                     }}
                   >
@@ -943,35 +1093,35 @@ export function Navbar() {
       ========================================================== */}
 
       <style>{`
-        .navbarShell {
-          animation: navbarReveal 0.55s ease-out both;
-        }
+  .navbarShell {
+  animation: navbarReveal 0.55s ease - out both;
+}
 
-        @keyframes navbarReveal {
+@keyframes navbarReveal {
           from {
-            opacity: 0;
-            transform: translateY(-8px);
-          }
+    opacity: 0;
+    transform: translateY(-8px);
+  }
 
           to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-        @media (prefers-reduced-motion: reduce) {
+@media(prefers - reduced - motion: reduce) {
           .navbarShell {
-            animation: none !important;
-          }
+    animation: none!important;
+  }
 
           *,
-          *::before,
+          *:: before,
           *::after {
-            transition-duration: 0.01ms !important;
-            scroll-behavior: auto !important;
-          }
-        }
-      `}</style>
+    transition - duration: 0.01ms!important;
+    scroll - behavior: auto!important;
+  }
+}
+`}</style>
     </header>
   )
 }
