@@ -22,9 +22,6 @@ export function Navbar() {
   const [mobileSecretActive, setMobileSecretActive] =
     useState(false)
 
-  const [mobileSecretValue, setMobileSecretValue] =
-    useState('')
-
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -70,8 +67,6 @@ export function Navbar() {
   useEffect(() => {
     setIsOpen(false)
     setMobileSecretActive(false)
-    setMobileSecretValue('')
-    mobileLogoTapCountRef.current = 0
   }, [location.pathname])
 
   /* =========================================================
@@ -93,7 +88,7 @@ export function Navbar() {
 
   /* =========================================================
      SECRET ADMIN ACCESS — DESKTOP
-
+     
      Type:
        portal
 
@@ -229,13 +224,16 @@ export function Navbar() {
 
   /* =========================================================
      MOBILE SECRET ACCESS
+     
+     Mobile browser tidak selalu mengirim
+     keyboard event ke window.
 
      Flow:
        Mobile Menu
           ↓
-       Tap Sankyuu Production 5x
+       Tap logo 5x
           ↓
-       Hidden input langsung focus
+       Hidden input aktif
           ↓
        Keyboard mobile muncul
           ↓
@@ -260,8 +258,8 @@ export function Navbar() {
     }
 
     /*
-     * Lima tap dalam waktu 1.5 detik
-     * mengaktifkan secret input.
+     * Lima tap dalam waktu singkat
+     * mengaktifkan input keyword.
      */
     if (
       mobileLogoTapCountRef.current >=
@@ -270,17 +268,6 @@ export function Navbar() {
       mobileLogoTapCountRef.current = 0
 
       setMobileSecretActive(true)
-      setMobileSecretValue('')
-
-      /*
-       * Input sudah selalu ada di DOM.
-       * Jadi focus() tidak bergantung pada
-       * hasil render berikutnya.
-       *
-       * Ini penting untuk browser mobile
-       * agar virtual keyboard dapat muncul.
-       */
-      mobileSecretInputRef.current?.focus()
 
       return
     }
@@ -290,6 +277,58 @@ export function Navbar() {
         mobileLogoTapCountRef.current = 0
       }, 1500)
   }
+
+  /* =========================================================
+     FOCUS MOBILE SECRET INPUT
+     
+     Dipisahkan dari handler tap supaya
+     input sudah benar-benar ter-render
+     sebelum focus() dipanggil.
+  ========================================================== */
+
+  useEffect(() => {
+    if (!mobileSecretActive) {
+      return
+    }
+
+    const focusSecretInput = () => {
+      const input =
+        mobileSecretInputRef.current
+
+      if (!input) {
+        return
+      }
+
+      input.focus()
+
+      /*
+       * Pastikan cursor berada di posisi akhir.
+       */
+      try {
+        input.setSelectionRange(
+          input.value.length,
+          input.value.length,
+        )
+      } catch {
+        // Tidak semua mobile browser mendukung selection range.
+      }
+    }
+
+    /*
+     * Delay kecil membantu browser mobile
+     * membuka virtual keyboard setelah input
+     * benar-benar masuk ke DOM.
+     */
+    const timer =
+      window.setTimeout(
+        focusSecretInput,
+        50,
+      )
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [mobileSecretActive])
 
   /* =========================================================
      MOBILE SECRET KEYWORD HANDLER
@@ -305,6 +344,9 @@ export function Navbar() {
         .toLowerCase()
         .replace(/[^a-z]/g, '')
 
+    /*
+     * Batasi hanya sepanjang keyword.
+     */
     const normalizedValue =
       value.slice(
         0,
@@ -313,20 +355,16 @@ export function Navbar() {
 
     /*
      * Jika sequence tidak cocok,
-     * reset input.
+     * kosongkan input dan mulai lagi.
      */
     if (
       !keyword.startsWith(
         normalizedValue,
       )
     ) {
-      setMobileSecretValue('')
+      event.target.value = ''
       return
     }
-
-    setMobileSecretValue(
-      normalizedValue,
-    )
 
     /*
      * Keyword lengkap.
@@ -334,8 +372,9 @@ export function Navbar() {
     if (
       normalizedValue === keyword
     ) {
+      event.target.value = ''
+
       setMobileSecretActive(false)
-      setMobileSecretValue('')
       setIsOpen(false)
 
       navigate('/admin/access')
@@ -382,16 +421,16 @@ export function Navbar() {
 
       <nav
         className={`
-navbarShell
-mx - auto
-flex
-max - w - 7xl
-items - center
-justify - between
-rounded - 2xl
-border
-transition - all
-duration - 500
+          navbarShell
+          mx-auto
+          flex
+          max-w-7xl
+          items-center
+          justify-between
+          rounded-2xl
+          border
+          transition-all
+          duration-500
           ${isScrolled
             ? `
                 border-neutral-200
@@ -408,7 +447,7 @@ duration - 500
                 backdrop-blur-md
               `
           }
-`}
+        `}
       >
         {/* =======================================================
             LOGO
@@ -427,19 +466,19 @@ duration - 500
         <div className="hidden items-center lg:flex">
           <div
             className={`
-flex
-items - center
-gap - 0.5
-rounded - xl
-px - 1
-py - 1
-transition - all
-duration - 500
+              flex
+              items-center
+              gap-0.5
+              rounded-xl
+              px-1
+              py-1
+              transition-all
+              duration-500
               ${isScrolled
                 ? 'border border-neutral-200 bg-neutral-50'
                 : ''
               }
-`}
+            `}
           >
             {NAV_LINKS.map(
               (link) => {
@@ -462,42 +501,42 @@ duration - 500
                         : undefined
                     }
                     className={`
-navbarLink
-group
-relative
-rounded - lg
-px - 3.5
-py - 2
-text - sm
-font - medium
-outline - none
-transition - all
-duration - 300
+                      navbarLink
+                      group
+                      relative
+                      rounded-lg
+                      px-3.5
+                      py-2
+                      text-sm
+                      font-medium
+                      outline-none
+                      transition-all
+                      duration-300
                       ${active
                         ? 'text-violet-600'
                         : 'text-neutral-500 hover:text-neutral-950'
                       }
-focus - visible: ring - 2
-focus - visible: ring - violet - 500
-focus - visible: ring - offset - 2
-  `}
+                      focus-visible:ring-2
+                      focus-visible:ring-violet-500
+                      focus-visible:ring-offset-2
+                    `}
                   >
                     <span
                       aria-hidden="true"
                       className={`
-absolute
-inset - 0
-rounded - lg
-bg - neutral - 50
-opacity - 0
-transition - opacity
-duration - 300
-group - hover: opacity - 100
+                        absolute
+                        inset-0
+                        rounded-lg
+                        bg-neutral-50
+                        opacity-0
+                        transition-opacity
+                        duration-300
+                        group-hover:opacity-100
                         ${active
                           ? 'bg-violet-50 opacity-100'
                           : ''
                         }
-`}
+                      `}
                     />
 
                     <span className="relative z-10">
@@ -621,25 +660,25 @@ group - hover: opacity - 100
           }
           aria-controls="mobile-navigation"
           className={`
-flex
-h - 10
-w - 10
-items - center
-justify - center
-rounded - xl
-border
-outline - none
-transition - all
-duration - 300
-lg: hidden
+            flex
+            h-10
+            w-10
+            items-center
+            justify-center
+            rounded-xl
+            border
+            outline-none
+            transition-all
+            duration-300
+            lg:hidden
             ${isOpen
               ? 'border-violet-200 bg-violet-50 text-violet-600'
               : 'border-neutral-200 bg-white text-neutral-600 hover:border-violet-200 hover:text-violet-600'
             }
-focus - visible: ring - 2
-focus - visible: ring - violet - 500
-focus - visible: ring - offset - 2
-  `}
+            focus-visible:ring-2
+            focus-visible:ring-violet-500
+            focus-visible:ring-offset-2
+          `}
         >
           {isOpen ? (
             <X
@@ -662,19 +701,19 @@ focus - visible: ring - offset - 2
       <div
         aria-hidden={!isOpen}
         className={`
-fixed
-inset - 0
-  - z - 10
-bg - neutral - 950 / 20
-backdrop - blur - [2px]
-transition - opacity
-duration - 300
-lg: hidden
+          fixed
+          inset-0
+          -z-10
+          bg-neutral-950/20
+          backdrop-blur-[2px]
+          transition-opacity
+          duration-300
+          lg:hidden
           ${isOpen
             ? 'pointer-events-auto opacity-100'
             : 'pointer-events-none opacity-0'
           }
-`}
+        `}
         onClick={() =>
           setIsOpen(false)
         }
@@ -687,24 +726,24 @@ lg: hidden
       <div
         id="mobile-navigation"
         className={`
-mx - auto
-mt - 2
-max - w - 7xl
-overflow - hidden
-rounded - 2xl
-border
-border - neutral - 200
-bg - white / 98
-shadow - [0_20px_60px_rgba(15, 23, 42, 0.12)]
-backdrop - blur - xl
-transition - all
-duration - 500
-lg: hidden
+          mx-auto
+          mt-2
+          max-w-7xl
+          overflow-hidden
+          rounded-2xl
+          border
+          border-neutral-200
+          bg-white/98
+          shadow-[0_20px_60px_rgba(15,23,42,0.12)]
+          backdrop-blur-xl
+          transition-all
+          duration-500
+          lg:hidden
           ${isOpen
             ? 'max-h-[calc(100vh-100px)] translate-y-0 opacity-100'
             : 'pointer-events-none max-h-0 -translate-y-3 opacity-0'
           }
-`}
+        `}
       >
         <div className="max-h-[calc(100vh-100px)] overflow-y-auto p-3">
 
@@ -755,53 +794,38 @@ lg: hidden
           {/* =====================================================
               MOBILE SECRET INPUT
 
-              Input sengaja tetap mounted agar focus()
-              bisa dipanggil langsung dari tap kelima.
-
-              Keyboard mobile akan muncul setelah
-              5x tap pada Sankyuu Production.
+              Tidak terlihat pada UI.
+              Hanya aktif setelah logo mobile
+              ditekan 5 kali.
           ====================================================== */}
 
-          <input
-            ref={
-              mobileSecretInputRef
-            }
-            type="text"
-            inputMode="text"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            aria-label="Portal keyword"
-            value={
-              mobileSecretValue
-            }
-            onChange={
-              handleMobileSecretInput
-            }
-            tabIndex={
-              mobileSecretActive
-                ? 0
-                : -1
-            }
-            className={`
-fixed
-left - 1 / 2
-top - 1
-z - [60]
-h - 1
-w - 1
-border - 0
-bg - transparent
-p - 0
-text - transparent
-outline - none
-caret - transparent
-              ${mobileSecretActive
-                ? 'opacity-[0.01]'
-                : 'pointer-events-none opacity-0'
-              }
-`}
-          />
+          {mobileSecretActive && (
+            <div className="relative h-0 overflow-hidden">
+              <input
+                ref={
+                  mobileSecretInputRef
+                }
+                type="text"
+                inputMode="text"
+                enterKeyHint="done"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                aria-label="Portal keyword"
+                onChange={
+                  handleMobileSecretInput
+                }
+                className="
+                  absolute
+                  left-0
+                  top-0
+                  h-px
+                  w-px
+                  opacity-0
+                "
+              />
+            </div>
+          )}
 
           {/* =====================================================
               LINKS
@@ -832,30 +856,30 @@ caret - transparent
                         : undefined
                     }
                     className={`
-group
-relative
-flex
-min - h - 12
-items - center
-justify - between
-overflow - hidden
-rounded - xl
-px - 4
-py - 3
-outline - none
-transition - all
-duration - 300
+                      group
+                      relative
+                      flex
+                      min-h-12
+                      items-center
+                      justify-between
+                      overflow-hidden
+                      rounded-xl
+                      px-4
+                      py-3
+                      outline-none
+                      transition-all
+                      duration-300
                       ${active
                         ? 'bg-violet-50 text-violet-700'
                         : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-950'
                       }
-focus - visible: ring - 2
-focus - visible: ring - violet - 500
-  `}
+                      focus-visible:ring-2
+                      focus-visible:ring-violet-500
+                    `}
                     style={{
                       transitionDelay:
                         isOpen
-                          ? `${index * 30} ms`
+                          ? `${index * 30}ms`
                           : '0ms',
                     }}
                   >
@@ -968,35 +992,35 @@ focus - visible: ring - violet - 500
       ========================================================== */}
 
       <style>{`
-  .navbarShell {
-  animation: navbarReveal 0.55s ease - out both;
-}
+        .navbarShell {
+          animation: navbarReveal 0.55s ease-out both;
+        }
 
-@keyframes navbarReveal {
+        @keyframes navbarReveal {
           from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
+            opacity: 0;
+            transform: translateY(-8px);
+          }
 
           to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
 
-@media(prefers - reduced - motion: reduce) {
+        @media (prefers-reduced-motion: reduce) {
           .navbarShell {
-    animation: none!important;
-  }
+            animation: none !important;
+          }
 
           *,
-          *:: before,
+          *::before,
           *::after {
-    transition - duration: 0.01ms!important;
-    scroll - behavior: auto!important;
-  }
-}
-`}</style>
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+          }
+        }
+      `}</style>
     </header>
   )
 }
