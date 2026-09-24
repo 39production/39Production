@@ -80,38 +80,30 @@ function rateLimitResponse(retryAfter: number, request?: Request, env?: Env) {
 
 function getAllowedOrigins(env?: Env) {
     const configured = env?.ALLOWED_ORIGINS?.split(',').map((value) => value.trim()).filter(Boolean) || []
-    return configured.length > 0 ? configured : DEFAULT_ALLOWED_ORIGINS
+
+    // Always keep the known-safe production and local development origins.
+    // ALLOWED_ORIGINS can only add explicitly configured origins; it cannot
+    // accidentally remove localhost or the production GitHub Pages origin.
+    return Array.from(new Set([...DEFAULT_ALLOWED_ORIGINS, ...configured]))
 }
 
 function getCorsHeaders(origin?: string, env?: Env) {
     const allowed = getAllowedOrigins(env)
 
-    // If the browser supplied an Origin, only echo it when it is explicitly
-    // allowlisted. Do not emit an arbitrary fallback ACAO value for a denied
-    // origin; that makes security testing and browser behavior unambiguous.
-    if (origin) {
-        if (!allowed.includes(origin)) {
-            return {
-                'Vary': 'Origin',
-            }
-        }
-
-        return {
-            'Access-Control-Allow-Origin': origin,
-            'Vary': 'Origin',
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-            'Access-Control-Max-Age': '86400',
-        }
-    }
-
-    return {
-        'Access-Control-Allow-Origin': allowed[0],
+    const headers: Record<string, string> = {
         'Vary': 'Origin',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         'Access-Control-Max-Age': '86400',
     }
+
+    // Only grant browser read access to explicitly allowlisted origins.
+    // Public endpoints remain public; CORS only controls browser access.
+    if (origin && allowed.includes(origin)) {
+        headers['Access-Control-Allow-Origin'] = origin
+    }
+
+    return headers
 }
 
 function securityHeaders() {
@@ -529,8 +521,12 @@ async function getAuthUser(
     const tokenHash = await sha256(token)
     const now = Math.floor(Date.now() / 1000)
 
+    // Read the session by token hash first. Expiry is validated in JavaScript
+    // so the auth check is independent of whether the D1 column stores
+    // expires_at as INTEGER seconds or an ISO/text timestamp.
     const result = await env.DB.prepare(`
     SELECT
+      s.expires_at,
       u.id,
       u.name,
       u.email,
@@ -540,19 +536,41 @@ async function getAuthUser(
     INNER JOIN admin_users u
       ON u.id = s.user_id
     WHERE s.token_hash = ?
-      AND s.expires_at > ?
       AND u.status = 'Active'
     LIMIT 1
   `)
-        .bind(tokenHash, now)
-        .first<AuthUser>()
+        .bind(tokenHash)
+        .first<AuthUser & { expires_at: unknown }>()
 
     if (!result) {
         return null
     }
 
+    const expiresAt = result.expires_at
+    let expiresAtMs: number
+
+    if (typeof expiresAt === 'number') {
+        // Current schema uses Unix seconds.
+        expiresAtMs = expiresAt > 10_000_000_000
+            ? expiresAt
+            : expiresAt * 1000
+    } else if (typeof expiresAt === 'string') {
+        const numeric = Number(expiresAt)
+        expiresAtMs = Number.isFinite(numeric)
+            ? (numeric > 10_000_000_000 ? numeric : numeric * 1000)
+            : Date.parse(expiresAt)
+    } else {
+        return null
+    }
+
+    if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) {
+        return null
+    }
+
+    const { expires_at: _expiresAt, ...user } = result
+
     return {
-        user: result,
+        user: user as AuthUser,
         tokenHash,
     }
 }
@@ -2467,6 +2485,143 @@ const allowedProductStatuses =
 type ProductStatus =
     (typeof allowedProductStatuses)[number]
 
+const MAX_PRODUCT_IMAGES = 8
+
+let productGallerySchemaReady = false
+
+async function ensureProductGallerySchema(env: Env) {
+    if (productGallerySchemaReady) return
+
+    try {
+        await env.DB.prepare(
+            `ALTER TABLE products ADD COLUMN image_urls TEXT NOT NULL DEFAULT '[]'`,
+        ).run()
+    } catch (error) {
+        const message =
+            error instanceof Error
+                ? error.message.toLowerCase()
+                : ''
+
+        if (
+            !message.includes('duplicate column') &&
+            !message.includes('already exists')
+        ) {
+            throw error
+        }
+    }
+
+    productGallerySchemaReady = true
+}
+
+function parseProductImageUrls(value: unknown, fallback?: unknown) {
+    let parsed: unknown = value
+
+    if (typeof parsed === 'string') {
+        try {
+            parsed = JSON.parse(parsed)
+        } catch {
+            parsed = []
+        }
+    }
+
+    const urls = Array.isArray(parsed)
+        ? parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+        : []
+
+    if (urls.length > 0) {
+        return urls.slice(0, MAX_PRODUCT_IMAGES)
+    }
+
+    if (typeof fallback === 'string' && fallback.trim()) {
+        return [fallback.trim()]
+    }
+
+    return []
+}
+
+function normalizeProductRow(row: any) {
+    const imageUrls = parseProductImageUrls(
+        row.image_urls,
+        row.image_url,
+    )
+
+    return {
+        ...row,
+        image_url: imageUrls[0] || '',
+        image_urls: imageUrls,
+    }
+}
+
+const MAX_PORTFOLIO_IMAGES = 8
+
+let portfolioGallerySchemaReady = false
+
+async function ensurePortfolioGallerySchema(env: Env) {
+    if (portfolioGallerySchemaReady) return
+
+    try {
+        await env.DB.prepare(
+            `ALTER TABLE portfolio ADD COLUMN image_urls TEXT NOT NULL DEFAULT '[]'`,
+        ).run()
+    } catch (error) {
+        const message =
+            error instanceof Error
+                ? error.message.toLowerCase()
+                : ''
+
+        if (
+            !message.includes('duplicate column') &&
+            !message.includes('already exists')
+        ) {
+            throw error
+        }
+    }
+
+    portfolioGallerySchemaReady = true
+}
+
+function parsePortfolioImageUrls(value: unknown, fallback?: unknown) {
+    let parsed: unknown = value
+
+    if (typeof parsed === 'string') {
+        try {
+            parsed = JSON.parse(parsed)
+        } catch {
+            parsed = []
+        }
+    }
+
+    const urls = Array.isArray(parsed)
+        ? parsed.filter(
+            (item): item is string =>
+                typeof item === 'string' && item.trim().length > 0,
+        )
+        : []
+
+    if (urls.length > 0) {
+        return urls.slice(0, MAX_PORTFOLIO_IMAGES)
+    }
+
+    if (typeof fallback === 'string' && fallback.trim()) {
+        return [fallback.trim()]
+    }
+
+    return []
+}
+
+function normalizePortfolioRow(row: any) {
+    const imageUrls = parsePortfolioImageUrls(
+        row.image_urls,
+        row.image_url,
+    )
+
+    return {
+        ...row,
+        image_url: imageUrls[0] || '',
+        image_urls: imageUrls,
+    }
+}
+
 function getProductId(
     pathname: string,
 ) {
@@ -2507,7 +2662,42 @@ async function parseProductRequest(request: Request) {
 
     if (contentType.includes('multipart/form-data')) {
         const formData = await request.formData()
-        const image = formData.get('image')
+
+        const images = formData
+            .getAll('images')
+            .filter((value): value is File => value instanceof File && value.size > 0)
+
+        // Backward compatibility with the previous single-image field.
+        const legacyImage = formData.get('image')
+        if (
+            images.length === 0 &&
+            legacyImage instanceof File &&
+            legacyImage.size > 0
+        ) {
+            images.push(legacyImage)
+        }
+
+        let existingImages: string[] = []
+        const existingImagesValue = formData.get('existing_images')
+
+        if (typeof existingImagesValue === 'string') {
+            try {
+                const parsed = JSON.parse(existingImagesValue)
+                if (Array.isArray(parsed)) {
+                    existingImages = parsed
+                        .filter(
+                            (value): value is string =>
+                                typeof value === 'string' && value.trim().length > 0,
+                        )
+                        .slice(0, MAX_PRODUCT_IMAGES)
+                }
+            } catch {
+                existingImages = []
+            }
+        }
+
+        const replaceImages =
+            formData.get('replace_images') === 'true'
 
         return {
             body: {
@@ -2518,13 +2708,17 @@ async function parseProductRequest(request: Request) {
                 stock: formData.get('stock'),
                 status: formData.get('status'),
             } satisfies ProductPayload,
-            image: image instanceof File && image.size > 0 ? image : null,
+            images: images.slice(0, MAX_PRODUCT_IMAGES),
+            existingImages,
+            replaceImages,
         }
     }
 
     return {
         body: await request.json<ProductPayload>(),
-        image: null,
+        images: [] as File[],
+        existingImages: [] as string[],
+        replaceImages: false,
     }
 }
 
@@ -2563,6 +2757,7 @@ async function saveProductImage(image: File) {
     if (!signatureMatches) {
         throw new Error('The uploaded image content does not match its declared file type.')
     }
+
     let binary = ''
     const chunkSize = 0x8000
 
@@ -2686,6 +2881,7 @@ async function getProducts(
         stock,
         status,
         image_url,
+        image_urls,
         created_at,
         updated_at
       FROM products
@@ -2696,7 +2892,7 @@ async function getProducts(
 
         return json({
             success: true,
-            data: result.results,
+            data: result.results.map(normalizeProductRow),
         })
     } catch (error) {
         console.error(
@@ -2730,6 +2926,7 @@ async function getProduct(
         stock,
         status,
         image_url,
+        image_urls,
         created_at,
         updated_at
       FROM products
@@ -2751,7 +2948,7 @@ async function getProduct(
 
         return json({
             success: true,
-            data: result,
+            data: normalizeProductRow(result),
         })
     } catch (error) {
         console.error(
@@ -2772,7 +2969,7 @@ async function getProduct(
 async function createProduct(
     env: Env,
     body: ProductPayload,
-    image: File | null,
+    images: File[],
 ) {
     const validation =
         validateProductPayload(body)
@@ -2796,6 +2993,16 @@ async function createProduct(
         status,
     } = validation.data
 
+    if (images.length > MAX_PRODUCT_IMAGES) {
+        return json(
+            {
+                success: false,
+                message: `A product can have a maximum of ${MAX_PRODUCT_IMAGES} images.`,
+            },
+            400,
+        )
+    }
+
     try {
         const result = await env.DB.prepare(
             `
@@ -2806,9 +3013,10 @@ async function createProduct(
         price,
         stock,
         status,
-        image_url
+        image_url,
+        image_urls
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
         )
             .bind(
@@ -2819,30 +3027,44 @@ async function createProduct(
                 stock,
                 status,
                 '',
+                '[]',
             )
             .run()
 
         const id = result.meta.last_row_id
-        let imageUrl = ''
+        const imageUrls: string[] = []
 
-        if (image) {
-            try {
-                imageUrl = await saveProductImage(image)
-
-                await env.DB.prepare(
-                    `UPDATE products SET image_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-                )
-                    .bind(imageUrl, id)
-                    .run()
-            } catch (imageError) {
-                await env.DB.prepare(
-                    `DELETE FROM products WHERE id = ?`,
-                )
-                    .bind(id)
-                    .run()
-
-                throw imageError
+        try {
+            for (const image of images.slice(0, MAX_PRODUCT_IMAGES)) {
+                imageUrls.push(await saveProductImage(image))
             }
+
+            const imageUrl = imageUrls[0] || ''
+
+            await env.DB.prepare(
+                `
+                UPDATE products
+                SET
+                    image_url = ?,
+                    image_urls = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                `,
+            )
+                .bind(
+                    imageUrl,
+                    JSON.stringify(imageUrls),
+                    id,
+                )
+                .run()
+        } catch (imageError) {
+            await env.DB.prepare(
+                `DELETE FROM products WHERE id = ?`,
+            )
+                .bind(id)
+                .run()
+
+            throw imageError
         }
 
         return json(
@@ -2858,7 +3080,8 @@ async function createProduct(
                     price,
                     stock,
                     status,
-                    image_url: imageUrl,
+                    image_url: imageUrls[0] || '',
+                    image_urls: imageUrls,
                 },
             },
             201,
@@ -2888,7 +3111,9 @@ async function updateProduct(
     env: Env,
     id: number,
     body: ProductPayload,
-    image: File | null,
+    images: File[],
+    existingImages: string[],
+    replaceImages: boolean,
 ) {
     const validation =
         validateProductPayload(body)
@@ -2912,17 +3137,31 @@ async function updateProduct(
         status,
     } = validation.data
 
+    if (images.length > MAX_PRODUCT_IMAGES) {
+        return json(
+            {
+                success: false,
+                message: `A product can have a maximum of ${MAX_PRODUCT_IMAGES} images.`,
+            },
+            400,
+        )
+    }
+
     try {
         const existing =
             await env.DB.prepare(
                 `
-        SELECT id, image_url
+        SELECT id, image_url, image_urls
         FROM products
         WHERE id = ?
         `,
             )
                 .bind(id)
-                .first()
+                .first<{
+                    id: number
+                    image_url: string | null
+                    image_urls: string | null
+                }>()
 
         if (!existing) {
             return json(
@@ -2934,14 +3173,48 @@ async function updateProduct(
             )
         }
 
-        let imageUrl = String(existing.image_url || '')
-        if (image) {
-            imageUrl = await saveProductImage(image)
+        const currentImages = parseProductImageUrls(
+            existing.image_urls,
+            existing.image_url,
+        )
+
+        let retainedImages = currentImages
+
+        if (replaceImages) {
+            retainedImages = existingImages
+                .filter((url) => currentImages.includes(url))
+                .slice(0, MAX_PRODUCT_IMAGES)
         }
 
+        if (retainedImages.length + images.length > MAX_PRODUCT_IMAGES) {
+            return json(
+                {
+                    success: false,
+                    message: `A product can have a maximum of ${MAX_PRODUCT_IMAGES} images.`,
+                },
+                400,
+            )
+        }
+
+        const newImageUrls: string[] = []
+
         try {
-            await env.DB.prepare(
-                `
+            for (const image of images) {
+                newImageUrls.push(await saveProductImage(image))
+            }
+        } catch (imageError) {
+            throw imageError
+        }
+
+        const imageUrls = [
+            ...retainedImages,
+            ...newImageUrls,
+        ].slice(0, MAX_PRODUCT_IMAGES)
+
+        const imageUrl = imageUrls[0] || ''
+
+        await env.DB.prepare(
+            `
         UPDATE products
         SET
           name = ?,
@@ -2951,24 +3224,23 @@ async function updateProduct(
           stock = ?,
           status = ?,
           image_url = ?,
+          image_urls = ?,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
         `,
+        )
+            .bind(
+                name,
+                category,
+                description,
+                price,
+                stock,
+                status,
+                imageUrl,
+                JSON.stringify(imageUrls),
+                id,
             )
-                .bind(
-                    name,
-                    category,
-                    description,
-                    price,
-                    stock,
-                    status,
-                    imageUrl,
-                    id,
-                )
-                .run()
-        } catch (updateError) {
-            throw updateError
-        }
+            .run()
 
         return json({
             success: true,
@@ -2983,6 +3255,7 @@ async function updateProduct(
                 stock,
                 status,
                 image_url: imageUrl,
+                image_urls: imageUrls,
             },
         })
     } catch (error) {
@@ -3075,6 +3348,7 @@ interface PortfolioPayload {
     year?: unknown
     status?: unknown
     image_url?: unknown
+    image_urls?: unknown
 }
 
 const allowedPortfolioStatuses =
@@ -3128,54 +3402,24 @@ function validatePortfolioPayload(
             ? body.status
             : 'Published'
 
-    const image_url =
+    const imageUrl =
         typeof body.image_url === 'string'
             ? body.image_url.trim()
             : ''
 
-    if (!title) {
-        return {
-            error: 'Portfolio title is required.',
-        }
-    }
+    const imageUrls = parsePortfolioImageUrls(
+        body.image_urls,
+        imageUrl,
+    )
 
-    if (!category) {
-        return {
-            error:
-                'Portfolio category is required.',
-        }
-    }
+    if (!title) return { error: 'Portfolio title is required.' }
+    if (!category) return { error: 'Portfolio category is required.' }
+    if (!client) return { error: 'Portfolio client is required.' }
+    if (!description) return { error: 'Portfolio description is required.' }
+    if (!year) return { error: 'Portfolio year is required.' }
 
-    if (!client) {
-        return {
-            error:
-                'Portfolio client is required.',
-        }
-    }
-
-    if (!description) {
-        return {
-            error:
-                'Portfolio description is required.',
-        }
-    }
-
-    if (!year) {
-        return {
-            error:
-                'Portfolio year is required.',
-        }
-    }
-
-    if (
-        !allowedPortfolioStatuses.includes(
-            status as PortfolioStatus,
-        )
-    ) {
-        return {
-            error:
-                'Portfolio status must be Published or Draft.',
-        }
+    if (!allowedPortfolioStatuses.includes(status as PortfolioStatus)) {
+        return { error: 'Portfolio status must be Published or Draft.' }
     }
 
     return {
@@ -3186,7 +3430,8 @@ function validatePortfolioPayload(
             description,
             year,
             status,
-            image_url,
+            image_url: imageUrls[0] || '',
+            image_urls: imageUrls,
         },
     }
 }
@@ -3206,6 +3451,7 @@ async function getPortfolios(
         year,
         status,
         image_url,
+        image_urls,
         created_at,
         updated_at
       FROM portfolio
@@ -3216,20 +3462,12 @@ async function getPortfolios(
 
         return json({
             success: true,
-            data: result.results,
+            data: result.results.map(normalizePortfolioRow),
         })
     } catch (error) {
-        console.error(
-            'Get portfolios error:',
-            error,
-        )
-
+        console.error('Get portfolios error:', error)
         return json(
-            {
-                success: false,
-                message:
-                    'Failed to fetch portfolios.',
-            },
+            { success: false, message: 'Failed to fetch portfolios.' },
             500,
         )
     }
@@ -3251,6 +3489,7 @@ async function getPortfolio(
         year,
         status,
         image_url,
+        image_urls,
         created_at,
         updated_at
       FROM portfolio
@@ -3262,30 +3501,19 @@ async function getPortfolio(
 
         if (!result) {
             return json(
-                {
-                    success: false,
-                    message: 'Portfolio not found.',
-                },
+                { success: false, message: 'Portfolio not found.' },
                 404,
             )
         }
 
         return json({
             success: true,
-            data: result,
+            data: normalizePortfolioRow(result),
         })
     } catch (error) {
-        console.error(
-            'Get portfolio error:',
-            error,
-        )
-
+        console.error('Get portfolio error:', error)
         return json(
-            {
-                success: false,
-                message:
-                    'Failed to fetch portfolio.',
-            },
+            { success: false, message: 'Failed to fetch portfolio.' },
             500,
         )
     }
@@ -3294,104 +3522,70 @@ async function getPortfolio(
 async function createPortfolio(
     env: Env,
     body: PortfolioPayload,
-    image: File | null,
+    images: File[],
 ) {
-    const validation =
-        validatePortfolioPayload(body)
+    const validation = validatePortfolioPayload(body)
 
     if ('error' in validation) {
-        return json(
-            {
-                success: false,
-                message: validation.error,
-            },
-            400,
-        )
+        return json({ success: false, message: validation.error }, 400)
     }
 
     const {
-        title,
-        category,
-        client,
-        description,
-        year,
-        status,
-        image_url,
+        title, category, client, description, year, status, image_url, image_urls,
     } = validation.data
 
+    if (images.length > MAX_PORTFOLIO_IMAGES) {
+        return json({
+            success: false,
+            message: `Portfolio can contain up to ${MAX_PORTFOLIO_IMAGES} images.`,
+        }, 400)
+    }
+
     try {
+        const uploadedImages: string[] = []
+
+        for (const image of images.slice(0, MAX_PORTFOLIO_IMAGES)) {
+            uploadedImages.push(await saveProductImage(image))
+        }
+
+        const finalImages = [
+            ...image_urls,
+            ...uploadedImages,
+        ].slice(0, MAX_PORTFOLIO_IMAGES)
+
+        const finalImageUrl = finalImages[0] || image_url || ''
+
         const result = await env.DB.prepare(
             `
       INSERT INTO portfolio (
-        title,
-        category,
-        client,
-        description,
-        year,
-        status,
-        image_url
+        title, category, client, description, year, status, image_url, image_urls
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
         )
             .bind(
-                title,
-                category,
-                client,
-                description,
-                year,
-                status,
-                image_url,
+                title, category, client, description, year, status,
+                finalImageUrl, JSON.stringify(finalImages),
             )
             .run()
 
         const id = result.meta.last_row_id
-        let imageUrl = image_url
 
-        if (image) {
-            try {
-                imageUrl = await saveProductImage(image)
-                await env.DB.prepare(
-                    `UPDATE portfolio SET image_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-                ).bind(imageUrl, id).run()
-            } catch (imageError) {
-                await env.DB.prepare(`DELETE FROM portfolio WHERE id = ?`).bind(id).run()
-                throw imageError
-            }
-        }
-
-        return json(
-            {
-                success: true,
-                message:
-                    'Portfolio created successfully.',
-                data: {
-                    id,
-                    title,
-                    category,
-                    client,
-                    description,
-                    year,
-                    status,
-                    image_url: imageUrl,
-                },
+        return json({
+            success: true,
+            message: 'Portfolio created successfully.',
+            data: {
+                id, title, category, client, description, year, status,
+                image_url: finalImages[0] || '',
+                image_urls: finalImages,
             },
-            201,
-        )
+        }, 201)
     } catch (error) {
-        console.error(
-            'Create portfolio error:',
-            error,
-        )
-
-        return json(
-            {
-                success: false,
-                message:
-                    'Failed to create portfolio.',
-            },
-            500,
-        )
+        console.error('Create portfolio error:', error)
+        return json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Failed to create portfolio.',
+        }, 500)
     }
 }
 
@@ -3399,114 +3593,97 @@ async function updatePortfolio(
     env: Env,
     id: number,
     body: PortfolioPayload,
-    image: File | null,
+    images: File[],
+    existingImages: string[],
+    replaceImages: boolean,
 ) {
-    const validation =
-        validatePortfolioPayload(body)
+    const validation = validatePortfolioPayload(body)
 
     if ('error' in validation) {
-        return json(
-            {
-                success: false,
-                message: validation.error,
-            },
-            400,
-        )
+        return json({ success: false, message: validation.error }, 400)
     }
 
-    const {
-        title,
-        category,
-        client,
-        description,
-        year,
-        status,
-        image_url,
-    } = validation.data
+    const { title, category, client, description, year, status, image_url, image_urls } = validation.data
+
+    if (images.length > MAX_PORTFOLIO_IMAGES) {
+        return json({
+            success: false,
+            message: `Portfolio can contain up to ${MAX_PORTFOLIO_IMAGES} images.`,
+        }, 400)
+    }
 
     try {
-        const existing =
-            await env.DB.prepare(
-                `
-        SELECT id, image_url
-        FROM portfolio
-        WHERE id = ?
-        `,
-            )
-                .bind(id)
-                .first()
+        const existing = await env.DB.prepare(
+            `SELECT id, image_url, image_urls FROM portfolio WHERE id = ?`,
+        ).bind(id).first<{ id: number; image_url: string | null; image_urls: string | null }>()
 
         if (!existing) {
-            return json(
-                {
-                    success: false,
-                    message: 'Portfolio not found.',
-                },
-                404,
-            )
+            return json({ success: false, message: 'Portfolio not found.' }, 404)
         }
 
-        let imageUrl = String((existing as Record<string, unknown>).image_url || image_url || '')
-        if (image) {
-            imageUrl = await saveProductImage(image)
+        const currentImages = parsePortfolioImageUrls(existing.image_urls, existing.image_url)
+
+        let retainedImages = currentImages
+
+        if (replaceImages) {
+            retainedImages = existingImages
+                .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+                .slice(0, MAX_PORTFOLIO_IMAGES)
         }
+
+        const uploadedImages: string[] = []
+        for (const image of images.slice(0, MAX_PORTFOLIO_IMAGES)) {
+            uploadedImages.push(await saveProductImage(image))
+        }
+
+        let finalImages = [
+            ...(replaceImages ? retainedImages : currentImages),
+            ...uploadedImages,
+        ]
+
+        // JSON clients can explicitly provide image_urls without uploading files.
+        if (!images.length && image_urls.length > 0) {
+            finalImages = image_urls.slice(0, MAX_PORTFOLIO_IMAGES)
+        }
+
+        // Preserve the old single-image image_url field when no gallery change was requested.
+        if (!finalImages.length && image_url) {
+            finalImages = [image_url]
+        }
+
+        finalImages = finalImages.slice(0, MAX_PORTFOLIO_IMAGES)
+        const finalImageUrl = finalImages[0] || ''
 
         await env.DB.prepare(
             `
       UPDATE portfolio
       SET
-        title = ?,
-        category = ?,
-        client = ?,
-        description = ?,
-        year = ?,
-        status = ?,
-        image_url = ?,
-        updated_at = CURRENT_TIMESTAMP
+        title = ?, category = ?, client = ?, description = ?, year = ?, status = ?,
+        image_url = ?, image_urls = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
       `,
         )
             .bind(
-                title,
-                category,
-                client,
-                description,
-                year,
-                status,
-                imageUrl,
-                id,
+                title, category, client, description, year, status,
+                finalImageUrl, JSON.stringify(finalImages), id,
             )
             .run()
 
         return json({
             success: true,
-            message:
-                'Portfolio updated successfully.',
+            message: 'Portfolio updated successfully.',
             data: {
-                id,
-                title,
-                category,
-                client,
-                description,
-                year,
-                status,
-                image_url: imageUrl,
+                id, title, category, client, description, year, status,
+                image_url: finalImageUrl,
+                image_urls: finalImages,
             },
         })
     } catch (error) {
-        console.error(
-            'Update portfolio error:',
-            error,
-        )
-
-        return json(
-            {
-                success: false,
-                message:
-                    'Failed to update portfolio.',
-            },
-            500,
-        )
+        console.error('Update portfolio error:', error)
+        return json({
+            success: false,
+            message: error instanceof Error ? error.message : 'Failed to update portfolio.',
+        }, 500)
     }
 }
 
@@ -7544,7 +7721,6 @@ interface IdolMemberPayload {
     stage_name?: unknown
     position?: unknown
     birth_date?: unknown
-    email?: unknown
     bio?: unknown
     image_url?: unknown
     status?: unknown
@@ -7589,11 +7765,6 @@ function validateIdolMemberPayload(
     const birth_date =
         typeof body.birth_date === 'string'
             ? body.birth_date.trim()
-            : ''
-
-    const email =
-        typeof body.email === 'string'
-            ? body.email.trim()
             : ''
 
     const bio =
@@ -7809,7 +7980,6 @@ async function createIdolMember(
         stage_name,
         position,
         birth_date,
-        email,
         bio,
         image_url,
         status,
@@ -7853,7 +8023,7 @@ async function createIdolMember(
           image_url,
           status
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `,
             )
                 .bind(
@@ -7862,7 +8032,6 @@ async function createIdolMember(
                     stage_name,
                     position,
                     birth_date,
-                    email,
                     bio,
                     imageUrl,
                     status,
@@ -7881,7 +8050,6 @@ async function createIdolMember(
                     stage_name,
                     position,
                     birth_date,
-                    email,
                     bio,
                     image_url: imageUrl,
                     status,
@@ -7930,7 +8098,6 @@ async function updateIdolMember(
         stage_name,
         position,
         birth_date,
-        email,
         bio,
         image_url,
         status,
@@ -7970,7 +8137,6 @@ async function updateIdolMember(
         stage_name = ?,
         position = ?,
         birth_date = ?,
-        email = ?,
         bio = ?,
         image_url = ?,
         status = ?,
@@ -7983,7 +8149,6 @@ async function updateIdolMember(
                 stage_name,
                 position,
                 birth_date,
-                email,
                 bio,
                 imageUrl,
                 status,
@@ -8001,7 +8166,6 @@ async function updateIdolMember(
                 stage_name,
                 position,
                 birth_date,
-                email,
                 bio,
                 imageUrl,
                 status,
@@ -11021,9 +11185,42 @@ async function deleteNews(env: Env, id: number) {
 
 async function parsePortfolioRequest(request: Request) {
     const contentType = request.headers.get('content-type') || ''
+
     if (contentType.includes('multipart/form-data')) {
         const formData = await request.formData()
-        const image = formData.get('image')
+
+        const images = formData
+            .getAll('images')
+            .filter((value): value is File => value instanceof File && value.size > 0)
+
+        const legacyImage = formData.get('image')
+        if (
+            images.length === 0 &&
+            legacyImage instanceof File &&
+            legacyImage.size > 0
+        ) {
+            images.push(legacyImage)
+        }
+
+        let existingImages: string[] = []
+        const existingImagesValue = formData.get('existing_images')
+
+        if (typeof existingImagesValue === 'string') {
+            try {
+                const parsed = JSON.parse(existingImagesValue)
+                if (Array.isArray(parsed)) {
+                    existingImages = parsed
+                        .filter(
+                            (value): value is string =>
+                                typeof value === 'string' && value.trim().length > 0,
+                        )
+                        .slice(0, MAX_PORTFOLIO_IMAGES)
+                }
+            } catch {
+                existingImages = []
+            }
+        }
+
         return {
             body: {
                 title: formData.get('title'),
@@ -11033,11 +11230,20 @@ async function parsePortfolioRequest(request: Request) {
                 year: formData.get('year'),
                 status: formData.get('status'),
                 image_url: formData.get('image_url'),
+                image_urls: formData.get('image_urls'),
             } satisfies PortfolioPayload,
-            image: image instanceof File && image.size > 0 ? image : null,
+            images: images.slice(0, MAX_PORTFOLIO_IMAGES),
+            existingImages,
+            replaceImages: formData.get('replace_images') === 'true',
         }
     }
-    return { body: await request.json<PortfolioPayload>(), image: null }
+
+    return {
+        body: await request.json<PortfolioPayload>(),
+        images: [] as File[],
+        existingImages: [] as string[],
+        replaceImages: false,
+    }
 }
 
 async function parseNewsRequest(request: Request) {
@@ -11295,6 +11501,381 @@ async function updateSiteSettings(
     }
 }
 
+
+/* =====================================================
+   PUBLIC TESTIMONIALS
+===================================================== */
+
+interface TestimonialRecord {
+    id: number
+    name: string
+    role: string
+    company: string
+    rating: number
+    content: string
+    project: string
+    status: string
+    is_featured: number
+    created_at: string
+    updated_at: string
+}
+
+interface TestimonialPayload {
+    name?: unknown
+    role?: unknown
+    company?: unknown
+    rating?: unknown
+    content?: unknown
+    project?: unknown
+    website?: unknown
+}
+
+function testimonialText(value: unknown, maxLength: number) {
+    if (typeof value !== 'string') return ''
+    return value.trim().slice(0, maxLength)
+}
+
+function testimonialRating(value: unknown) {
+    const rating = Number(value)
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return null
+    return rating
+}
+
+async function ensureTestimonialsSchema(env: Env) {
+    await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS testimonials (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT '',
+            company TEXT NOT NULL DEFAULT '',
+            rating INTEGER NOT NULL DEFAULT 5,
+            content TEXT NOT NULL,
+            project TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'Published',
+            is_featured INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `).run()
+}
+
+async function getPublicTestimonials(env: Env) {
+    try {
+        await ensureTestimonialsSchema(env)
+        const result = await env.DB.prepare(`
+            SELECT id, name, role, company, rating, content, project, is_featured, created_at, updated_at
+            FROM testimonials
+            WHERE status = 'Published'
+            ORDER BY is_featured DESC, id DESC
+        `).all()
+        return json({ success: true, data: result.results })
+    } catch (error) {
+        console.error('Get testimonials error:', error)
+        return json({ success: false, message: 'Failed to fetch testimonials.' }, 500)
+    }
+}
+
+async function createPublicTestimonial(env: Env, body: TestimonialPayload) {
+    try {
+        await ensureTestimonialsSchema(env)
+
+        if (testimonialText(body.website, 200)) {
+            return json({ success: true, message: 'Testimonial submitted.' }, 201)
+        }
+
+        const name = testimonialText(body.name, 100)
+        const role = testimonialText(body.role, 100)
+        const company = testimonialText(body.company, 150)
+        const content = testimonialText(body.content, 1200)
+        const project = testimonialText(body.project, 150)
+        const rating = testimonialRating(body.rating ?? 5)
+
+        if (!name) return json({ success: false, message: 'Name is required.' }, 400)
+        if (!content) return json({ success: false, message: 'Testimonial content is required.' }, 400)
+        if (content.length < 10) return json({ success: false, message: 'Testimonial is too short.' }, 400)
+        if (rating === null) return json({ success: false, message: 'Rating must be between 1 and 5.' }, 400)
+
+        const duplicate = await env.DB.prepare(`
+            SELECT id FROM testimonials
+            WHERE lower(name) = lower(?) AND content = ?
+            LIMIT 1
+        `).bind(name, content).first()
+
+        if (duplicate) {
+            return json({ success: false, message: 'This testimonial has already been submitted.' }, 409)
+        }
+
+        const result = await env.DB.prepare(`
+    INSERT INTO testimonials (
+        name,
+        role,
+        company,
+        rating,
+        content,
+        project,
+        status,
+        is_featured
+    )
+    VALUES (?, ?, ?, ?, ?, ?, 'Pending', 0)
+`).bind(
+            name,
+            role,
+            company,
+            rating,
+            content,
+            project,
+        ).run()
+
+        const created = await env.DB.prepare(`
+            SELECT id, name, role, company, rating, content, project, is_featured, created_at, updated_at
+            FROM testimonials WHERE id = ? LIMIT 1
+        `).bind(result.meta.last_row_id).first()
+
+        return json({ success: true, message: 'Testimonial submitted successfully.', data: created }, 201)
+    } catch (error) {
+        console.error('Create testimonial error:', error)
+        return json({ success: false, message: 'Failed to submit testimonial.' }, 500)
+    }
+}
+
+
+/* =====================================================
+   ADMIN TESTIMONIALS
+===================================================== */
+
+interface AdminTestimonialUpdatePayload {
+    status?: unknown
+    is_featured?: unknown
+}
+
+const ADMIN_TESTIMONIAL_STATUSES = [
+    'Pending',
+    'Published',
+    'Rejected',
+] as const
+
+async function getAdminTestimonials(env: Env) {
+    try {
+        await ensureTestimonialsSchema(env)
+
+        const result = await env.DB.prepare(`
+            SELECT
+                id,
+                name,
+                role,
+                company,
+                rating,
+                content,
+                project,
+                status,
+                is_featured,
+                created_at,
+                updated_at
+            FROM testimonials
+            ORDER BY
+                CASE status
+                    WHEN 'Pending' THEN 0
+                    WHEN 'Published' THEN 1
+                    WHEN 'Rejected' THEN 2
+                    ELSE 3
+                END,
+                id DESC
+        `).all<TestimonialRecord>()
+
+        return json({
+            success: true,
+            data: result.results,
+        })
+    } catch (error) {
+        console.error('Get admin testimonials error:', error)
+
+        return json(
+            {
+                success: false,
+                message: 'Failed to fetch testimonials.',
+            },
+            500,
+        )
+    }
+}
+
+async function updateAdminTestimonial(
+    env: Env,
+    id: number,
+    body: AdminTestimonialUpdatePayload,
+) {
+    try {
+        await ensureTestimonialsSchema(env)
+
+        const existing = await env.DB.prepare(`
+            SELECT
+                id,
+                name,
+                role,
+                company,
+                rating,
+                content,
+                project,
+                status,
+                is_featured,
+                created_at,
+                updated_at
+            FROM testimonials
+            WHERE id = ?
+            LIMIT 1
+        `)
+            .bind(id)
+            .first<TestimonialRecord>()
+
+        if (!existing) {
+            return json(
+                {
+                    success: false,
+                    message: 'Testimonial not found.',
+                },
+                404,
+            )
+        }
+
+        let status = existing.status
+
+        if (body.status !== undefined) {
+            if (
+                typeof body.status !== 'string' ||
+                !ADMIN_TESTIMONIAL_STATUSES.includes(
+                    body.status as typeof ADMIN_TESTIMONIAL_STATUSES[number],
+                )
+            ) {
+                return json(
+                    {
+                        success: false,
+                        message: 'Invalid testimonial status.',
+                    },
+                    400,
+                )
+            }
+
+            status = body.status
+        }
+
+        let isFeatured =
+            Number(existing.is_featured) === 1 ? 1 : 0
+
+        if (body.is_featured !== undefined) {
+            if (
+                typeof body.is_featured !== 'boolean' &&
+                body.is_featured !== 0 &&
+                body.is_featured !== 1
+            ) {
+                return json(
+                    {
+                        success: false,
+                        message: 'is_featured must be a boolean.',
+                    },
+                    400,
+                )
+            }
+
+            isFeatured =
+                body.is_featured === true || body.is_featured === 1
+                    ? 1
+                    : 0
+        }
+
+        // Only published testimonials may be featured.
+        if (status !== 'Published') {
+            isFeatured = 0
+        }
+
+        await env.DB.prepare(`
+            UPDATE testimonials
+            SET
+                status = ?,
+                is_featured = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `)
+            .bind(status, isFeatured, id)
+            .run()
+
+        const updated = await env.DB.prepare(`
+            SELECT
+                id,
+                name,
+                role,
+                company,
+                rating,
+                content,
+                project,
+                status,
+                is_featured,
+                created_at,
+                updated_at
+            FROM testimonials
+            WHERE id = ?
+            LIMIT 1
+        `)
+            .bind(id)
+            .first<TestimonialRecord>()
+
+        return json({
+            success: true,
+            message: 'Testimonial updated successfully.',
+            data: updated,
+        })
+    } catch (error) {
+        console.error('Update admin testimonial error:', error)
+
+        return json(
+            {
+                success: false,
+                message: 'Failed to update testimonial.',
+            },
+            500,
+        )
+    }
+}
+
+async function deleteAdminTestimonial(
+    env: Env,
+    id: number,
+) {
+    try {
+        await ensureTestimonialsSchema(env)
+
+        const result = await env.DB.prepare(`
+            DELETE FROM testimonials
+            WHERE id = ?
+        `)
+            .bind(id)
+            .run()
+
+        if (!result.meta.changes) {
+            return json(
+                {
+                    success: false,
+                    message: 'Testimonial not found.',
+                },
+                404,
+            )
+        }
+
+        return json({
+            success: true,
+            message: 'Testimonial deleted successfully.',
+        })
+    } catch (error) {
+        console.error('Delete admin testimonial error:', error)
+
+        return json(
+            {
+                success: false,
+                message: 'Failed to delete testimonial.',
+            },
+            500,
+        )
+    }
+}
 
 /* =====================================================
    39PRODUCTION BUSINESS SYSTEM
@@ -12163,62 +12744,192 @@ async function getAuditLogs(env) { const r = await env.DB.prepare(`SELECT a.id,a
    MAIN WORKER
 ========================= */
 
-export default {
-    async fetch(
-        request: Request,
-        env: Env,
-    ): Promise<Response> {
-        const url = new URL(request.url)
-        const pathname = url.pathname
-        const method = request.method
+async function handleWorkerRequest(
+    request: Request,
+    env: Env,
+): Promise<Response> {
+    const url = new URL(request.url)
+    const pathname = url.pathname
+    const method = request.method
+
+    /* =========================
+       CORS PREFLIGHT
+    ========================= */
+
+    const bodySizeError = await checkRequestBodySize(request)
+    if (bodySizeError) return bodySizeError
+
+    if (method === 'OPTIONS') {
+        return new Response(null, {
+            status: 204,
+            headers: {
+                ...getCorsHeaders(request.headers.get('Origin') || undefined, env),
+                ...securityHeaders(),
+            },
+        })
+    }
+
+    const publicRateLimitBucket =
+        pathname === '/api/auth/login' ? 'login' :
+            pathname === '/api/payments/create' ? 'payment-create' :
+                pathname === '/api/payments/final/create' ? 'payment-final' :
+                    pathname === '/api/quotes' ? 'quote-create' :
+                        pathname.startsWith('/api/quotes/public/') ? 'quote-public' :
+                            pathname.startsWith('/api/orders/track/') ? 'order-track' :
+                                /^\/api\/payments\/[^/]+\/status$/.test(pathname) ? 'payment-status' :
+                                    (pathname === '/api/payments/webhook' || pathname === '/v1.0/debit/notify') ? 'payment-webhook' :
+                                        null
+
+    if (publicRateLimitBucket) {
+        const limit = publicRateLimitBucket === 'payment-webhook' ? 120 : publicRateLimitBucket === 'order-track' ? 30 : publicRateLimitBucket === 'quote-public' ? 30 : 20
+        const rate = consumePublicRateLimit(request, publicRateLimitBucket, limit, 60 * 1000)
+        if (!rate.allowed) return rateLimitResponse(rate.retryAfter, request, env)
+    }
+
+    try {
+        await ensureSecuritySchema(env)
+        await ensureProductGallerySchema(env)
+        await ensurePortfolioGallerySchema(env)
+        await cleanupExpiredSessions(env)
 
         /* =========================
-           CORS PREFLIGHT
+           AUTHENTICATION
         ========================= */
 
-        const bodySizeError = await checkRequestBodySize(request)
-        if (bodySizeError) return bodySizeError
+        if (pathname === '/api/auth/login' && method === 'POST') {
+            let body: LoginPayload
 
-        if (method === 'OPTIONS') {
-            return new Response(null, {
-                status: 204,
-                headers: {
-                    ...getCorsHeaders(request.headers.get('Origin') || undefined, env),
-                    ...securityHeaders(),
+            try {
+                body = await request.json<LoginPayload>()
+            } catch {
+                return json(
+                    {
+                        success: false,
+                        message: 'Invalid JSON body.',
+                    },
+                    400,
+                )
+            }
+
+            return await loginAdmin(request, env, body)
+        }
+
+        if (pathname === '/api/auth/me' && method === 'GET') {
+            return await getCurrentAdmin(request, env)
+        }
+
+        if (pathname === '/api/auth/logout' && method === 'POST') {
+            return await logoutAdmin(request, env)
+        }
+
+        if (
+            pathname === '/api/auth/change-password' &&
+            method === 'PUT'
+        ) {
+            const body =
+                await request.json<ChangePasswordPayload>()
+
+            return await changeAdminPassword(
+                request,
+                env,
+                body,
+            )
+        }
+
+        /* =========================
+           ADMIN NOTIFICATIONS
+        ========================= */
+
+        if (pathname === '/api/admin/notifications' && method === 'GET') {
+            const auth = await requirePermission(request, env, 'notifications:read')
+            if (auth instanceof Response) return auth
+            return await getAdminNotifications(request, env)
+        }
+
+        const notificationReadMatch =
+            pathname.match(/^\/api\/admin\/notifications\/(\d+)\/read$/)
+
+        if (notificationReadMatch && method === 'PUT') {
+            const auth = await requirePermission(request, env, 'notifications:write')
+            if (auth instanceof Response) return auth
+            return await markAdminNotificationRead(
+                request,
+                env,
+                Number(notificationReadMatch[1]),
+            )
+        }
+
+        if (pathname === '/api/admin/notifications/read-all' && method === 'PUT') {
+            const auth = await requirePermission(request, env, 'notifications:write')
+            if (auth instanceof Response) return auth
+            return await markAllAdminNotificationsRead(request, env)
+        }
+
+        /* =========================
+           ADMIN TESTIMONIALS
+           Must run before the generic admin permission gate so the
+           endpoint uses the correct content RBAC permission.
+        ========================= */
+
+        if (pathname === '/api/admin/testimonials') {
+            const auth = await requirePermission(
+                request,
+                env,
+                method === 'GET'
+                    ? 'content:read'
+                    : 'content:write',
+            )
+
+            if (auth instanceof Response) return auth
+
+            if (method === 'GET') {
+                return await getAdminTestimonials(env)
+            }
+
+            return json(
+                {
+                    success: false,
+                    message: 'Method not allowed.',
                 },
-            })
+                405,
+            )
         }
 
-        const publicRateLimitBucket =
-            pathname === '/api/auth/login' ? 'login' :
-                pathname === '/api/payments/create' ? 'payment-create' :
-                    pathname === '/api/payments/final/create' ? 'payment-final' :
-                        pathname === '/api/quotes' ? 'quote-create' :
-                            pathname.startsWith('/api/quotes/public/') ? 'quote-public' :
-                                pathname.startsWith('/api/orders/track/') ? 'order-track' :
-                                    /^\/api\/payments\/[^/]+\/status$/.test(pathname) ? 'payment-status' :
-                                        (pathname === '/api/payments/webhook' || pathname === '/v1.0/debit/notify') ? 'payment-webhook' :
-                                            null
+        const adminTestimonialIdMatch = pathname.match(
+            /^\/api\/admin\/testimonials\/(\d+)$/,
+        )
 
-        if (publicRateLimitBucket) {
-            const limit = publicRateLimitBucket === 'payment-webhook' ? 120 : publicRateLimitBucket === 'order-track' ? 30 : publicRateLimitBucket === 'quote-public' ? 30 : 20
-            const rate = consumePublicRateLimit(request, publicRateLimitBucket, limit, 60 * 1000)
-            if (!rate.allowed) return rateLimitResponse(rate.retryAfter, request, env)
-        }
+        if (adminTestimonialIdMatch) {
+            const auth = await requirePermission(
+                request,
+                env,
+                'content:write',
+            )
 
-        try {
-            await ensureSecuritySchema(env)
-            await cleanupExpiredSessions(env)
+            if (auth instanceof Response) return auth
 
-            /* =========================
-               AUTHENTICATION
-            ========================= */
+            const testimonialId = Number(
+                adminTestimonialIdMatch[1],
+            )
 
-            if (pathname === '/api/auth/login' && method === 'POST') {
-                let body: LoginPayload
+            if (
+                !Number.isInteger(testimonialId) ||
+                testimonialId <= 0
+            ) {
+                return json(
+                    {
+                        success: false,
+                        message: 'Invalid testimonial ID.',
+                    },
+                    400,
+                )
+            }
+
+            if (method === 'PATCH') {
+                let body: AdminTestimonialUpdatePayload
 
                 try {
-                    body = await request.json<LoginPayload>()
+                    body = await request.json<AdminTestimonialUpdatePayload>()
                 } catch {
                     return json(
                         {
@@ -12229,1038 +12940,1059 @@ export default {
                     )
                 }
 
-                return await loginAdmin(request, env, body)
-            }
-
-            if (pathname === '/api/auth/me' && method === 'GET') {
-                return await getCurrentAdmin(request, env)
-            }
-
-            if (pathname === '/api/auth/logout' && method === 'POST') {
-                return await logoutAdmin(request, env)
-            }
-
-            if (
-                pathname === '/api/auth/change-password' &&
-                method === 'PUT'
-            ) {
-                const body =
-                    await request.json<ChangePasswordPayload>()
-
-                return await changeAdminPassword(
-                    request,
+                return await updateAdminTestimonial(
                     env,
+                    testimonialId,
                     body,
                 )
             }
 
-            /* =========================
-               ADMIN NOTIFICATIONS
-            ========================= */
-
-            if (pathname === '/api/admin/notifications' && method === 'GET') {
-                const auth = await requirePermission(request, env, 'notifications:read')
-                if (auth instanceof Response) return auth
-                return await getAdminNotifications(request, env)
-            }
-
-            const notificationReadMatch =
-                pathname.match(/^\/api\/admin\/notifications\/(\d+)\/read$/)
-
-            if (notificationReadMatch && method === 'PUT') {
-                const auth = await requirePermission(request, env, 'notifications:write')
-                if (auth instanceof Response) return auth
-                return await markAdminNotificationRead(
-                    request,
+            if (method === 'DELETE') {
+                return await deleteAdminTestimonial(
                     env,
-                    Number(notificationReadMatch[1]),
+                    testimonialId,
                 )
             }
 
-            if (pathname === '/api/admin/notifications/read-all' && method === 'PUT') {
-                const auth = await requirePermission(request, env, 'notifications:write')
-                if (auth instanceof Response) return auth
-                return await markAllAdminNotificationsRead(request, env)
-            }
+            return json(
+                {
+                    success: false,
+                    message: 'Method not allowed.',
+                },
+                405,
+            )
+        }
 
-            /* =========================
-               PUBLIC QUOTE ACCEPT
-               Must run before the global admin auth gate.
-            ========================= */
+        /* =========================
+           PUBLIC QUOTE ACCEPT
+           Must run before the global admin auth gate.
+        ========================= */
 
-            if (
-                method === 'POST' &&
-                isPublicQuoteAcceptPath(pathname)
-            ) {
-                const publicQuoteToken =
-                    getPublicQuoteToken(pathname)
-
-                if (publicQuoteToken !== null) {
-                    return await acceptPublicQuote(
-                        env,
-                        publicQuoteToken,
-                    )
-                }
-            }
-
-            /* =========================
-               PUBLIC ROUTES
-            ========================= */
-
-            const isPublicRoute =
-                (pathname === '/api/payments/create' && method === 'POST') ||
-                (pathname === '/api/payments/final/create' && method === 'POST') ||
-                (/^\/api\/payments\/[^/]+\/status$/.test(pathname) && method === 'GET') ||
-                (pathname === '/api/payments/webhook' && method === 'POST') ||
-                (pathname === '/v1.0/debit/notify' && method === 'POST') ||
-                (pathname.startsWith('/api/orders/track/') && method === 'GET') ||
-                (pathname === '/api/services' && method === 'GET') ||
-                (/^\/api\/services\/\d+$/.test(pathname) && method === 'GET') ||
-                (pathname === '/api/quotes' && method === 'POST') ||
-                (/^\/api\/quotes\/public\/[^/]+(?:\/accept)?$/.test(pathname) && (method === 'GET' || method === 'POST')) ||
-                (pathname === '/api/products' && method === 'GET') ||
-                (/^\/api\/products\/\d+$/.test(pathname) && method === 'GET') ||
-                (pathname === '/api/portfolio' && method === 'GET') ||
-                (/^\/api\/portfolio\/\d+$/.test(pathname) && method === 'GET') ||
-                (pathname === '/api/promotions' && method === 'GET') ||
-                (/^\/api\/promotions\/\d+$/.test(pathname) && method === 'GET') ||
-                (pathname === '/api/news' && method === 'GET') ||
-                (/^\/api\/news\/\d+$/.test(pathname) && method === 'GET') ||
-                (pathname.startsWith('/api/idol/') && method === 'GET')
-
-            if (!isPublicRoute) {
-                const permission =
-                    pathname === '/api/settings' && method === 'GET' ? 'dashboard:read' :
-                        pathname === '/api/settings' && method === 'PUT' ? 'settings:write' :
-                            pathname.startsWith('/api/admin/') && pathname.includes('/notifications') ? 'dashboard:read' :
-                                pathname.startsWith('/api/services') || pathname.startsWith('/api/products') ||
-                                    pathname.startsWith('/api/portfolio') || pathname.startsWith('/api/news') ||
-                                    pathname.startsWith('/api/promotions') || pathname.startsWith('/api/idol/') ?
-                                    (method === 'GET' ? 'content:read' : 'content:write') :
-                                    pathname.startsWith('/api/orders') ? 'orders:read' :
-                                        'dashboard:read'
-
-                const auth = await requirePermission(request, env, permission)
-                if (auth instanceof Response) return auth
-            }
-
-            /* =========================
-               SETTINGS
-            ========================= */
-
-            if (pathname === '/api/settings') {
-                if (method === 'GET') {
-                    return await getSiteSettings(env)
-                }
-
-                if (method === 'PUT') {
-                    const auth = await requirePermission(request, env, 'settings:write')
-
-                    if (auth instanceof Response) {
-                        return auth
-                    }
-
-                    const body =
-                        await request.json<SiteSettingsPayload>()
-
-                    return await updateSiteSettings(
-                        env,
-                        body,
-                        auth.user.id,
-                    )
-                }
-            }
-
-            /* =========================
-               SERVICES
-            ========================= */
-
-            if (pathname === '/api/services') {
-                if (method === 'GET') {
-                    return await getServices(env)
-                }
-
-                if (method === 'POST') {
-                    const parsed = await parseServiceRequest(request)
-                    return await createService(env, parsed.body, parsed.image)
-                }
-            }
-
-            const serviceId =
-                getServiceId(pathname)
-
-            if (serviceId !== null) {
-                if (method === 'GET') {
-                    return await getService(
-                        env,
-                        serviceId,
-                    )
-                }
-
-                if (method === 'PUT') {
-                    const parsed = await parseServiceRequest(request)
-                    return await updateService(env, serviceId, parsed.body, parsed.image)
-                }
-
-                if (method === 'DELETE') {
-                    return await deleteService(
-                        env,
-                        serviceId,
-                    )
-                }
-            }
-
-            /* =========================
-               SERVICE QUOTES
-            ========================= */
-
+        if (
+            method === 'POST' &&
+            isPublicQuoteAcceptPath(pathname)
+        ) {
             const publicQuoteToken =
                 getPublicQuoteToken(pathname)
 
             if (publicQuoteToken !== null) {
-                if (method === 'GET' && !isPublicQuoteAcceptPath(pathname)) {
-                    return await getPublicQuote(
-                        env,
-                        publicQuoteToken,
-                    )
-                }
-
-                if (method === 'POST' && isPublicQuoteAcceptPath(pathname)) {
-                    return await acceptPublicQuote(
-                        env,
-                        publicQuoteToken,
-                    )
-                }
-            }
-
-            if (pathname === '/api/quotes') {
-                if (method === 'GET') {
-                    return await getQuotes(env)
-                }
-
-                if (method === 'POST') {
-                    const body = await request.json<QuotePayload>()
-                    return await createQuote(env, body)
-                }
-            }
-
-            const quoteId = getQuoteId(pathname)
-
-            if (quoteId !== null) {
-                if (method === 'GET') {
-                    return await getQuote(env, quoteId)
-                }
-
-                if (method === 'PUT') {
-                    const body = await request.json<QuotePayload>()
-                    return await updateQuote(
-                        request,
-                        env,
-                        quoteId,
-                        body,
-                    )
-                }
-            }
-
-            /* =========================
-               PRODUCTS
-            ========================= */
-
-            if (pathname === '/api/products') {
-                if (method === 'GET') {
-                    return await getProducts(env)
-                }
-
-                if (method === 'POST') {
-                    const parsed = await parseProductRequest(request)
-
-                    return await createProduct(
-                        env,
-                        parsed.body,
-                        parsed.image,
-                    )
-                }
-            }
-
-            const productId =
-                getProductId(pathname)
-
-            if (productId !== null) {
-                if (method === 'GET') {
-                    return await getProduct(
-                        env,
-                        productId,
-                    )
-                }
-
-                if (method === 'PUT') {
-                    const parsed = await parseProductRequest(request)
-
-                    return await updateProduct(
-                        env,
-                        productId,
-                        parsed.body,
-                        parsed.image,
-                    )
-                }
-
-                if (method === 'DELETE') {
-                    return await deleteProduct(
-                        env,
-                        productId,
-                    )
-                }
-            }
-
-            /* =========================
-               PORTFOLIO
-            ========================= */
-
-            if (pathname === '/api/portfolio') {
-                if (method === 'GET') {
-                    return await getPortfolios(env)
-                }
-
-                if (method === 'POST') {
-                    const parsed = await parsePortfolioRequest(request)
-                    return await createPortfolio(env, parsed.body, parsed.image)
-                }
-            }
-
-            const portfolioId =
-                getPortfolioId(pathname)
-
-            if (portfolioId !== null) {
-                if (method === 'GET') {
-                    return await getPortfolio(
-                        env,
-                        portfolioId,
-                    )
-                }
-
-                if (method === 'PUT') {
-                    const parsed = await parsePortfolioRequest(request)
-                    return await updatePortfolio(env, portfolioId, parsed.body, parsed.image)
-                }
-
-                if (method === 'DELETE') {
-                    return await deletePortfolio(
-                        env,
-                        portfolioId,
-                    )
-                }
-            }
-
-            /* =====================================================
-               IDOL PRODUCTION
-            ===================================================== */
-
-            /* =========================
-               IDOL GROUP DETAIL
-               GET /api/idol/groups/:id
-            ========================= */
-
-            const idolGroupId =
-                getIdolGroupId(pathname)
-
-            if (idolGroupId !== null) {
-                if (method === 'GET') {
-                    return await getIdolGroup(
-                        env,
-                        idolGroupId,
-                    )
-                }
-
-                if (method === 'PUT') {
-                    const parsed = await parseIdolRequest(request)
-
-                    return await updateIdolGroup(
-                        env,
-                        idolGroupId,
-                        parsed.body as IdolGroupPayload,
-                        parsed.image,
-                    )
-                }
-
-                if (method === 'DELETE') {
-                    return await deleteIdolGroup(
-                        env,
-                        idolGroupId,
-                    )
-                }
-            }
-
-            /* =========================
-               IDOL GROUPS
-            ========================= */
-
-            if (pathname === '/api/idol/groups') {
-                if (method === 'GET') {
-                    return await getIdolGroups(env)
-                }
-
-                if (method === 'POST') {
-                    const parsed = await parseIdolRequest(request)
-
-                    return await createIdolGroup(
-                        env,
-                        parsed.body as IdolGroupPayload,
-                        parsed.image,
-                    )
-                }
-            }
-
-            /* =========================
-               IDOL GROUP MEMBERS
-            ========================= */
-
-            const idolGroupMembersMatch =
-                pathname.match(
-                    /^\/api\/idol\/groups\/(\d+)\/members$/,
+                return await acceptPublicQuote(
+                    env,
+                    publicQuoteToken,
                 )
+            }
+        }
 
-            if (idolGroupMembersMatch) {
-                const groupId =
-                    Number(idolGroupMembersMatch[1])
+        /* =========================
+           PUBLIC ROUTES
+        ========================= */
 
-                if (method === 'GET') {
-                    return await getIdolMembers(
-                        env,
-                        groupId,
-                    )
-                }
+        const isPublicRoute =
+            (pathname === '/api/payments/create' && method === 'POST') ||
+            (pathname === '/api/payments/final/create' && method === 'POST') ||
+            (/^\/api\/payments\/[^/]+\/status$/.test(pathname) && method === 'GET') ||
+            (pathname === '/api/payments/webhook' && method === 'POST') ||
+            (pathname === '/v1.0/debit/notify' && method === 'POST') ||
+            (pathname.startsWith('/api/orders/track/') && method === 'GET') ||
+            (pathname === '/api/services' && method === 'GET') ||
+            (/^\/api\/services\/\d+$/.test(pathname) && method === 'GET') ||
+            (pathname === '/api/quotes' && method === 'POST') ||
+            (/^\/api\/quotes\/public\/[^/]+(?:\/accept)?$/.test(pathname) && (method === 'GET' || method === 'POST')) ||
+            (pathname === '/api/products' && method === 'GET') ||
+            (/^\/api\/products\/\d+$/.test(pathname) && method === 'GET') ||
+            (pathname === '/api/portfolio' && method === 'GET') ||
+            (/^\/api\/portfolio\/\d+$/.test(pathname) && method === 'GET') ||
+            (pathname === '/api/promotions' && method === 'GET') ||
+            (/^\/api\/promotions\/\d+$/.test(pathname) && method === 'GET') ||
+            (pathname === '/api/news' && method === 'GET') ||
+            (/^\/api\/news\/\d+$/.test(pathname) && method === 'GET') ||
+            (pathname === '/api/testimonials' && (method === 'GET' || method === 'POST')) ||
+            (pathname.startsWith('/api/idol/') && method === 'GET')
 
-                if (method === 'POST') {
-                    const parsed = await parseIdolRequest(request)
+        if (!isPublicRoute) {
+            const permission =
+                pathname === '/api/settings' && method === 'GET' ? 'dashboard:read' :
+                    pathname === '/api/settings' && method === 'PUT' ? 'settings:write' :
+                        pathname.startsWith('/api/admin/') && pathname.includes('/notifications') ? 'dashboard:read' :
+                            pathname.startsWith('/api/services') || pathname.startsWith('/api/products') ||
+                                pathname.startsWith('/api/portfolio') || pathname.startsWith('/api/news') ||
+                                pathname.startsWith('/api/promotions') || pathname.startsWith('/api/idol/') ?
+                                (method === 'GET' ? 'content:read' : 'content:write') :
+                                pathname.startsWith('/api/orders') ? 'orders:read' :
+                                    'dashboard:read'
 
-                    return await createIdolMember(
-                        env,
-                        groupId,
-                        parsed.body as IdolMemberPayload,
-                        parsed.image,
-                    )
-                }
+            const auth = await requirePermission(request, env, permission)
+            if (auth instanceof Response) return auth
+        }
+
+        /* =========================
+           SETTINGS
+        ========================= */
+
+        if (pathname === '/api/settings') {
+            if (method === 'GET') {
+                return await getSiteSettings(env)
             }
 
-            /* =========================
-               IDOL MEMBER DETAIL
-            ========================= */
+            if (method === 'PUT') {
+                const auth = await requirePermission(request, env, 'settings:write')
 
-            const idolMemberId =
-                getIdolMemberId(pathname)
-
-            if (idolMemberId !== null) {
-                if (method === 'GET') {
-                    return await getIdolMember(
-                        env,
-                        idolMemberId,
-                    )
+                if (auth instanceof Response) {
+                    return auth
                 }
 
-                if (method === 'PUT') {
-                    const parsed = await parseIdolRequest(request)
+                const body =
+                    await request.json<SiteSettingsPayload>()
 
-                    return await updateIdolMember(
-                        env,
-                        idolMemberId,
-                        parsed.body as IdolMemberPayload,
-                        parsed.image,
-                    )
-                }
-
-                if (method === 'DELETE') {
-                    return await deleteIdolMember(
-                        env,
-                        idolMemberId,
-                    )
-                }
-            }
-
-            /* =========================
-               IDOL GROUP RELEASES
-            ========================= */
-
-            const idolGroupReleasesMatch =
-                pathname.match(
-                    /^\/api\/idol\/groups\/(\d+)\/releases$/,
+                return await updateSiteSettings(
+                    env,
+                    body,
+                    auth.user.id,
                 )
+            }
+        }
 
-            if (idolGroupReleasesMatch) {
-                const groupId =
-                    Number(idolGroupReleasesMatch[1])
+        /* =========================
+           TESTIMONIALS
+        ========================= */
 
-                if (method === 'GET') {
-                    return await getIdolReleases(
-                        env,
-                        groupId,
-                    )
-                }
+        if (pathname === '/api/testimonials') {
+            if (method === 'GET') return await getPublicTestimonials(env)
+            if (method === 'POST') {
+                const rate = consumePublicRateLimit(request, 'testimonial-create', 3, 10 * 60 * 1000)
+                if (!rate.allowed) return rateLimitResponse(rate.retryAfter, request, env)
+                let body: TestimonialPayload
+                try { body = await request.json<TestimonialPayload>() }
+                catch { return json({ success: false, message: 'Invalid JSON body.' }, 400) }
+                return await createPublicTestimonial(env, body)
+            }
+        }
 
-                if (method === 'POST') {
-                    const parsed = await parseIdolRequest(request)
+        /* =========================
+           SERVICES
+        ========================= */
 
-                    return await createIdolRelease(
-                        env,
-                        groupId,
-                        parsed.body as IdolReleasePayload,
-                        parsed.image,
-                    )
-                }
+        if (pathname === '/api/services') {
+            if (method === 'GET') {
+                return await getServices(env)
             }
 
-            /* =========================
-               IDOL RELEASE DETAIL
-            ========================= */
-
-            const idolReleaseId =
-                getIdolReleaseId(pathname)
-
-            if (idolReleaseId !== null) {
-                if (method === 'GET') {
-                    return await getIdolRelease(
-                        env,
-                        idolReleaseId,
-                    )
-                }
-
-                if (method === 'PUT') {
-                    const parsed = await parseIdolRequest(request)
-
-                    return await updateIdolRelease(
-                        env,
-                        idolReleaseId,
-                        parsed.body as IdolReleasePayload,
-                        parsed.image,
-                    )
-                }
-
-                if (method === 'DELETE') {
-                    return await deleteIdolRelease(
-                        env,
-                        idolReleaseId,
-                    )
-                }
+            if (method === 'POST') {
+                const parsed = await parseServiceRequest(request)
+                return await createService(env, parsed.body, parsed.image)
             }
+        }
 
-            /* =========================
-               ALL IDOL RELEASES
-            ========================= */
+        const serviceId =
+            getServiceId(pathname)
 
-            if (
-                pathname ===
-                '/api/idol/releases'
-            ) {
-                if (method === 'GET') {
-                    return await getAllIdolReleases(env)
-                }
-            }
-
-            /* =========================
-               GROUP MUSIC VIDEOS
-            ========================= */
-
-            const idolGroupMusicVideosMatch =
-                pathname.match(
-                    /^\/api\/idol\/groups\/(\d+)\/music-videos$/,
+        if (serviceId !== null) {
+            if (method === 'GET') {
+                return await getService(
+                    env,
+                    serviceId,
                 )
-
-            if (idolGroupMusicVideosMatch) {
-                const groupId =
-                    Number(
-                        idolGroupMusicVideosMatch[1],
-                    )
-
-                if (method === 'GET') {
-                    return await getIdolMusicVideosByGroup(
-                        env,
-                        groupId,
-                    )
-                }
             }
 
-            /* =========================
-               IDOL MUSIC VIDEOS
-            ========================= */
-
-            if (
-                pathname ===
-                '/api/idol/music-videos'
-            ) {
-                if (method === 'GET') {
-                    return await getIdolMusicVideos(env)
-                }
-
-                if (method === 'POST') {
-                    const parsed = await parseIdolRequest(request)
-
-                    return await createIdolMusicVideo(
-                        env,
-                        parsed.body as IdolMusicVideoPayload,
-                        parsed.image,
-                    )
-                }
+            if (method === 'PUT') {
+                const parsed = await parseServiceRequest(request)
+                return await updateService(env, serviceId, parsed.body, parsed.image)
             }
 
-            /* =========================
-               IDOL MUSIC VIDEO DETAIL
-            ========================= */
-
-            const idolMusicVideoId =
-                getIdolMusicVideoId(pathname)
-
-            if (idolMusicVideoId !== null) {
-                if (method === 'GET') {
-                    return await getIdolMusicVideo(
-                        env,
-                        idolMusicVideoId,
-                    )
-                }
-
-                if (method === 'PUT') {
-                    const parsed = await parseIdolRequest(request)
-
-                    return await updateIdolMusicVideo(
-                        env,
-                        idolMusicVideoId,
-                        parsed.body as IdolMusicVideoPayload,
-                        parsed.image,
-                    )
-                }
-
-                if (method === 'DELETE') {
-                    return await deleteIdolMusicVideo(
-                        env,
-                        idolMusicVideoId,
-                    )
-                }
-            }
-
-            /* =========================
-               GROUP ACTIVITIES
-            ========================= */
-
-            const idolGroupActivitiesMatch =
-                pathname.match(
-                    /^\/api\/idol\/groups\/(\d+)\/activities$/,
+            if (method === 'DELETE') {
+                return await deleteService(
+                    env,
+                    serviceId,
                 )
+            }
+        }
 
-            if (idolGroupActivitiesMatch) {
-                const groupId =
-                    Number(
-                        idolGroupActivitiesMatch[1],
-                    )
+        /* =========================
+           SERVICE QUOTES
+        ========================= */
 
-                if (method === 'GET') {
-                    return await getIdolActivities(
-                        env,
-                        groupId,
-                    )
-                }
+        const publicQuoteToken =
+            getPublicQuoteToken(pathname)
 
-                if (method === 'POST') {
-                    const parsed = await parseIdolRequest(request)
-
-                    return await createIdolActivity(
-                        env,
-                        groupId,
-                        parsed.body as IdolActivityPayload,
-                        parsed.image,
-                    )
-                }
+        if (publicQuoteToken !== null) {
+            if (method === 'GET' && !isPublicQuoteAcceptPath(pathname)) {
+                return await getPublicQuote(
+                    env,
+                    publicQuoteToken,
+                )
             }
 
-            /* =========================
-               IDOL ACTIVITY DETAIL
-            ========================= */
+            if (method === 'POST' && isPublicQuoteAcceptPath(pathname)) {
+                return await acceptPublicQuote(
+                    env,
+                    publicQuoteToken,
+                )
+            }
+        }
 
-            const idolActivityId =
-                getIdolActivityId(pathname)
-
-            if (idolActivityId !== null) {
-                if (method === 'GET') {
-                    return await getIdolActivity(
-                        env,
-                        idolActivityId,
-                    )
-                }
-
-                if (method === 'PUT') {
-                    const parsed = await parseIdolRequest(request)
-
-                    return await updateIdolActivity(
-                        env,
-                        idolActivityId,
-                        parsed.body as IdolActivityPayload,
-                        parsed.image,
-                    )
-                }
-
-                if (method === 'DELETE') {
-                    return await deleteIdolActivity(
-                        env,
-                        idolActivityId,
-                    )
-                }
+        if (pathname === '/api/quotes') {
+            if (method === 'GET') {
+                return await getQuotes(env)
             }
 
-            /* =========================
-               ALL IDOL ACTIVITIES
-            ========================= */
+            if (method === 'POST') {
+                const body = await request.json<QuotePayload>()
+                return await createQuote(env, body)
+            }
+        }
 
-            if (
-                pathname ===
-                '/api/idol/activities'
-            ) {
-                if (method === 'GET') {
-                    return await getAllIdolActivities(env)
-                }
+        const quoteId = getQuoteId(pathname)
+
+        if (quoteId !== null) {
+            if (method === 'GET') {
+                return await getQuote(env, quoteId)
             }
 
-            /* =========================
-               PAYMENT ROUTES
-            ========================= */
-
-            if (
-                (pathname === '/api/payments/webhook' ||
-                    pathname === '/v1.0/debit/notify') &&
-                method === 'POST'
-            ) {
-                return await handleDanaWebhook(
+            if (method === 'PUT') {
+                const body = await request.json<QuotePayload>()
+                return await updateQuote(
                     request,
                     env,
+                    quoteId,
+                    body,
+                )
+            }
+        }
+
+        /* =========================
+           PRODUCTS
+        ========================= */
+
+        if (pathname === '/api/products') {
+            if (method === 'GET') {
+                return await getProducts(env)
+            }
+
+            if (method === 'POST') {
+                const parsed = await parseProductRequest(request)
+
+                return await createProduct(
+                    env,
+                    parsed.body,
+                    parsed.images,
+                )
+            }
+        }
+
+        const productId =
+            getProductId(pathname)
+
+        if (productId !== null) {
+            if (method === 'GET') {
+                return await getProduct(
+                    env,
+                    productId,
                 )
             }
 
-            if (
-                pathname === '/api/payments/final/create' &&
-                method === 'POST'
-            ) {
-                const body = await request.json<{
-                    order_number?: unknown
-                    payment_token?: unknown
-                }>()
-                return await createFinalPayment(env, body)
+            if (method === 'PUT') {
+                const parsed = await parseProductRequest(request)
+
+                return await updateProduct(
+                    env,
+                    productId,
+                    parsed.body,
+                    parsed.images,
+                    parsed.existingImages,
+                    parsed.replaceImages,
+                )
             }
 
-            if (
-                pathname === '/api/payments/create' &&
-                method === 'POST'
-            ) {
-                const body =
-                    await request.json<CreatePaymentPayload>()
+            if (method === 'DELETE') {
+                return await deleteProduct(
+                    env,
+                    productId,
+                )
+            }
+        }
 
-                return await createPayment(
+        /* =========================
+           PORTFOLIO
+        ========================= */
+
+        if (pathname === '/api/portfolio') {
+            if (method === 'GET') {
+                return await getPortfolios(env)
+            }
+
+            if (method === 'POST') {
+                const parsed = await parsePortfolioRequest(request)
+                return await createPortfolio(env, parsed.body, parsed.images)
+            }
+        }
+
+        const portfolioId =
+            getPortfolioId(pathname)
+
+        if (portfolioId !== null) {
+            if (method === 'GET') {
+                return await getPortfolio(
+                    env,
+                    portfolioId,
+                )
+            }
+
+            if (method === 'PUT') {
+                const parsed = await parsePortfolioRequest(request)
+                return await updatePortfolio(
+                    env,
+                    portfolioId,
+                    parsed.body,
+                    parsed.images,
+                    parsed.existingImages,
+                    parsed.replaceImages,
+                )
+            }
+
+            if (method === 'DELETE') {
+                return await deletePortfolio(
+                    env,
+                    portfolioId,
+                )
+            }
+        }
+
+        /* =====================================================
+           IDOL PRODUCTION
+        ===================================================== */
+
+        /* =========================
+           IDOL GROUP DETAIL
+           GET /api/idol/groups/:id
+        ========================= */
+
+        const idolGroupId =
+            getIdolGroupId(pathname)
+
+        if (idolGroupId !== null) {
+            if (method === 'GET') {
+                return await getIdolGroup(
+                    env,
+                    idolGroupId,
+                )
+            }
+
+            if (method === 'PUT') {
+                const parsed = await parseIdolRequest(request)
+
+                return await updateIdolGroup(
+                    env,
+                    idolGroupId,
+                    parsed.body as IdolGroupPayload,
+                    parsed.image,
+                )
+            }
+
+            if (method === 'DELETE') {
+                return await deleteIdolGroup(
+                    env,
+                    idolGroupId,
+                )
+            }
+        }
+
+        /* =========================
+           IDOL GROUPS
+        ========================= */
+
+        if (pathname === '/api/idol/groups') {
+            if (method === 'GET') {
+                return await getIdolGroups(env)
+            }
+
+            if (method === 'POST') {
+                const parsed = await parseIdolRequest(request)
+
+                return await createIdolGroup(
+                    env,
+                    parsed.body as IdolGroupPayload,
+                    parsed.image,
+                )
+            }
+        }
+
+        /* =========================
+           IDOL GROUP MEMBERS
+        ========================= */
+
+        const idolGroupMembersMatch =
+            pathname.match(
+                /^\/api\/idol\/groups\/(\d+)\/members$/,
+            )
+
+        if (idolGroupMembersMatch) {
+            const groupId =
+                Number(idolGroupMembersMatch[1])
+
+            if (method === 'GET') {
+                return await getIdolMembers(
+                    env,
+                    groupId,
+                )
+            }
+
+            if (method === 'POST') {
+                const parsed = await parseIdolRequest(request)
+
+                return await createIdolMember(
+                    env,
+                    groupId,
+                    parsed.body as IdolMemberPayload,
+                    parsed.image,
+                )
+            }
+        }
+
+        /* =========================
+           IDOL MEMBER DETAIL
+        ========================= */
+
+        const idolMemberId =
+            getIdolMemberId(pathname)
+
+        if (idolMemberId !== null) {
+            if (method === 'GET') {
+                return await getIdolMember(
+                    env,
+                    idolMemberId,
+                )
+            }
+
+            if (method === 'PUT') {
+                const parsed = await parseIdolRequest(request)
+
+                return await updateIdolMember(
+                    env,
+                    idolMemberId,
+                    parsed.body as IdolMemberPayload,
+                    parsed.image,
+                )
+            }
+
+            if (method === 'DELETE') {
+                return await deleteIdolMember(
+                    env,
+                    idolMemberId,
+                )
+            }
+        }
+
+        /* =========================
+           IDOL GROUP RELEASES
+        ========================= */
+
+        const idolGroupReleasesMatch =
+            pathname.match(
+                /^\/api\/idol\/groups\/(\d+)\/releases$/,
+            )
+
+        if (idolGroupReleasesMatch) {
+            const groupId =
+                Number(idolGroupReleasesMatch[1])
+
+            if (method === 'GET') {
+                return await getIdolReleases(
+                    env,
+                    groupId,
+                )
+            }
+
+            if (method === 'POST') {
+                const parsed = await parseIdolRequest(request)
+
+                return await createIdolRelease(
+                    env,
+                    groupId,
+                    parsed.body as IdolReleasePayload,
+                    parsed.image,
+                )
+            }
+        }
+
+        /* =========================
+           IDOL RELEASE DETAIL
+        ========================= */
+
+        const idolReleaseId =
+            getIdolReleaseId(pathname)
+
+        if (idolReleaseId !== null) {
+            if (method === 'GET') {
+                return await getIdolRelease(
+                    env,
+                    idolReleaseId,
+                )
+            }
+
+            if (method === 'PUT') {
+                const parsed = await parseIdolRequest(request)
+
+                return await updateIdolRelease(
+                    env,
+                    idolReleaseId,
+                    parsed.body as IdolReleasePayload,
+                    parsed.image,
+                )
+            }
+
+            if (method === 'DELETE') {
+                return await deleteIdolRelease(
+                    env,
+                    idolReleaseId,
+                )
+            }
+        }
+
+        /* =========================
+           ALL IDOL RELEASES
+        ========================= */
+
+        if (
+            pathname ===
+            '/api/idol/releases'
+        ) {
+            if (method === 'GET') {
+                return await getAllIdolReleases(env)
+            }
+        }
+
+        /* =========================
+           GROUP MUSIC VIDEOS
+        ========================= */
+
+        const idolGroupMusicVideosMatch =
+            pathname.match(
+                /^\/api\/idol\/groups\/(\d+)\/music-videos$/,
+            )
+
+        if (idolGroupMusicVideosMatch) {
+            const groupId =
+                Number(
+                    idolGroupMusicVideosMatch[1],
+                )
+
+            if (method === 'GET') {
+                return await getIdolMusicVideosByGroup(
+                    env,
+                    groupId,
+                )
+            }
+        }
+
+        /* =========================
+           IDOL MUSIC VIDEOS
+        ========================= */
+
+        if (
+            pathname ===
+            '/api/idol/music-videos'
+        ) {
+            if (method === 'GET') {
+                return await getIdolMusicVideos(env)
+            }
+
+            if (method === 'POST') {
+                const parsed = await parseIdolRequest(request)
+
+                return await createIdolMusicVideo(
+                    env,
+                    parsed.body as IdolMusicVideoPayload,
+                    parsed.image,
+                )
+            }
+        }
+
+        /* =========================
+           IDOL MUSIC VIDEO DETAIL
+        ========================= */
+
+        const idolMusicVideoId =
+            getIdolMusicVideoId(pathname)
+
+        if (idolMusicVideoId !== null) {
+            if (method === 'GET') {
+                return await getIdolMusicVideo(
+                    env,
+                    idolMusicVideoId,
+                )
+            }
+
+            if (method === 'PUT') {
+                const parsed = await parseIdolRequest(request)
+
+                return await updateIdolMusicVideo(
+                    env,
+                    idolMusicVideoId,
+                    parsed.body as IdolMusicVideoPayload,
+                    parsed.image,
+                )
+            }
+
+            if (method === 'DELETE') {
+                return await deleteIdolMusicVideo(
+                    env,
+                    idolMusicVideoId,
+                )
+            }
+        }
+
+        /* =========================
+           GROUP ACTIVITIES
+        ========================= */
+
+        const idolGroupActivitiesMatch =
+            pathname.match(
+                /^\/api\/idol\/groups\/(\d+)\/activities$/,
+            )
+
+        if (idolGroupActivitiesMatch) {
+            const groupId =
+                Number(
+                    idolGroupActivitiesMatch[1],
+                )
+
+            if (method === 'GET') {
+                return await getIdolActivities(
+                    env,
+                    groupId,
+                )
+            }
+
+            if (method === 'POST') {
+                const parsed = await parseIdolRequest(request)
+
+                return await createIdolActivity(
+                    env,
+                    groupId,
+                    parsed.body as IdolActivityPayload,
+                    parsed.image,
+                )
+            }
+        }
+
+        /* =========================
+           IDOL ACTIVITY DETAIL
+        ========================= */
+
+        const idolActivityId =
+            getIdolActivityId(pathname)
+
+        if (idolActivityId !== null) {
+            if (method === 'GET') {
+                return await getIdolActivity(
+                    env,
+                    idolActivityId,
+                )
+            }
+
+            if (method === 'PUT') {
+                const parsed = await parseIdolRequest(request)
+
+                return await updateIdolActivity(
+                    env,
+                    idolActivityId,
+                    parsed.body as IdolActivityPayload,
+                    parsed.image,
+                )
+            }
+
+            if (method === 'DELETE') {
+                return await deleteIdolActivity(
+                    env,
+                    idolActivityId,
+                )
+            }
+        }
+
+        /* =========================
+           ALL IDOL ACTIVITIES
+        ========================= */
+
+        if (
+            pathname ===
+            '/api/idol/activities'
+        ) {
+            if (method === 'GET') {
+                return await getAllIdolActivities(env)
+            }
+        }
+
+        /* =========================
+           PAYMENT ROUTES
+        ========================= */
+
+        if (
+            (pathname === '/api/payments/webhook' ||
+                pathname === '/v1.0/debit/notify') &&
+            method === 'POST'
+        ) {
+            return await handleDanaWebhook(
+                request,
+                env,
+            )
+        }
+
+        if (
+            pathname === '/api/payments/final/create' &&
+            method === 'POST'
+        ) {
+            const body = await request.json<{
+                order_number?: unknown
+                payment_token?: unknown
+            }>()
+            return await createFinalPayment(env, body)
+        }
+
+        if (
+            pathname === '/api/payments/create' &&
+            method === 'POST'
+        ) {
+            const body =
+                await request.json<CreatePaymentPayload>()
+
+            return await createPayment(
+                env,
+                body,
+            )
+        }
+
+        const paymentStatusMatch =
+            pathname.match(
+                /^\/api\/payments\/([^/]+)\/status$/,
+            )
+
+        if (
+            paymentStatusMatch &&
+            method === 'GET'
+        ) {
+            const paymentReference =
+                decodeURIComponent(
+                    paymentStatusMatch[1],
+                )
+            if (!/^[A-Za-z0-9_-]{8,64}$/.test(paymentReference)) {
+                return json({ success: false, message: 'Invalid payment reference.' }, 400)
+            }
+
+            return await getPaymentStatus(
+                env,
+                paymentReference,
+                (url.searchParams.get('token') || '').trim(),
+            )
+        }
+
+        /* =========================
+           PUBLIC ORDER TRACKING
+  
+           IMPORTANT:
+           Harus sebelum /api/orders/:id
+        ========================= */
+
+        const trackingPrefix =
+            '/api/orders/track/'
+
+        if (
+            pathname.startsWith(
+                trackingPrefix,
+            ) &&
+            method === 'GET'
+        ) {
+            const orderNumber =
+                decodeURIComponent(
+                    pathname.substring(
+                        trackingPrefix.length,
+                    ),
+                )
+            const paymentToken = (url.searchParams.get('token') || '').trim()
+
+            if (!/^[A-Za-z0-9_-]{6,64}$/.test(orderNumber) || !paymentToken || paymentToken.length < 32 || paymentToken.length > 256) {
+                return json(
+                    {
+                        success: false,
+                        message:
+                            'Order number is required.',
+                    },
+                    400,
+                )
+            }
+
+            return await trackOrder(
+                env,
+                orderNumber,
+                paymentToken,
+            )
+        }
+
+        /* =========================
+           ORDERS
+        ========================= */
+
+        if (pathname === '/api/orders') {
+            if (method === 'GET') {
+                return await getOrders(env)
+            }
+
+            if (method === 'POST') {
+                const body =
+                    await request.json<OrderPayload>()
+
+                return await createOrder(
                     env,
                     body,
                 )
             }
-
-            const paymentStatusMatch =
-                pathname.match(
-                    /^\/api\/payments\/([^/]+)\/status$/,
-                )
-
-            if (
-                paymentStatusMatch &&
-                method === 'GET'
-            ) {
-                const paymentReference =
-                    decodeURIComponent(
-                        paymentStatusMatch[1],
-                    )
-                if (!/^[A-Za-z0-9_-]{8,64}$/.test(paymentReference)) {
-                    return json({ success: false, message: 'Invalid payment reference.' }, 400)
-                }
-
-                return await getPaymentStatus(
-                    env,
-                    paymentReference,
-                    (url.searchParams.get('token') || '').trim(),
-                )
-            }
-
-            /* =========================
-               PUBLIC ORDER TRACKING
-      
-               IMPORTANT:
-               Harus sebelum /api/orders/:id
-            ========================= */
-
-            const trackingPrefix =
-                '/api/orders/track/'
-
-            if (
-                pathname.startsWith(
-                    trackingPrefix,
-                ) &&
-                method === 'GET'
-            ) {
-                const orderNumber =
-                    decodeURIComponent(
-                        pathname.substring(
-                            trackingPrefix.length,
-                        ),
-                    )
-                const paymentToken = (url.searchParams.get('token') || '').trim()
-
-                if (!/^[A-Za-z0-9_-]{6,64}$/.test(orderNumber) || !paymentToken || paymentToken.length < 32 || paymentToken.length > 256) {
-                    return json(
-                        {
-                            success: false,
-                            message:
-                                'Order number is required.',
-                        },
-                        400,
-                    )
-                }
-
-                return await trackOrder(
-                    env,
-                    orderNumber,
-                    paymentToken,
-                )
-            }
-
-            /* =========================
-               ORDERS
-            ========================= */
-
-            if (pathname === '/api/orders') {
-                if (method === 'GET') {
-                    return await getOrders(env)
-                }
-
-                if (method === 'POST') {
-                    const body =
-                        await request.json<OrderPayload>()
-
-                    return await createOrder(
-                        env,
-                        body,
-                    )
-                }
-            }
-
-            const orderId =
-                getOrderId(pathname)
-
-            if (orderId !== null) {
-                if (method === 'PUT') {
-                    const body =
-                        await request.json<{
-                            status?: unknown
-                        }>()
-
-                    return await updateOrder(
-                        env,
-                        orderId,
-                        body,
-                    )
-                }
-
-                if (method === 'DELETE') {
-                    return await deleteOrder(
-                        env,
-                        orderId,
-                    )
-                }
-            }
-
-
-            /* =========================
-               PROMOTIONS
-            ========================= */
-
-            if (pathname === '/api/promotions') {
-                if (method === 'GET') {
-                    return await getPromotions(env)
-                }
-
-                if (method === 'POST') {
-                    const body =
-                        await request.json<PromotionPayload>()
-
-                    return await createPromotion(
-                        env,
-                        body,
-                    )
-                }
-            }
-
-            const promotionId =
-                getPromotionId(pathname)
-
-            if (promotionId !== null) {
-                if (method === 'GET') {
-                    return await getPromotion(
-                        env,
-                        promotionId,
-                    )
-                }
-
-                if (method === 'PUT') {
-                    const body =
-                        await request.json<PromotionPayload>()
-
-                    return await updatePromotion(
-                        env,
-                        promotionId,
-                        body,
-                    )
-                }
-
-                if (method === 'DELETE') {
-                    return await deletePromotion(
-                        env,
-                        promotionId,
-                    )
-                }
-            }
-
-            /* =========================
-               NEWS
-            ========================= */
-
-            if (pathname === '/api/news') {
-                if (method === 'GET') {
-                    const includeDraft = url.searchParams.get('include_draft') === 'true'
-                    const news = await getNews(env, includeDraft)
-
-                    return json({
-                        success: true,
-                        data: news,
-                    })
-                }
-
-                if (method === 'POST') {
-                    const parsed = await parseNewsRequest(request)
-                    return await createNews(env, parsed.body, parsed.image)
-                }
-            }
-
-            const newsId = getNewsId(pathname)
-
-            if (newsId !== null) {
-                if (method === 'GET') {
-                    const news = await getNewsItem(env, newsId)
-
-                    if (!news) {
-                        return json({
-                            success: false,
-                            message: 'News not found.',
-                        }, 404)
-                    }
-
-                    return json({
-                        success: true,
-                        data: news,
-                    })
-                }
-
-                if (method === 'PUT') {
-                    const parsed = await parseNewsRequest(request)
-                    return await updateNews(env, newsId, parsed.body, parsed.image)
-                }
-
-                if (method === 'DELETE') {
-                    return await deleteNews(env, newsId)
-                }
-            }
-
-
-            /* =========================
-               BUSINESS SYSTEM ROUTES
-            ========================= */
-
-            // Make sure every business endpoint uses the currently bound D1 schema.
-            await ensureBusinessSchema(env)
-
-            if (pathname === '/api/admin/members') {
-                const auth = await requirePermission(request, env, 'members:read'); if (auth instanceof Response) return auth
-                if (method === 'GET') return await getBusinessMembers(env)
-                if (method === 'POST') return await createBusinessMember(env, await request.json<BusinessMemberPayload>(), auth.user.id)
-            }
-            const memberId = businessId(pathname, /^\/api\/admin\/members\/(\d+)$/)
-            if (memberId !== null) {
-                const auth = await requirePermission(request, env, 'members:write'); if (auth instanceof Response) return auth
-                if (method === 'PUT') return await updateBusinessMember(env, memberId, await request.json<BusinessMemberPayload>(), auth.user.id)
-                if (method === 'DELETE') return await deleteBusinessMember(env, memberId, auth.user.id)
-            }
-
-            if (pathname === '/api/admin/projects') {
-                const auth = await requirePermission(request, env, method === 'GET' ? 'projects:read' : 'projects:write'); if (auth instanceof Response) return auth
-                if (method === 'GET') return await getBusinessProjects(env)
-                if (method === 'POST') return await createBusinessProject(env, await request.json<BusinessProjectPayload>(), auth.user.id)
-            }
-
-            const projectCostsMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)\/costs$/)
-            if (projectCostsMatch) {
-                const auth = await requirePermission(request, env, method === 'GET' ? 'finance:read' : 'finance:write'); if (auth instanceof Response) return auth
-                const pid = Number(projectCostsMatch[1])
-                if (method === 'GET') return await getProjectCosts(env, pid)
-                if (method === 'POST') return await createProjectCost(env, pid, await request.json<ProjectCostPayload>(), auth.user.id)
-            }
-            const projectCostDeleteMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)\/costs\/(\d+)$/)
-            if (projectCostDeleteMatch && method === 'DELETE') {
-                const auth = await requirePermission(request, env, 'finance:write'); if (auth instanceof Response) return auth
-                return await deleteProjectCost(env, Number(projectCostDeleteMatch[1]), Number(projectCostDeleteMatch[2]), auth.user.id)
-            }
-
-            const projectMembersMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)\/members$/)
-            if (projectMembersMatch) {
-                const auth = await requirePermission(request, env, 'projects:write'); if (auth instanceof Response) return auth
-                if (method === 'PUT') return await assignBusinessProjectMembers(env, Number(projectMembersMatch[1]), await request.json<BusinessProjectPayload>(), auth.user.id)
-            }
-            const projectIdBusiness = businessId(pathname, /^\/api\/admin\/projects\/(\d+)$/)
-            if (projectIdBusiness !== null) {
-                const auth = await requirePermission(request, env, method === 'GET' ? 'projects:read' : 'projects:write'); if (auth instanceof Response) return auth
-                if (method === 'GET') { const p = await getBusinessProjectById(env, projectIdBusiness); return p ? json({ success: true, data: p }) : json({ success: false, message: 'Project not found.' }, 404) }
-                if (method === 'PUT') return await updateBusinessProject(env, projectIdBusiness, await request.json<BusinessProjectPayload>(), auth.user.id)
-            }
-
-            if (pathname === '/api/admin/finance/summary' && method === 'GET') { const auth = await requirePermission(request, env, 'finance:read'); if (auth instanceof Response) return auth; return await getFinanceSummary(env) }
-            if (pathname === '/api/admin/finance/transactions') {
-                const auth = await requirePermission(request, env, method === 'GET' ? 'finance:read' : 'finance:write'); if (auth instanceof Response) return auth
-                if (method === 'GET') return await getFinanceTransactions(env)
-                if (method === 'POST') return await createFinanceTransaction(env, await request.json<BusinessTransactionPayload>(), auth.user.id)
-            }
-            const transactionId = businessId(pathname, /^\/api\/admin\/finance\/transactions\/(\d+)$/)
-            if (transactionId !== null) { const auth = await requirePermission(request, env, 'finance:write'); if (auth instanceof Response) return auth; if (method === 'PUT') return await updateFinanceTransaction(env, transactionId, await request.json<BusinessTransactionPayload>(), auth.user.id); if (method === 'DELETE') return await deleteFinanceTransaction(env, transactionId, auth.user.id) }
-
-            if (pathname === '/api/admin/revenue-sharing') { const auth = await requirePermission(request, env, method === 'GET' ? 'revenue:read' : 'revenue:write'); if (auth instanceof Response) return auth; if (method === 'GET') return await getRevenueSharings(env); if (method === 'POST') return await createRevenueSharing(env, await request.json<BusinessDistributionPayload>(), auth.user.id) }
-            const distributionId = businessId(pathname, /^\/api\/admin\/revenue-sharing\/(\d+)$/)
-            if (distributionId !== null) { const auth = await requirePermission(request, env, 'revenue:write'); if (auth instanceof Response) return auth; if (method === 'PUT' && url.searchParams.get('action') === 'approve') return await approveRevenueSharing(env, distributionId, auth.user.id); if (method === 'PUT' && url.searchParams.get('action') === 'pay') return await payRevenueSharing(env, distributionId, auth.user.id) }
-
-            if (pathname === '/api/admin/documents') { const auth = await requirePermission(request, env, method === 'GET' ? 'documents:read' : 'documents:write'); if (auth instanceof Response) return auth; if (method === 'GET') return await getBusinessDocuments(env); if (method === 'POST') return await createBusinessDocument(env, await request.json<BusinessDocumentPayload>(), auth.user.id) }
-            const documentId = businessId(pathname, /^\/api\/admin\/documents\/(\d+)$/)
-            if (documentId !== null) { const auth = await requirePermission(request, env, 'documents:read'); if (auth instanceof Response) return auth; if (method === 'GET') return await getBusinessDocument(env, documentId) }
-
-            if (pathname === '/api/admin/audit-logs' && method === 'GET') { const auth = await requirePermission(request, env, 'audit:read'); if (auth instanceof Response) return auth; return await getAuditLogs(env) }
-
-            /* =========================
-               NOT FOUND
-            ========================= */
-
-            return json(
-                {
-                    success: false,
-                    message: 'Endpoint not found.',
-                },
-                404,
-            )
-        } catch (error) {
-            console.error(
-                'Worker error:',
-                error,
-            )
-
-            return json(
-                {
-                    success: false,
-                    message: 'Internal server error.',
-                },
-                500,
-            )
         }
+
+        const orderId =
+            getOrderId(pathname)
+
+        if (orderId !== null) {
+            if (method === 'PUT') {
+                const body =
+                    await request.json<{
+                        status?: unknown
+                    }>()
+
+                return await updateOrder(
+                    env,
+                    orderId,
+                    body,
+                )
+            }
+
+            if (method === 'DELETE') {
+                return await deleteOrder(
+                    env,
+                    orderId,
+                )
+            }
+        }
+
+
+        /* =========================
+           PROMOTIONS
+        ========================= */
+
+        if (pathname === '/api/promotions') {
+            if (method === 'GET') {
+                return await getPromotions(env)
+            }
+
+            if (method === 'POST') {
+                const body =
+                    await request.json<PromotionPayload>()
+
+                return await createPromotion(
+                    env,
+                    body,
+                )
+            }
+        }
+
+        const promotionId =
+            getPromotionId(pathname)
+
+        if (promotionId !== null) {
+            if (method === 'GET') {
+                return await getPromotion(
+                    env,
+                    promotionId,
+                )
+            }
+
+            if (method === 'PUT') {
+                const body =
+                    await request.json<PromotionPayload>()
+
+                return await updatePromotion(
+                    env,
+                    promotionId,
+                    body,
+                )
+            }
+
+            if (method === 'DELETE') {
+                return await deletePromotion(
+                    env,
+                    promotionId,
+                )
+            }
+        }
+
+        /* =========================
+           NEWS
+        ========================= */
+
+        if (pathname === '/api/news') {
+            if (method === 'GET') {
+                const includeDraft = url.searchParams.get('include_draft') === 'true'
+                const news = await getNews(env, includeDraft)
+
+                return json({
+                    success: true,
+                    data: news,
+                })
+            }
+
+            if (method === 'POST') {
+                const parsed = await parseNewsRequest(request)
+                return await createNews(env, parsed.body, parsed.image)
+            }
+        }
+
+        const newsId = getNewsId(pathname)
+
+        if (newsId !== null) {
+            if (method === 'GET') {
+                const news = await getNewsItem(env, newsId)
+
+                if (!news) {
+                    return json({
+                        success: false,
+                        message: 'News not found.',
+                    }, 404)
+                }
+
+                return json({
+                    success: true,
+                    data: news,
+                })
+            }
+
+            if (method === 'PUT') {
+                const parsed = await parseNewsRequest(request)
+                return await updateNews(env, newsId, parsed.body, parsed.image)
+            }
+
+            if (method === 'DELETE') {
+                return await deleteNews(env, newsId)
+            }
+        }
+
+
+        /* =========================
+           BUSINESS SYSTEM ROUTES
+        ========================= */
+
+        // Make sure every business endpoint uses the currently bound D1 schema.
+        await ensureBusinessSchema(env)
+
+        if (pathname === '/api/admin/members') {
+            const auth = await requirePermission(request, env, 'members:read'); if (auth instanceof Response) return auth
+            if (method === 'GET') return await getBusinessMembers(env)
+            if (method === 'POST') return await createBusinessMember(env, await request.json<BusinessMemberPayload>(), auth.user.id)
+        }
+        const memberId = businessId(pathname, /^\/api\/admin\/members\/(\d+)$/)
+        if (memberId !== null) {
+            const auth = await requirePermission(request, env, 'members:write'); if (auth instanceof Response) return auth
+            if (method === 'PUT') return await updateBusinessMember(env, memberId, await request.json<BusinessMemberPayload>(), auth.user.id)
+            if (method === 'DELETE') return await deleteBusinessMember(env, memberId, auth.user.id)
+        }
+
+        if (pathname === '/api/admin/projects') {
+            const auth = await requirePermission(request, env, method === 'GET' ? 'projects:read' : 'projects:write'); if (auth instanceof Response) return auth
+            if (method === 'GET') return await getBusinessProjects(env)
+            if (method === 'POST') return await createBusinessProject(env, await request.json<BusinessProjectPayload>(), auth.user.id)
+        }
+
+        const projectCostsMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)\/costs$/)
+        if (projectCostsMatch) {
+            const auth = await requirePermission(request, env, method === 'GET' ? 'finance:read' : 'finance:write'); if (auth instanceof Response) return auth
+            const pid = Number(projectCostsMatch[1])
+            if (method === 'GET') return await getProjectCosts(env, pid)
+            if (method === 'POST') return await createProjectCost(env, pid, await request.json<ProjectCostPayload>(), auth.user.id)
+        }
+        const projectCostDeleteMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)\/costs\/(\d+)$/)
+        if (projectCostDeleteMatch && method === 'DELETE') {
+            const auth = await requirePermission(request, env, 'finance:write'); if (auth instanceof Response) return auth
+            return await deleteProjectCost(env, Number(projectCostDeleteMatch[1]), Number(projectCostDeleteMatch[2]), auth.user.id)
+        }
+
+        const projectMembersMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)\/members$/)
+        if (projectMembersMatch) {
+            const auth = await requirePermission(request, env, 'projects:write'); if (auth instanceof Response) return auth
+            if (method === 'PUT') return await assignBusinessProjectMembers(env, Number(projectMembersMatch[1]), await request.json<BusinessProjectPayload>(), auth.user.id)
+        }
+        const projectIdBusiness = businessId(pathname, /^\/api\/admin\/projects\/(\d+)$/)
+        if (projectIdBusiness !== null) {
+            const auth = await requirePermission(request, env, method === 'GET' ? 'projects:read' : 'projects:write'); if (auth instanceof Response) return auth
+            if (method === 'GET') { const p = await getBusinessProjectById(env, projectIdBusiness); return p ? json({ success: true, data: p }) : json({ success: false, message: 'Project not found.' }, 404) }
+            if (method === 'PUT') return await updateBusinessProject(env, projectIdBusiness, await request.json<BusinessProjectPayload>(), auth.user.id)
+        }
+
+        if (pathname === '/api/admin/finance/summary' && method === 'GET') { const auth = await requirePermission(request, env, 'finance:read'); if (auth instanceof Response) return auth; return await getFinanceSummary(env) }
+        if (pathname === '/api/admin/finance/transactions') {
+            const auth = await requirePermission(request, env, method === 'GET' ? 'finance:read' : 'finance:write'); if (auth instanceof Response) return auth
+            if (method === 'GET') return await getFinanceTransactions(env)
+            if (method === 'POST') return await createFinanceTransaction(env, await request.json<BusinessTransactionPayload>(), auth.user.id)
+        }
+        const transactionId = businessId(pathname, /^\/api\/admin\/finance\/transactions\/(\d+)$/)
+        if (transactionId !== null) { const auth = await requirePermission(request, env, 'finance:write'); if (auth instanceof Response) return auth; if (method === 'PUT') return await updateFinanceTransaction(env, transactionId, await request.json<BusinessTransactionPayload>(), auth.user.id); if (method === 'DELETE') return await deleteFinanceTransaction(env, transactionId, auth.user.id) }
+
+        if (pathname === '/api/admin/revenue-sharing') { const auth = await requirePermission(request, env, method === 'GET' ? 'revenue:read' : 'revenue:write'); if (auth instanceof Response) return auth; if (method === 'GET') return await getRevenueSharings(env); if (method === 'POST') return await createRevenueSharing(env, await request.json<BusinessDistributionPayload>(), auth.user.id) }
+        const distributionId = businessId(pathname, /^\/api\/admin\/revenue-sharing\/(\d+)$/)
+        if (distributionId !== null) { const auth = await requirePermission(request, env, 'revenue:write'); if (auth instanceof Response) return auth; if (method === 'PUT' && url.searchParams.get('action') === 'approve') return await approveRevenueSharing(env, distributionId, auth.user.id); if (method === 'PUT' && url.searchParams.get('action') === 'pay') return await payRevenueSharing(env, distributionId, auth.user.id) }
+
+        if (pathname === '/api/admin/documents') { const auth = await requirePermission(request, env, method === 'GET' ? 'documents:read' : 'documents:write'); if (auth instanceof Response) return auth; if (method === 'GET') return await getBusinessDocuments(env); if (method === 'POST') return await createBusinessDocument(env, await request.json<BusinessDocumentPayload>(), auth.user.id) }
+        const documentId = businessId(pathname, /^\/api\/admin\/documents\/(\d+)$/)
+        if (documentId !== null) { const auth = await requirePermission(request, env, 'documents:read'); if (auth instanceof Response) return auth; if (method === 'GET') return await getBusinessDocument(env, documentId) }
+
+        if (pathname === '/api/admin/audit-logs' && method === 'GET') { const auth = await requirePermission(request, env, 'audit:read'); if (auth instanceof Response) return auth; return await getAuditLogs(env) }
+
+        /* =========================
+           NOT FOUND
+        ========================= */
+
+        return json(
+            {
+                success: false,
+                message: 'Endpoint not found.',
+            },
+            404,
+        )
+    } catch (error) {
+        console.error(
+            'Worker error:',
+            error,
+        )
+
+        return json(
+            {
+                success: false,
+                message: 'Internal server error.',
+            },
+            500,
+        )
+    }
+}
+
+export default {
+    async fetch(
+        request: Request,
+        env: Env,
+    ): Promise<Response> {
+        const response = await handleWorkerRequest(request, env)
+        const origin = request.headers.get('Origin') || undefined
+        const corsHeaders = getCorsHeaders(origin, env)
+
+        // Apply CORS at the outermost response boundary so every endpoint
+        // (including early returns and error responses) gets the same policy.
+        // Public endpoints remain public; hostile origins simply receive no
+        // Access-Control-Allow-Origin header.
+        const headers = new Headers(response.headers)
+        for (const [key, value] of Object.entries(corsHeaders)) {
+            headers.set(key, value)
+        }
+
+        return new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers,
+        })
     },
 }
+

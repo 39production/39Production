@@ -17,3 +17,4 @@ export default defineConfig({
   // GitHub Pages base path — update '39Production' to match your repo name
   base: '/39Production/',
 })
+
