@@ -700,7 +700,8 @@ export function ProductDetailPage() {
   const handleImageTouchEnd = (
     event: ReactTouchEvent<HTMLDivElement>,
   ) => {
-    const touch = event.changedTouches[0]
+    const touch =
+      event.changedTouches[0]
 
     if (!touch) {
       return
@@ -1361,7 +1362,7 @@ export function ProductDetailPage() {
 
   if (loading) {
     return (
-      <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-5 text-zinc-950">
+      <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-4 py-8 text-zinc-950 sm:px-5">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 opacity-70"
@@ -1374,7 +1375,7 @@ export function ProductDetailPage() {
           }}
         />
 
-        <div className="relative w-full max-w-md border border-black/10 bg-white p-8 text-center shadow-[0_25px_80px_rgba(0,0,0,0.06)]">
+        <div className="relative w-full max-w-md border border-black/10 bg-white p-6 text-center shadow-[0_25px_80px_rgba(0,0,0,0.06)] sm:p-8">
           <div className="mx-auto flex h-14 w-14 items-center justify-center bg-violet-50 text-violet-600">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
@@ -1399,7 +1400,7 @@ export function ProductDetailPage() {
 
   if (error || !product) {
     return (
-      <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-5 text-zinc-950">
+      <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-4 py-8 text-zinc-950 sm:px-5">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 opacity-70"
@@ -1412,12 +1413,12 @@ export function ProductDetailPage() {
           }}
         />
 
-        <div className="relative w-full max-w-lg border border-black/10 bg-white p-8 text-center shadow-[0_25px_80px_rgba(0,0,0,0.06)] sm:p-10">
+        <div className="relative w-full max-w-lg border border-black/10 bg-white p-6 text-center shadow-[0_25px_80px_rgba(0,0,0,0.06)] sm:p-10">
           <div className="mx-auto flex h-16 w-16 items-center justify-center bg-red-50 text-red-600">
             <Disc3 className="h-7 w-7" />
           </div>
 
-          <h1 className="mt-5 text-2xl font-black tracking-tight">
+          <h1 className="mt-5 text-2xl font-black tracking-tight sm:text-3xl">
             Product tidak ditemukan
           </h1>
 
@@ -1428,9 +1429,9 @@ export function ProductDetailPage() {
 
           <Link
             to="/products"
-            className="mt-7 inline-flex items-center gap-2 bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-violet-600"
+            className="mt-7 inline-flex min-h-11 max-w-full items-center justify-center gap-2 bg-zinc-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-violet-600"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 shrink-0" />
             Kembali ke Products
           </Link>
         </div>
@@ -1466,30 +1467,34 @@ export function ProductDetailPage() {
         className="pointer-events-none absolute right-[-12rem] top-[38%] h-[420px] w-[420px] rounded-full bg-pink-100/40 blur-[130px]"
       />
 
-      <main className="relative z-10 mx-auto max-w-[1600px] px-5 pb-20 pt-20 sm:px-8 sm:pt-24 lg:px-12 lg:pb-28 lg:pt-24">
+      <main className="relative z-10 mx-auto w-full max-w-[1600px] overflow-x-hidden px-4 pb-16 pt-16 sm:px-6 sm:pb-20 sm:pt-20 md:px-8 md:pt-24 lg:px-12 lg:pb-28 lg:pt-24">
         {/* =====================================================
             EDITORIAL HEADER
         ====================================================== */}
 
-        <div className="mb-10 flex items-center justify-between border-b border-black/10 pb-5 sm:mb-14">
-          <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-500 sm:text-xs">
+        <div className="mb-8 flex min-w-0 items-center justify-between gap-4 border-b border-black/10 pb-4 sm:mb-14 sm:pb-5">
+          <div className="flex min-w-0 max-w-full items-center gap-2 overflow-hidden text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500 sm:gap-3 sm:text-xs sm:tracking-[0.24em]">
             <Link
               to="/products"
-              className="text-zinc-950 transition hover:text-violet-600"
+              className="shrink-0 text-zinc-950 transition hover:text-violet-600"
             >
               39Production
             </Link>
 
-            <span className="h-1 w-1 rounded-full bg-violet-600" />
+            <span className="h-1 w-1 shrink-0 rounded-full bg-violet-600" />
 
-            <span>Products</span>
+            <span className="shrink-0">
+              Products
+            </span>
 
-            <span className="h-1 w-1 rounded-full bg-zinc-300" />
+            <span className="h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
 
-            <span>Detail</span>
+            <span className="truncate">
+              Detail
+            </span>
           </div>
 
-          <div className="hidden items-center gap-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400 sm:flex">
+          <div className="hidden shrink-0 items-center gap-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400 sm:flex">
             <span>Digital</span>
             <span>/</span>
             <span>Creative</span>
@@ -1504,9 +1509,9 @@ export function ProductDetailPage() {
 
         <Link
           to="/products"
-          className="group mb-8 inline-flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500 transition hover:text-violet-700 sm:mb-10"
+          className="group mb-7 inline-flex max-w-full items-center gap-3 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 transition hover:text-violet-700 sm:mb-10 sm:text-[10px] sm:tracking-[0.18em]"
         >
-          <span className="flex h-9 w-9 items-center justify-center border border-black/10 bg-white transition group-hover:border-violet-300 group-hover:bg-violet-50">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-black/10 bg-white transition group-hover:border-violet-300 group-hover:bg-violet-50">
             <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
           </span>
 
@@ -1517,19 +1522,19 @@ export function ProductDetailPage() {
             PRODUCT CONTENT
         ====================================================== */}
 
-        <div className="grid items-start gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:gap-20">
+        <div className="grid min-w-0 items-start gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:gap-16 xl:gap-20">
           {/* =================================================
               PRODUCT VISUAL
           ================================================== */}
 
-          <div className="lg:sticky lg:top-28">
+          <div className="min-w-0 lg:sticky lg:top-28">
             <div className="relative">
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute -inset-8 bg-violet-100/30 blur-3xl"
+                className="pointer-events-none absolute -inset-4 bg-violet-100/30 blur-3xl sm:-inset-8"
               />
 
-              <div className="relative overflow-hidden border border-black/10 bg-neutral-100 shadow-[0_30px_90px_rgba(0,0,0,0.08)]">
+              <div className="relative min-w-0 overflow-hidden border border-black/10 bg-neutral-100 shadow-[0_20px_60px_rgba(0,0,0,0.07)] sm:shadow-[0_30px_90px_rgba(0,0,0,0.08)]">
                 <button
                   type="button"
                   onClick={() =>
@@ -1541,7 +1546,7 @@ export function ProductDetailPage() {
                     productImages.length === 0
                   }
                   aria-label="Open product image"
-                  className="group relative block aspect-[4/3] w-full cursor-zoom-in overflow-hidden bg-neutral-100 text-left sm:aspect-[5/4]"
+                  className="group relative block aspect-square w-full cursor-zoom-in overflow-hidden bg-neutral-100 text-left sm:aspect-[5/4] lg:aspect-[4/3]"
                 >
                   {currentImage ? (
                     <>
@@ -1578,15 +1583,15 @@ export function ProductDetailPage() {
                       />
 
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="flex h-28 w-28 items-center justify-center border border-violet-200 bg-white text-violet-600 shadow-xl">
-                          <Disc3 className="h-14 w-14" />
+                        <div className="flex h-24 w-24 items-center justify-center border border-violet-200 bg-white text-violet-600 shadow-xl sm:h-28 sm:w-28">
+                          <Disc3 className="h-12 w-12 sm:h-14 sm:w-14" />
                         </div>
                       </div>
                     </>
                   )}
 
-                  <div className="absolute left-5 top-5 z-20">
-                    <span className="inline-flex items-center gap-2 border border-white/25 bg-black/55 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-white backdrop-blur-md">
+                  <div className="absolute left-3 top-3 z-20 sm:left-5 sm:top-5">
+                    <span className="inline-flex items-center gap-2 border border-white/25 bg-black/55 px-2.5 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] text-white backdrop-blur-md sm:px-3 sm:text-[9px] sm:tracking-[0.18em]">
                       Product{' '}
                       {String(
                         activeImageIndex + 1,
@@ -1597,46 +1602,56 @@ export function ProductDetailPage() {
                     </span>
                   </div>
 
-                  <div className="absolute right-5 top-5 z-20">
+                  <div className="absolute right-3 top-3 z-20 sm:right-5 sm:top-5">
                     <span
-                      className={`inline-flex items-center gap-2 border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.15em] backdrop-blur-md ${Number(
+                      className={`inline-flex items-center gap-2 border px-2.5 py-1.5 text-[8px] font-black uppercase tracking-[0.12em] backdrop-blur-md sm:px-3 sm:text-[9px] sm:tracking-[0.15em] ${Number(
                         product.stock,
                       ) > 0
-                        ? 'border-white/25 bg-white/90 text-zinc-900'
-                        : 'border-red-200 bg-white/95 text-red-700'
+                          ? 'border-white/25 bg-white/90 text-zinc-900'
+                          : 'border-red-200 bg-white/95 text-red-700'
                         }`}
                     >
                       <span
-                        className={`h-1.5 w-1.5 rounded-full ${Number(
+                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${Number(
                           product.stock,
                         ) > 0
-                          ? 'bg-emerald-500'
-                          : 'bg-red-500'
+                            ? 'bg-emerald-500'
+                            : 'bg-red-500'
                           }`}
                       />
 
-                      {Number(
-                        product.stock,
-                      ) > 0
-                        ? 'Available'
-                        : 'Out of Stock'}
+                      <span className="hidden xs:inline">
+                        {Number(
+                          product.stock,
+                        ) > 0
+                          ? 'Available'
+                          : 'Out of Stock'}
+                      </span>
+
+                      <span className="xs:hidden">
+                        {Number(
+                          product.stock,
+                        ) > 0
+                          ? 'In Stock'
+                          : 'Sold Out'}
+                      </span>
                     </span>
                   </div>
 
-                  <div className="absolute bottom-5 left-5 right-5 z-20">
-                    <div className="flex items-end justify-between gap-5">
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/55">
+                  <div className="absolute bottom-3 left-3 right-3 z-20 sm:bottom-5 sm:left-5 sm:right-5">
+                    <div className="flex min-w-0 items-end justify-between gap-3 sm:gap-5">
+                      <div className="min-w-0">
+                        <p className="truncate text-[8px] font-black uppercase tracking-[0.16em] text-white/55 sm:text-[9px] sm:tracking-[0.2em]">
                           {product.category ||
                             '39Production Product'}
                         </p>
 
-                        <p className="mt-1 text-lg font-black tracking-tight text-white sm:text-xl">
+                        <p className="mt-1 truncate text-base font-black tracking-tight text-white sm:text-xl">
                           {product.name}
                         </p>
                       </div>
 
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center border border-white/25 bg-black/55 text-white backdrop-blur-md transition-all duration-300 group-hover:border-violet-400 group-hover:bg-violet-600">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-white/25 bg-black/55 text-white backdrop-blur-md transition-all duration-300 group-hover:border-violet-400 group-hover:bg-violet-600 sm:h-10 sm:w-10">
                         <Expand className="h-4 w-4" />
                       </span>
                     </div>
@@ -1645,19 +1660,19 @@ export function ProductDetailPage() {
 
                 {productImages.length >
                   1 && (
-                    <div className="flex items-center gap-2 border-t border-black/10 bg-white p-3">
+                    <div className="flex min-w-0 items-center gap-2 border-t border-black/10 bg-white p-2.5 sm:p-3">
                       <button
                         type="button"
                         onClick={
                           goToPreviousImage
                         }
                         aria-label="Previous image"
-                        className="flex h-10 w-10 shrink-0 items-center justify-center border border-black/10 bg-white text-zinc-600 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center border border-black/10 bg-white text-zinc-600 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 sm:h-10 sm:w-10"
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </button>
 
-                      <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto">
+                      <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto overscroll-x-contain scrollbar-none">
                         {productImages.map(
                           (
                             image,
@@ -1673,16 +1688,16 @@ export function ProductDetailPage() {
                                 resetImageViewer()
                               }}
                               aria-label={`View image ${index + 1}`}
-                              className={`relative h-16 w-20 shrink-0 overflow-hidden border transition ${activeImageIndex ===
-                                index
-                                ? 'border-violet-600 ring-1 ring-violet-600'
-                                : 'border-black/10 opacity-60 hover:opacity-100'
+                              className={`relative h-14 w-16 shrink-0 overflow-hidden border transition sm:h-16 sm:w-20 ${activeImageIndex ===
+                                  index
+                                  ? 'border-violet-600 ring-1 ring-violet-600'
+                                  : 'border-black/10 opacity-60 hover:opacity-100'
                                 }`}
                             >
                               <img
                                 src={image}
                                 alt=""
-                                className="h-full w-full object-contain bg-zinc-100 p-1"
+                                className="h-full w-full bg-zinc-100 object-contain p-1"
                               />
 
                               {activeImageIndex ===
@@ -1700,7 +1715,7 @@ export function ProductDetailPage() {
                           goToNextImage
                         }
                         aria-label="Next image"
-                        className="flex h-10 w-10 shrink-0 items-center justify-center border border-black/10 bg-white text-zinc-600 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center border border-black/10 bg-white text-zinc-600 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 sm:h-10 sm:w-10"
                       >
                         <ChevronRight className="h-4 w-4" />
                       </button>
@@ -1708,15 +1723,17 @@ export function ProductDetailPage() {
                   )}
               </div>
 
-              <div className="mt-4 flex items-center justify-between gap-4 text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-400">
-                <span className="inline-flex items-center gap-2">
-                  <ZoomIn className="h-3.5 w-3.5 text-violet-600" />
-                  Click image to zoom
+              <div className="mt-3 flex min-w-0 items-center justify-between gap-3 text-[8px] font-bold uppercase tracking-[0.14em] text-zinc-400 sm:mt-4 sm:text-[9px] sm:tracking-[0.18em]">
+                <span className="inline-flex min-w-0 items-center gap-1.5">
+                  <ZoomIn className="h-3.5 w-3.5 shrink-0 text-violet-600" />
+                  <span className="truncate">
+                    Click image to zoom
+                  </span>
                 </span>
 
                 {productImages.length >
                   1 && (
-                    <span>
+                    <span className="shrink-0">
                       {activeImageIndex +
                         1}{' '}
                       /{' '}
@@ -1733,40 +1750,40 @@ export function ProductDetailPage() {
               PRODUCT INFORMATION
           ================================================== */}
 
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-2 border border-violet-200 bg-violet-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
-                <Sparkles className="h-3.5 w-3.5" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <span className="inline-flex items-center gap-2 border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.15em] text-violet-700 sm:px-3 sm:text-[10px] sm:tracking-[0.18em]">
+                <Sparkles className="h-3.5 w-3.5 shrink-0" />
                 Digital Product
               </span>
 
               {product.category && (
-                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                <span className="max-w-full truncate text-[9px] font-black uppercase tracking-[0.15em] text-zinc-400 sm:text-[10px] sm:tracking-[0.18em]">
                   / {product.category}
                 </span>
               )}
             </div>
 
-            <div className="mt-6">
-              <h1 className="max-w-5xl text-[clamp(3rem,6vw,6.5rem)] font-black leading-[0.86] tracking-[-0.065em] text-zinc-950">
+            <div className="mt-5 sm:mt-6">
+              <h1 className="max-w-5xl break-words text-[clamp(2.5rem,10vw,6.5rem)] font-black leading-[0.88] tracking-[-0.06em] text-zinc-950 sm:text-[clamp(3rem,6vw,6.5rem)]">
                 {product.name}
               </h1>
             </div>
 
-            <div className="mt-9 border-y border-black/10 py-6">
+            <div className="mt-7 border-y border-black/10 py-5 sm:mt-9 sm:py-6">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-                <div>
+                <div className="min-w-0">
                   {promotion &&
                     discount > 0 && (
-                      <p className="text-sm text-zinc-400 line-through">
+                      <p className="text-xs text-zinc-400 line-through sm:text-sm">
                         {formatPrice(
                           subtotal,
                         )}
                       </p>
                     )}
 
-                  <div className="mt-1 flex flex-wrap items-baseline gap-3">
-                    <span className="text-3xl font-black tracking-[-0.04em] text-zinc-950 sm:text-4xl">
+                  <div className="mt-1 flex flex-wrap items-center gap-2 sm:items-baseline sm:gap-3">
+                    <span className="break-words text-2xl font-black tracking-[-0.04em] text-zinc-950 sm:text-4xl">
                       {formatPrice(
                         finalPrice,
                       )}
@@ -1774,7 +1791,7 @@ export function ProductDetailPage() {
 
                     {promotion &&
                       discount > 0 && (
-                        <span className="border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">
+                        <span className="border border-emerald-200 bg-emerald-50 px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-emerald-700 sm:px-2.5 sm:text-[10px] sm:tracking-[0.12em]">
                           Save{' '}
                           {formatPrice(
                             discount,
@@ -1784,12 +1801,12 @@ export function ProductDetailPage() {
                   </div>
                 </div>
 
-                <div className="text-left sm:text-right">
-                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                <div className="flex items-center justify-between border-t border-black/5 pt-4 sm:block sm:border-0 sm:pt-0 sm:text-right">
+                  <p className="text-[8px] font-black uppercase tracking-[0.16em] text-zinc-400 sm:text-[9px] sm:tracking-[0.18em]">
                     Available Stock
                   </p>
 
-                  <p className="mt-1 text-lg font-black text-zinc-950">
+                  <p className="text-lg font-black text-zinc-950 sm:mt-1">
                     {product.stock}
                   </p>
                 </div>
@@ -1797,43 +1814,43 @@ export function ProductDetailPage() {
             </div>
 
             {promotion && (
-              <div className="mt-7 border border-violet-200 bg-violet-50">
-                <div className="flex items-start gap-4 p-5">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-violet-600 text-white">
+              <div className="mt-6 border border-violet-200 bg-violet-50 sm:mt-7">
+                <div className="flex items-start gap-3 p-4 sm:gap-4 sm:p-5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-violet-600 text-white sm:h-10 sm:w-10">
                     <Tag className="h-4 w-4" />
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-violet-700">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-[8px] font-black uppercase tracking-[0.16em] text-violet-700 sm:text-[9px] sm:tracking-[0.18em]">
                           Special Promotion
                         </p>
 
-                        <h2 className="mt-1 text-base font-black text-zinc-950">
+                        <h2 className="mt-1 break-words text-sm font-black text-zinc-950 sm:text-base">
                           {
                             promotion.title
                           }
                         </h2>
                       </div>
 
-                      <span className="border border-violet-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-violet-700">
+                      <span className="w-fit max-w-full shrink-0 border border-violet-200 bg-white px-2.5 py-1.5 text-[8px] font-black uppercase tracking-[0.1em] text-violet-700 sm:px-3 sm:text-[10px] sm:tracking-[0.12em]">
                         {getDiscountLabel()}
                       </span>
                     </div>
 
-                    <p className="mt-2 text-xs leading-5 text-zinc-600 sm:text-sm">
+                    <p className="mt-2 break-words text-xs leading-5 text-zinc-600 sm:text-sm">
                       {
                         promotion.description
                       }
                     </p>
 
-                    <div className="mt-3 inline-flex items-center gap-2 border border-dashed border-violet-300 bg-white px-3 py-1.5">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+                    <div className="mt-3 inline-flex max-w-full items-center gap-2 border border-dashed border-violet-300 bg-white px-2.5 py-1.5 sm:px-3">
+                      <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-zinc-400 sm:text-[10px] sm:tracking-[0.12em]">
                         Code
                       </span>
 
-                      <span className="font-mono text-xs font-black text-violet-700">
+                      <span className="max-w-[180px] truncate font-mono text-xs font-black text-violet-700">
                         {promotion.code}
                       </span>
                     </div>
@@ -1842,14 +1859,14 @@ export function ProductDetailPage() {
               </div>
             )}
 
-            <div className="mt-8 max-w-3xl">
-              <p className="text-base leading-8 text-zinc-600 sm:text-lg">
+            <div className="mt-7 max-w-3xl sm:mt-8">
+              <p className="break-words text-sm leading-7 text-zinc-600 sm:text-lg sm:leading-8">
                 {product.description}
               </p>
             </div>
 
-            <div className="mt-9 grid grid-cols-1 border-y border-black/10 sm:grid-cols-3">
-              <div className="border-b border-black/10 p-5 sm:border-b-0 sm:border-r">
+            <div className="mt-7 grid grid-cols-1 border-y border-black/10 sm:mt-9 sm:grid-cols-3">
+              <div className="border-b border-black/10 p-4 sm:border-b-0 sm:border-r sm:p-5">
                 <div className="flex h-9 w-9 items-center justify-center bg-violet-50 text-violet-700">
                   <Zap className="h-4 w-4" />
                 </div>
@@ -1863,7 +1880,7 @@ export function ProductDetailPage() {
                 </p>
               </div>
 
-              <div className="border-b border-black/10 p-5 sm:border-b-0 sm:border-r">
+              <div className="border-b border-black/10 p-4 sm:border-b-0 sm:border-r sm:p-5">
                 <div className="flex h-9 w-9 items-center justify-center bg-violet-50 text-violet-700">
                   <ShieldCheck className="h-4 w-4" />
                 </div>
@@ -1877,7 +1894,7 @@ export function ProductDetailPage() {
                 </p>
               </div>
 
-              <div className="p-5">
+              <div className="p-4 sm:p-5">
                 <div className="flex h-9 w-9 items-center justify-center bg-violet-50 text-violet-700">
                   <Sparkles className="h-4 w-4" />
                 </div>
@@ -1892,7 +1909,7 @@ export function ProductDetailPage() {
               </div>
             </div>
 
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-7 flex flex-col gap-3 sm:mt-9 sm:flex-row">
               <button
                 type="button"
                 disabled={
@@ -1907,7 +1924,7 @@ export function ProductDetailPage() {
                   setQuantity(1)
                   setShowCheckout(true)
                 }}
-                className="group inline-flex min-h-13 flex-1 items-center justify-center gap-3 bg-zinc-950 px-6 text-xs font-black uppercase tracking-[0.14em] text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="group inline-flex min-h-12 w-full items-center justify-center gap-3 bg-zinc-950 px-6 text-xs font-black uppercase tracking-[0.14em] text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-13 sm:flex-1"
               >
                 {Number(
                   product.stock,
@@ -1924,24 +1941,24 @@ export function ProductDetailPage() {
 
               <Link
                 to="/products"
-                className="inline-flex min-h-13 items-center justify-center gap-3 border border-black/10 bg-white px-6 text-xs font-black uppercase tracking-[0.14em] text-zinc-800 transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-3 border border-black/10 bg-white px-6 text-xs font-black uppercase tracking-[0.14em] text-zinc-800 transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 sm:min-h-13 sm:w-auto"
               >
                 Lihat Produk Lain
               </Link>
             </div>
 
-            <div className="mt-7 border border-violet-200 bg-violet-50">
-              <div className="flex items-start gap-4 p-5">
+            <div className="mt-6 border border-violet-200 bg-violet-50 sm:mt-7">
+              <div className="flex items-start gap-3 p-4 sm:gap-4 sm:p-5">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-white text-violet-700 shadow-sm">
                   <ShieldCheck className="h-4 w-4" />
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-black text-zinc-950">
                     Pembayaran DP 50%
                   </p>
 
-                  <p className="mt-1 text-xs leading-5 text-zinc-600 sm:text-sm">
+                  <p className="mt-1 break-words text-xs leading-5 text-zinc-600 sm:text-sm">
                     Order number akan dibuat setelah
                     pembayaran DP berhasil diverifikasi.
                     Sisa pembayaran diproses sesuai status
@@ -1984,15 +2001,15 @@ export function ProductDetailPage() {
 
               {/* TOP BAR */}
 
-              <div className="pointer-events-none absolute left-3 right-3 top-3 z-30 flex items-center justify-between gap-3 sm:left-6 sm:right-6 sm:top-6">
-                <div className="pointer-events-auto flex items-center gap-2">
-                  <div className="border border-white/15 bg-white/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.18em] text-white/80 backdrop-blur-md">
+              <div className="pointer-events-none absolute left-3 right-3 top-3 z-30 flex items-center justify-between gap-2 sm:left-6 sm:right-6 sm:top-6">
+                <div className="pointer-events-auto flex min-w-0 items-center gap-2">
+                  <div className="max-w-[150px] truncate border border-white/15 bg-white/10 px-2.5 py-2 text-[8px] font-black uppercase tracking-[0.14em] text-white/80 backdrop-blur-md sm:max-w-none sm:px-3 sm:text-[9px] sm:tracking-[0.18em]">
                     39Production
                   </div>
 
                   {productImages.length >
                     1 && (
-                      <div className="border border-white/15 bg-white/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.18em] text-white/60 backdrop-blur-md">
+                      <div className="shrink-0 border border-white/15 bg-white/10 px-2.5 py-2 text-[8px] font-black uppercase tracking-[0.14em] text-white/60 backdrop-blur-md sm:px-3 sm:text-[9px] sm:tracking-[0.18em]">
                         {activeImageIndex +
                           1}{' '}
                         /{' '}
@@ -2012,9 +2029,9 @@ export function ProductDetailPage() {
                   }
                   aria-label="Close image viewer"
                   title="Close"
-                  className="pointer-events-auto flex h-12 w-12 items-center justify-center border border-white/20 bg-white/10 text-white shadow-lg backdrop-blur-md transition-all duration-200 hover:border-white/40 hover:bg-white hover:text-zinc-950 active:scale-95"
+                  className="pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center border border-white/20 bg-white/10 text-white shadow-lg backdrop-blur-md transition-all duration-200 hover:border-white/40 hover:bg-white hover:text-zinc-950 active:scale-95 sm:h-12 sm:w-12"
                 >
-                  <X className="h-6 w-6" />
+                  <X className="h-5 w-5 sm:h-6 sm:w-6" />
                 </button>
               </div>
 
@@ -2029,20 +2046,20 @@ export function ProductDetailPage() {
                     }
                     aria-label="Previous image"
                     title="Previous image"
-                    className="absolute left-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center border border-white/15 bg-black/50 text-white backdrop-blur-md transition-all duration-200 hover:border-violet-400 hover:bg-violet-600 active:scale-95 sm:left-6"
+                    className="absolute left-2 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center border border-white/15 bg-black/50 text-white backdrop-blur-md transition-all duration-200 hover:border-violet-400 hover:bg-violet-600 active:scale-95 sm:left-6 sm:h-12 sm:w-12"
                   >
-                    <ChevronLeft className="h-6 w-6" />
+                    <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                   </button>
                 )}
 
               {/* IMAGE STAGE */}
 
               <div
-                className={`absolute inset-x-0 bottom-20 top-20 z-10 flex items-center justify-center overflow-hidden px-14 sm:bottom-24 sm:top-24 sm:px-24 ${imageZoom > 1
-                  ? isDraggingImage
-                    ? 'cursor-grabbing'
-                    : 'cursor-grab'
-                  : 'cursor-zoom-in'
+                className={`absolute inset-x-0 bottom-16 top-16 z-10 flex items-center justify-center overflow-hidden px-12 sm:bottom-24 sm:top-24 sm:px-24 ${imageZoom > 1
+                    ? isDraggingImage
+                      ? 'cursor-grabbing'
+                      : 'cursor-grab'
+                    : 'cursor-zoom-in'
                   }`}
                 style={{
                   touchAction:
@@ -2109,15 +2126,15 @@ export function ProductDetailPage() {
                     }
                     aria-label="Next image"
                     title="Next image"
-                    className="absolute right-3 top-1/2 z-30 flex h-12 w-12 -translate-y-1/2 items-center justify-center border border-white/15 bg-black/50 text-white backdrop-blur-md transition-all duration-200 hover:border-violet-400 hover:bg-violet-600 active:scale-95 sm:right-6"
+                    className="absolute right-2 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center border border-white/15 bg-black/50 text-white backdrop-blur-md transition-all duration-200 hover:border-violet-400 hover:bg-violet-600 active:scale-95 sm:right-6 sm:h-12 sm:w-12"
                   >
-                    <ChevronRight className="h-6 w-6" />
+                    <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
                   </button>
                 )}
 
               {/* BOTTOM CONTROLS */}
 
-              <div className="absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 border border-white/10 bg-black/70 p-1.5 shadow-2xl backdrop-blur-xl sm:bottom-6">
+              <div className="absolute bottom-2 left-1/2 z-30 flex max-w-[calc(100%-1rem)] -translate-x-1/2 items-center gap-0.5 border border-white/10 bg-black/70 p-1 shadow-2xl backdrop-blur-xl sm:bottom-6 sm:gap-1 sm:p-1.5">
                 <button
                   type="button"
                   onClick={() =>
@@ -2128,12 +2145,12 @@ export function ProductDetailPage() {
                   }
                   aria-label="Zoom out"
                   title="Zoom out"
-                  className="flex h-10 w-10 items-center justify-center text-white/70 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+                  className="flex h-9 w-9 items-center justify-center text-white/70 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 sm:h-10 sm:w-10"
                 >
                   <ZoomOut className="h-4 w-4" />
                 </button>
 
-                <div className="flex h-10 min-w-16 items-center justify-center border-x border-white/10 px-3 text-[9px] font-black uppercase tracking-[0.12em] text-white/70">
+                <div className="flex h-9 min-w-12 items-center justify-center border-x border-white/10 px-2 text-[8px] font-black uppercase tracking-[0.1em] text-white/70 sm:h-10 sm:min-w-16 sm:px-3 sm:text-[9px] sm:tracking-[0.12em]">
                   {Math.round(
                     imageZoom * 100,
                   )}
@@ -2150,7 +2167,7 @@ export function ProductDetailPage() {
                   }
                   aria-label="Zoom in"
                   title="Zoom in"
-                  className="flex h-10 w-10 items-center justify-center text-white/70 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+                  className="flex h-9 w-9 items-center justify-center text-white/70 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 sm:h-10 sm:w-10"
                 >
                   <ZoomIn className="h-4 w-4" />
                 </button>
@@ -2162,7 +2179,7 @@ export function ProductDetailPage() {
                   }
                   aria-label="Reset image"
                   title="Reset"
-                  className="flex h-10 w-10 items-center justify-center text-white/70 transition hover:bg-white/10 hover:text-white"
+                  className="flex h-9 w-9 items-center justify-center text-white/70 transition hover:bg-white/10 hover:text-white sm:h-10 sm:w-10"
                 >
                   <RotateCcw className="h-4 w-4" />
                 </button>
@@ -2174,7 +2191,7 @@ export function ProductDetailPage() {
                   }
                   aria-label="Close image viewer"
                   title="Close"
-                  className="ml-1 flex h-10 w-10 items-center justify-center border-l border-white/10 text-white/70 transition hover:bg-white/10 hover:text-white"
+                  className="ml-0.5 flex h-9 w-9 items-center justify-center border-l border-white/10 text-white/70 transition hover:bg-white/10 hover:text-white sm:ml-1 sm:h-10 sm:w-10"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -2201,7 +2218,7 @@ export function ProductDetailPage() {
         ====================================================== */}
 
         {showCheckout && (
-          <div className="fixed inset-0 z-[80] overflow-y-auto bg-zinc-950/55 p-3 backdrop-blur-sm sm:p-5">
+          <div className="fixed inset-0 z-[80] overflow-y-auto overscroll-contain bg-zinc-950/55 p-2 backdrop-blur-sm sm:p-5">
             <div
               className="fixed inset-0"
               onClick={() => {
@@ -2211,19 +2228,19 @@ export function ProductDetailPage() {
               }}
             />
 
-            <div className="relative mx-auto my-3 w-full max-w-2xl sm:my-6">
+            <div className="relative mx-auto my-1 w-full max-w-2xl sm:my-6">
               <div className="overflow-hidden border border-black/10 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.22)]">
                 <div className="h-1 w-full bg-violet-600" />
 
-                <div className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain sm:max-h-[calc(100dvh-3rem)]">
-                  <div className="flex items-start justify-between gap-4 border-b border-black/10 bg-white p-5 sm:p-6">
-                    <div className="min-w-0 pr-2">
-                      <div className="mb-2 inline-flex items-center gap-2 border border-violet-200 bg-violet-50 px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-violet-700">
-                        <Disc3 className="h-3.5 w-3.5" />
+                <div className="max-h-[calc(100dvh-0.5rem)] overflow-y-auto overscroll-contain sm:max-h-[calc(100dvh-3rem)]">
+                  <div className="flex items-start justify-between gap-3 border-b border-black/10 bg-white p-4 sm:gap-4 sm:p-6">
+                    <div className="min-w-0 pr-1 sm:pr-2">
+                      <div className="mb-2 inline-flex max-w-full items-center gap-2 border border-violet-200 bg-violet-50 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.14em] text-violet-700 sm:px-3 sm:text-[9px] sm:tracking-[0.16em]">
+                        <Disc3 className="h-3.5 w-3.5 shrink-0" />
                         Checkout
                       </div>
 
-                      <h2 className="text-xl font-black tracking-tight text-zinc-950 sm:text-2xl">
+                      <h2 className="break-words text-lg font-black tracking-tight text-zinc-950 sm:text-2xl">
                         {createdOrder
                           ? 'Order Berhasil'
                           : paymentData
@@ -2231,7 +2248,7 @@ export function ProductDetailPage() {
                             : 'Beli Produk'}
                       </h2>
 
-                      <p className="mt-1 max-w-xl text-xs leading-5 text-zinc-500 sm:text-sm">
+                      <p className="mt-1 max-w-xl break-words text-[11px] leading-5 text-zinc-500 sm:text-sm">
                         {createdOrder
                           ? 'Pembayaran DP telah diverifikasi.'
                           : paymentData
@@ -2248,7 +2265,7 @@ export function ProductDetailPage() {
                       onClick={
                         closeCheckout
                       }
-                      className="flex h-10 w-10 shrink-0 items-center justify-center border border-black/10 bg-white text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center border border-black/10 bg-white text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:w-10"
                     >
                       <X className="h-5 w-5" />
                     </button>
@@ -2260,16 +2277,16 @@ export function ProductDetailPage() {
                       onSubmit={
                         handleCheckout
                       }
-                      className="space-y-5 p-5 sm:space-y-6 sm:p-6"
+                      className="space-y-5 p-4 sm:space-y-6 sm:p-6"
                     >
-                      <div className="border border-black/10 bg-zinc-50 p-4">
-                        <div className="flex items-start justify-between gap-4">
+                      <div className="border border-black/10 bg-zinc-50 p-3.5 sm:p-4">
+                        <div className="flex min-w-0 items-start justify-between gap-3 sm:gap-4">
                           <div className="min-w-0">
-                            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">
+                            <p className="text-[8px] font-black uppercase tracking-[0.14em] text-zinc-400 sm:text-[9px] sm:tracking-[0.16em]">
                               Product
                             </p>
 
-                            <p className="mt-1 text-sm font-black text-zinc-950 sm:text-base">
+                            <p className="mt-1 break-words text-sm font-black text-zinc-950 sm:text-base">
                               {
                                 product.name
                               }
@@ -2280,14 +2297,14 @@ export function ProductDetailPage() {
                             {promotion &&
                               discount >
                               0 && (
-                                <p className="text-xs text-zinc-400 line-through">
+                                <p className="text-[10px] text-zinc-400 line-through sm:text-xs">
                                   {formatPrice(
                                     subtotal,
                                   )}
                                 </p>
                               )}
 
-                            <p className="text-base font-black text-zinc-950 sm:text-lg">
+                            <p className="text-sm font-black text-zinc-950 sm:text-lg">
                               {formatPrice(
                                 finalPrice,
                               )}
@@ -2299,12 +2316,12 @@ export function ProductDetailPage() {
                       <div>
                         <label
                           htmlFor="quantity"
-                          className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-zinc-700"
+                          className="mb-2 block text-[10px] font-black uppercase tracking-[0.1em] text-zinc-700 sm:text-[11px] sm:tracking-[0.12em]"
                         >
                           Quantity
                         </label>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
                             disabled={
@@ -2324,7 +2341,7 @@ export function ProductDetailPage() {
                                   ),
                               )
                             }
-                            className="flex h-11 w-11 items-center justify-center border border-black/10 bg-white text-zinc-900 transition hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center border border-black/10 bg-white text-zinc-900 transition hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             <Minus className="h-4 w-4" />
                           </button>
@@ -2374,7 +2391,7 @@ export function ProductDetailPage() {
                             disabled={
                               isSubmitting
                             }
-                            className="h-11 w-24 border border-black/10 bg-white px-3 text-center text-sm font-bold text-zinc-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
+                            className="h-11 w-20 shrink-0 border border-black/10 bg-white px-2 text-center text-sm font-bold text-zinc-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50 sm:w-24"
                           />
 
                           <button
@@ -2400,12 +2417,12 @@ export function ProductDetailPage() {
                                   ),
                               )
                             }
-                            className="flex h-11 w-11 items-center justify-center border border-black/10 bg-white text-zinc-900 transition hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center border border-black/10 bg-white text-zinc-900 transition hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             <Plus className="h-4 w-4" />
                           </button>
 
-                          <span className="ml-2 text-xs text-zinc-500">
+                          <span className="text-xs text-zinc-500 sm:ml-2">
                             Maks.{' '}
                             {
                               product.stock
@@ -2414,11 +2431,11 @@ export function ProductDetailPage() {
                         </div>
                       </div>
 
-                      <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
-                        <div className="sm:col-span-2">
+                      <div className="grid min-w-0 gap-4 sm:grid-cols-2 sm:gap-5">
+                        <div className="min-w-0 sm:col-span-2">
                           <label
                             htmlFor="customerName"
-                            className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-zinc-700"
+                            className="mb-2 block text-[10px] font-black uppercase tracking-[0.1em] text-zinc-700 sm:text-[11px] sm:tracking-[0.12em]"
                           >
                             Nama Lengkap
                           </label>
@@ -2441,14 +2458,14 @@ export function ProductDetailPage() {
                             disabled={
                               isSubmitting
                             }
-                            className="w-full border border-black/10 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
+                            className="w-full min-w-0 border border-black/10 bg-white px-3.5 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50 sm:px-4"
                           />
                         </div>
 
-                        <div>
+                        <div className="min-w-0">
                           <label
                             htmlFor="customerEmail"
-                            className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-zinc-700"
+                            className="mb-2 block text-[10px] font-black uppercase tracking-[0.1em] text-zinc-700 sm:text-[11px] sm:tracking-[0.12em]"
                           >
                             Email
                           </label>
@@ -2471,14 +2488,14 @@ export function ProductDetailPage() {
                             disabled={
                               isSubmitting
                             }
-                            className="w-full border border-black/10 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
+                            className="w-full min-w-0 border border-black/10 bg-white px-3.5 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50 sm:px-4"
                           />
                         </div>
 
-                        <div>
+                        <div className="min-w-0">
                           <label
                             htmlFor="customerPhone"
-                            className="mb-2 block text-[11px] font-black uppercase tracking-[0.12em] text-zinc-700"
+                            className="mb-2 block text-[10px] font-black uppercase tracking-[0.1em] text-zinc-700 sm:text-[11px] sm:tracking-[0.12em]"
                           >
                             Nomor WhatsApp
                           </label>
@@ -2501,26 +2518,26 @@ export function ProductDetailPage() {
                             disabled={
                               isSubmitting
                             }
-                            className="w-full border border-black/10 bg-white px-4 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50"
+                            className="w-full min-w-0 border border-black/10 bg-white px-3.5 py-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 transition focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-50 sm:px-4"
                           />
                         </div>
                       </div>
 
-                      <div className="border border-black/10 bg-zinc-50 p-4">
+                      <div className="border border-black/10 bg-zinc-50 p-3.5 sm:p-4">
                         <div className="space-y-3">
-                          <div className="flex justify-between gap-4 text-sm">
+                          <div className="flex items-start justify-between gap-4 text-sm">
                             <span className="text-zinc-500">
                               Harga produk
                             </span>
 
-                            <span className="text-zinc-800">
+                            <span className="text-right text-zinc-800">
                               {formatPrice(
                                 product.price,
                               )}
                             </span>
                           </div>
 
-                          <div className="flex justify-between gap-4 text-sm">
+                          <div className="flex items-start justify-between gap-4 text-sm">
                             <span className="text-zinc-500">
                               Quantity
                             </span>
@@ -2530,12 +2547,12 @@ export function ProductDetailPage() {
                             </span>
                           </div>
 
-                          <div className="flex justify-between gap-4 text-sm">
+                          <div className="flex items-start justify-between gap-4 text-sm">
                             <span className="text-zinc-500">
                               Subtotal
                             </span>
 
-                            <span className="text-zinc-800">
+                            <span className="text-right text-zinc-800">
                               {formatPrice(
                                 subtotal,
                               )}
@@ -2544,12 +2561,12 @@ export function ProductDetailPage() {
 
                           {discount >
                             0 && (
-                              <div className="flex justify-between gap-4 text-sm">
+                              <div className="flex items-start justify-between gap-4 text-sm">
                                 <span className="text-pink-600">
                                   Discount
                                 </span>
 
-                                <span className="font-bold text-pink-600">
+                                <span className="text-right font-bold text-pink-600">
                                   -
                                   {formatPrice(
                                     discount,
@@ -2559,12 +2576,12 @@ export function ProductDetailPage() {
                             )}
 
                           <div className="border-t border-black/10 pt-3">
-                            <div className="flex justify-between gap-4">
+                            <div className="flex items-start justify-between gap-4">
                               <span className="font-black text-zinc-950">
                                 Total
                               </span>
 
-                              <span className="text-xl font-black text-zinc-950">
+                              <span className="break-words text-right text-lg font-black text-zinc-950 sm:text-xl">
                                 {formatPrice(
                                   finalPrice,
                                 )}
@@ -2572,24 +2589,24 @@ export function ProductDetailPage() {
                             </div>
                           </div>
 
-                          <div className="flex justify-between gap-4 text-sm">
+                          <div className="flex items-start justify-between gap-4 text-sm">
                             <span className="font-bold text-violet-700">
                               DP 50%
                             </span>
 
-                            <span className="font-black text-violet-700">
+                            <span className="text-right font-black text-violet-700">
                               {formatPrice(
                                 estimatedDp,
                               )}
                             </span>
                           </div>
 
-                          <div className="flex justify-between gap-4 text-sm">
+                          <div className="flex items-start justify-between gap-4 text-sm">
                             <span className="text-zinc-500">
                               Sisa setelah DP
                             </span>
 
-                            <span className="font-bold text-zinc-800">
+                            <span className="text-right font-bold text-zinc-800">
                               {formatPrice(
                                 estimatedRemaining,
                               )}
@@ -2599,7 +2616,7 @@ export function ProductDetailPage() {
                       </div>
 
                       {formError && (
-                        <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-600">
+                        <div className="break-words border border-red-200 bg-red-50 px-3.5 py-3 text-xs leading-5 text-red-600 sm:px-4 sm:text-sm">
                           {formError}
                         </div>
                       )}
@@ -2612,7 +2629,7 @@ export function ProductDetailPage() {
                             product.stock,
                           ) <= 0
                         }
-                        className="group flex min-h-12 w-full items-center justify-center gap-2 bg-zinc-950 px-5 text-sm font-black text-white transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="group flex min-h-12 w-full items-center justify-center gap-2 bg-zinc-950 px-4 text-xs font-black text-white transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:text-sm"
                       >
                         {isSubmitting ? (
                           <>
@@ -2621,14 +2638,16 @@ export function ProductDetailPage() {
                           </>
                         ) : (
                           <>
-                            Pay DP 50% via DANA QRIS
+                            <span className="truncate">
+                              Pay DP 50% via DANA QRIS
+                            </span>
 
-                            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                            <ArrowRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-1" />
                           </>
                         )}
                       </button>
 
-                      <p className="text-center text-[10px] leading-5 text-zinc-500">
+                      <p className="text-center text-[9px] leading-5 text-zinc-500 sm:text-[10px]">
                         Order number baru dibuat setelah
                         pembayaran DP berhasil diverifikasi
                         oleh server.
@@ -2636,22 +2655,22 @@ export function ProductDetailPage() {
                     </form>
                   ) : !createdOrder &&
                     paymentData ? (
-                    <div className="p-5 sm:p-6">
-                      <div className="border border-violet-200 bg-violet-50 p-4">
-                        <div className="flex items-center justify-between gap-4">
+                    <div className="p-4 sm:p-6">
+                      <div className="border border-violet-200 bg-violet-50 p-3.5 sm:p-4">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                           <div>
-                            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-violet-700">
+                            <p className="text-[8px] font-black uppercase tracking-[0.14em] text-violet-700 sm:text-[9px] sm:tracking-[0.16em]">
                               DP 50%
                             </p>
 
-                            <p className="mt-1 text-2xl font-black text-violet-700">
+                            <p className="mt-1 text-xl font-black text-violet-700 sm:text-2xl">
                               {formatPrice(
                                 paymentData.dp_amount,
                               )}
                             </p>
                           </div>
 
-                          <div className="text-right">
+                          <div className="border-t border-violet-200 pt-3 text-left sm:border-0 sm:pt-0 sm:text-right">
                             <p className="text-xs text-zinc-500">
                               Sisa pembayaran
                             </p>
@@ -2665,14 +2684,14 @@ export function ProductDetailPage() {
                         </div>
                       </div>
 
-                      <div className="mt-5 border border-black/10 bg-white p-4 sm:p-5">
+                      <div className="mt-4 border border-black/10 bg-white p-3 sm:mt-5 sm:p-5">
                         {paymentData.qr_image ? (
                           <img
                             src={
                               paymentData.qr_image
                             }
                             alt="DANA QRIS payment code"
-                            className="mx-auto h-56 w-56 object-contain sm:h-64 sm:w-64"
+                            className="mx-auto h-auto max-h-[65vw] w-full max-w-[280px] object-contain sm:h-64 sm:w-64"
                           />
                         ) : paymentData.qr_url ? (
                           <a
@@ -2681,12 +2700,12 @@ export function ProductDetailPage() {
                             }
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="mx-auto flex h-56 w-56 items-center justify-center border border-black/10 bg-zinc-50 text-center text-sm font-bold text-zinc-700 sm:h-64 sm:w-64"
+                            className="mx-auto flex aspect-square w-full max-w-[280px] items-center justify-center border border-black/10 bg-zinc-50 p-5 text-center text-sm font-bold text-zinc-700 sm:h-64 sm:w-64"
                           >
                             Open DANA QRIS
                           </a>
                         ) : (
-                          <div className="mx-auto flex min-h-40 max-w-sm items-center justify-center break-all bg-zinc-50 p-5 text-center font-mono text-xs text-zinc-700">
+                          <div className="mx-auto flex min-h-40 w-full max-w-sm items-center justify-center break-all bg-zinc-50 p-5 text-center font-mono text-xs text-zinc-700">
                             {
                               paymentData.qr_content
                             }
@@ -2694,7 +2713,7 @@ export function ProductDetailPage() {
                         )}
                       </div>
 
-                      <div className="mt-4 border border-black/10 bg-zinc-50 p-4 text-xs leading-5 text-zinc-500 sm:text-sm">
+                      <div className="mt-4 border border-black/10 bg-zinc-50 p-3.5 text-xs leading-5 text-zinc-500 sm:p-4 sm:text-sm">
                         <p className="font-black text-zinc-950">
                           Cara pembayaran
                         </p>
@@ -2720,64 +2739,64 @@ export function ProductDetailPage() {
                             paymentData.qr_content,
                           )
                         }
-                        className="mt-4 min-h-11 w-full border border-black/10 bg-white text-xs font-bold text-zinc-800 transition hover:border-violet-300 hover:bg-violet-50"
+                        className="mt-3 min-h-11 w-full border border-black/10 bg-white px-3 text-xs font-bold text-zinc-800 transition hover:border-violet-300 hover:bg-violet-50 sm:mt-4"
                       >
                         Copy QRIS Content
                       </button>
 
                       {formError && (
-                        <div className="mt-4 border border-red-200 bg-red-50 p-3 text-xs leading-5 text-red-600">
+                        <div className="mt-3 break-words border border-red-200 bg-red-50 p-3 text-xs leading-5 text-red-600 sm:mt-4">
                           {formError}
                         </div>
                       )}
                     </div>
                   ) : createdOrder ? (
-                    <div className="p-5 text-center sm:p-8">
+                    <div className="p-4 text-center sm:p-8">
                       <div className="mx-auto flex h-16 w-16 items-center justify-center bg-emerald-50 text-emerald-600">
                         <CheckCircle2 className="h-8 w-8" />
                       </div>
 
-                      <p className="mt-5 text-[9px] font-black uppercase tracking-[0.2em] text-emerald-600">
+                      <p className="mt-5 text-[8px] font-black uppercase tracking-[0.18em] text-emerald-600 sm:text-[9px] sm:tracking-[0.2em]">
                         DP Payment Verified
                       </p>
 
-                      <h2 className="mt-2 text-2xl font-black tracking-tight text-zinc-950">
+                      <h2 className="mt-2 text-xl font-black tracking-tight text-zinc-950 sm:text-2xl">
                         Order berhasil dibuat
                       </h2>
 
-                      <p className="mt-2 text-sm leading-6 text-zinc-500">
+                      <p className="mt-2 text-xs leading-6 text-zinc-500 sm:text-sm">
                         Pembayaran DP 50% sudah diverifikasi.
                         Order sekarang resmi tercatat dan dapat
                         dipantau melalui Track Order.
                       </p>
 
-                      <div className="mt-6 border border-violet-200 bg-violet-50 p-5">
-                        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500">
+                      <div className="mt-5 border border-violet-200 bg-violet-50 p-4 sm:mt-6 sm:p-5">
+                        <p className="text-[8px] font-black uppercase tracking-[0.14em] text-zinc-500 sm:text-[9px] sm:tracking-[0.16em]">
                           Order Number
                         </p>
 
-                        <p className="mt-2 break-all font-mono text-lg font-black tracking-wider text-violet-700 sm:text-xl">
+                        <p className="mt-2 break-all font-mono text-base font-black tracking-wider text-violet-700 sm:text-xl">
                           {
                             createdOrder.order_number
                           }
                         </p>
                       </div>
 
-                      <div className="mt-5 space-y-3 border border-black/10 bg-zinc-50 p-5 text-left">
-                        <div className="flex justify-between gap-4 text-sm">
-                          <span className="text-zinc-500">
+                      <div className="mt-4 space-y-3 border border-black/10 bg-zinc-50 p-4 text-left sm:mt-5 sm:p-5">
+                        <div className="flex items-start justify-between gap-4 text-sm">
+                          <span className="shrink-0 text-zinc-500">
                             Produk
                           </span>
 
-                          <span className="max-w-[60%] text-right font-bold text-zinc-900">
+                          <span className="max-w-[65%] break-words text-right font-bold text-zinc-900">
                             {
                               createdOrder.product_name
                             }
                           </span>
                         </div>
 
-                        <div className="flex justify-between gap-4 text-sm">
-                          <span className="text-zinc-500">
+                        <div className="flex items-start justify-between gap-4 text-sm">
+                          <span className="shrink-0 text-zinc-500">
                             Quantity
                           </span>
 
@@ -2790,12 +2809,12 @@ export function ProductDetailPage() {
 
                         {(createdOrder.discount_amount ??
                           0) > 0 && (
-                            <div className="flex justify-between gap-4 text-sm">
+                            <div className="flex items-start justify-between gap-4 text-sm">
                               <span className="text-zinc-500">
                                 Discount
                               </span>
 
-                              <span className="font-bold text-pink-600">
+                              <span className="text-right font-bold text-pink-600">
                                 -
                                 {formatPrice(
                                   createdOrder.discount_amount ??
@@ -2805,12 +2824,12 @@ export function ProductDetailPage() {
                             </div>
                           )}
 
-                        <div className="flex justify-between gap-4 border-t border-black/10 pt-3">
+                        <div className="flex items-start justify-between gap-4 border-t border-black/10 pt-3">
                           <span className="font-black text-zinc-950">
                             Total
                           </span>
 
-                          <span className="text-xl font-black text-zinc-950">
+                          <span className="break-words text-right text-lg font-black text-zinc-950 sm:text-xl">
                             {formatPrice(
                               createdOrder.final_total ??
                               createdOrder.total_price,
@@ -2818,12 +2837,12 @@ export function ProductDetailPage() {
                           </span>
                         </div>
 
-                        <div className="flex justify-between gap-4 text-sm">
+                        <div className="flex items-start justify-between gap-4 text-sm">
                           <span className="text-violet-700">
                             DP dibayar
                           </span>
 
-                          <span className="font-black text-violet-700">
+                          <span className="text-right font-black text-violet-700">
                             {formatPrice(
                               createdOrder.dp_amount ??
                               Math.ceil(
@@ -2836,12 +2855,12 @@ export function ProductDetailPage() {
                           </span>
                         </div>
 
-                        <div className="flex justify-between gap-4 text-sm">
+                        <div className="flex items-start justify-between gap-4 text-sm">
                           <span className="text-zinc-500">
                             Sisa pembayaran
                           </span>
 
-                          <span className="font-bold text-zinc-900">
+                          <span className="text-right font-bold text-zinc-900">
                             {formatPrice(
                               createdOrder.remaining_amount ??
                               Math.max(
@@ -2865,7 +2884,7 @@ export function ProductDetailPage() {
                         </div>
                       </div>
 
-                      <div className="mt-5 border border-violet-200 bg-violet-50 p-4 text-left text-xs leading-5 text-zinc-500">
+                      <div className="mt-4 border border-violet-200 bg-violet-50 p-3.5 text-left text-xs leading-5 text-zinc-500 sm:mt-5 sm:p-4">
                         <p className="font-black text-zinc-950">
                           Selanjutnya
                         </p>
@@ -2883,23 +2902,23 @@ export function ProductDetailPage() {
                         </p>
                       </div>
 
-                      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
                         <a
                           href={createWhatsAppUrl()}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex min-h-12 items-center justify-center gap-2 bg-zinc-950 px-5 text-sm font-black text-white transition hover:bg-violet-600"
+                          className="inline-flex min-h-12 items-center justify-center gap-2 bg-zinc-950 px-4 text-sm font-black text-white transition hover:bg-violet-600"
                         >
                           Hubungi via WhatsApp
 
-                          <ArrowRight className="h-4 w-4" />
+                          <ArrowRight className="h-4 w-4 shrink-0" />
                         </a>
 
                         <Link
                           to={getTrackUrl(
                             createdOrder.order_number,
                           )}
-                          className="inline-flex min-h-12 items-center justify-center gap-2 border border-black/10 bg-white px-5 text-sm font-bold text-zinc-800 transition hover:border-violet-300 hover:bg-violet-50"
+                          className="inline-flex min-h-12 items-center justify-center gap-2 border border-black/10 bg-white px-4 text-sm font-bold text-zinc-800 transition hover:border-violet-300 hover:bg-violet-50"
                         >
                           Track Order
                         </Link>
@@ -2907,7 +2926,7 @@ export function ProductDetailPage() {
 
                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
                         <div className="border border-black/10 bg-white px-4 py-3 text-left">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
+                          <p className="text-[8px] font-black uppercase tracking-wider text-zinc-400 sm:text-[9px]">
                             DP Status
                           </p>
 
@@ -2917,7 +2936,7 @@ export function ProductDetailPage() {
                         </div>
 
                         <div className="border border-black/10 bg-white px-4 py-3 text-left">
-                          <p className="text-[9px] font-black uppercase tracking-wider text-zinc-400">
+                          <p className="text-[8px] font-black uppercase tracking-wider text-zinc-400 sm:text-[9px]">
                             Final Payment
                           </p>
 
@@ -2957,6 +2976,43 @@ export function ProductDetailPage() {
         .select-none {
           -webkit-user-select: none;
           user-select: none;
+        }
+
+        .scrollbar-none {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+
+        .scrollbar-none::-webkit-scrollbar {
+          display: none;
+        }
+
+        @media (max-width: 359px) {
+          .xs\\:hidden {
+            display: inline;
+          }
+
+          .xs\\:inline {
+            display: none;
+          }
+        }
+
+        @media (min-width: 360px) {
+          .xs\\:hidden {
+            display: none;
+          }
+
+          .xs\\:inline {
+            display: inline;
+          }
+        }
+
+        @media (max-width: 639px) {
+          input,
+          textarea,
+          select {
+            font-size: 16px;
+          }
         }
       `}</style>
     </section>
