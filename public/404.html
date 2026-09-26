@@ -3,19 +3,72 @@
 
 <head>
     <meta charset="UTF-8" />
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <title>39Production</title>
 
     <script>
-        sessionStorage.setItem(
-            'spa-redirect',
-            window.location.href
-        )
+        (function () {
+            const base = '/39Production'
 
-        window.location.replace(
-            '/39Production/'
-        )
+            const path =
+                window.location.pathname
+
+            const search =
+                window.location.search
+
+            const hash =
+                window.location.hash
+
+            /*
+             * Remove the GitHub Pages project base path.
+             *
+             * Example:
+             * /39Production/about
+             *
+             * becomes:
+             * /about
+             */
+            let route = path
+
+            if (route.startsWith(base)) {
+                route = route.slice(base.length)
+            }
+
+            if (!route) {
+                route = '/'
+            }
+
+            /*
+             * Preserve query parameters and hash.
+             */
+            const redirect =
+                route +
+                search +
+                hash
+
+            /*
+             * Send the route to the application's
+             * index.html.
+             *
+             * Example:
+             *
+             * /39Production/about
+             *
+             * becomes:
+             *
+             * /39Production/?redirect=%2Fabout
+             */
+            const redirectUrl =
+                base +
+                '/?redirect=' +
+                encodeURIComponent(redirect)
+
+            window.location.replace(
+                redirectUrl
+            )
+        })()
     </script>
 </head>
 

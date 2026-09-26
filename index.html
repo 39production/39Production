@@ -7,9 +7,9 @@
   <!-- Google Search Console Verification -->
   <meta name="google-site-verification" content="ju7uhQelaEtqEZigH80UW_xx7lIzd4iGwNMBmWk_b0A" />
 
-  <!-- Basic SEO -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+  <!-- Basic SEO -->
   <meta name="description"
     content="39Production is a creative digital production house providing web development, UI/UX design, animation, game development, multimedia, and entertainment production." />
 
@@ -40,7 +40,7 @@
 
   <meta property="og:image" content="https://39production.github.io/39Production/logo-39production.png" />
 
-  <!-- Twitter / X Card -->
+  <!-- Twitter / X -->
   <meta name="twitter:card" content="summary_large_image" />
 
   <meta name="twitter:title" content="39Production — Creative Digital Production House" />
@@ -59,62 +59,42 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap"
     rel="stylesheet" />
 
-  <!-- Page Title -->
   <title>
     39Production — Creative Digital Production House
   </title>
 
   <!--
-    GitHub Pages SPA Route Recovery
+    GitHub Pages SPA fallback.
 
-    When GitHub Pages cannot find a physical file for a
-    React Router route, public/404.html stores the original
-    URL in sessionStorage and redirects to the app root.
-
-    This script restores that original URL BEFORE React
-    Router initializes.
+    When GitHub Pages serves 404.html for a React Router
+    deep-link such as /39Production/about, 404.html sends
+    the requested route back to the application through
+    the query string.
   -->
   <script>
-    ; (function () {
-      const redirect = sessionStorage.getItem(
-        'spa-redirect'
-      )
+    (function () {
+      const params = new URLSearchParams(window.location.search)
+      const redirect = params.get('redirect')
 
       if (!redirect) {
         return
       }
 
-      sessionStorage.removeItem(
-        'spa-redirect'
+      const base = '/39Production'
+
+      const target =
+        redirect.startsWith('/')
+          ? redirect
+          : '/' + redirect
+
+      const cleanPath =
+        base + target
+
+      window.history.replaceState(
+        null,
+        '',
+        cleanPath
       )
-
-      try {
-        const url = new URL(redirect)
-
-        const isSameOrigin =
-          url.origin === window.location.origin
-
-        const isAppRoute =
-          url.pathname === '/39Production' ||
-          url.pathname.startsWith(
-            '/39Production/'
-          )
-
-        if (
-          isSameOrigin &&
-          isAppRoute
-        ) {
-          window.history.replaceState(
-            null,
-            '',
-            url.pathname +
-            url.search +
-            url.hash
-          )
-        }
-      } catch {
-        // Ignore invalid redirect values.
-      }
     })()
   </script>
 </head>
@@ -122,7 +102,7 @@
 <body>
   <div id="root"></div>
 
-  <script type="module" src="/src/main.tsx"></script>
+  <script type="module" src="/39Production/src/main.tsx"></script>
 </body>
 
 </html>
