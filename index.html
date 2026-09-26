@@ -63,6 +63,47 @@
   <title>
     39Production — Creative Digital Production House
   </title>
+
+  <!--
+    GitHub Pages SPA Route Recovery
+
+    404.html redirects:
+      /39Production/about
+        ↓
+      /39Production/?redirect=%2Fabout
+
+    This script restores the original route before
+    React Router initializes.
+  -->
+  <script>
+    ; (function () {
+      const basePath = '/39Production/'
+      const params = new URLSearchParams(
+        window.location.search
+      )
+
+      const redirect = params.get('redirect')
+
+      if (!redirect) {
+        return
+      }
+
+      const normalizedRedirect =
+        redirect.startsWith('/')
+          ? redirect
+          : '/' + redirect
+
+      const target =
+        basePath.replace(/\/$/, '') +
+        normalizedRedirect
+
+      window.history.replaceState(
+        null,
+        '',
+        target
+      )
+    })()
+  </script>
 </head>
 
 <body>

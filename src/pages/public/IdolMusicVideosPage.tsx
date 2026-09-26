@@ -6,10 +6,12 @@ import {
   ExternalLink,
   Loader2,
   Play,
-  Sparkles,
 } from 'lucide-react'
 
-const API_BASE_URL = 'https://39production-api.39production.workers.dev'
+const API_BASE_URL =
+  'https://39production-api.39production.workers.dev'
+
+const SITE_URL = 'https://39production.digital'
 
 interface IdolMusicVideo {
   id: number
@@ -33,11 +35,15 @@ async function apiRequest<T>(endpoint: string): Promise<T> {
   try {
     result = JSON.parse(text)
   } catch {
-    throw new Error(`API response tidak valid (${response.status}).`)
+    throw new Error(
+      `API response tidak valid (${response.status}).`,
+    )
   }
 
   if (!response.ok || !result.success) {
-    throw new Error(result.message || 'Gagal mengambil data.')
+    throw new Error(
+      result.message || 'Gagal mengambil data.',
+    )
   }
 
   return result.data
@@ -72,6 +78,8 @@ function getYear(date: string) {
 }
 
 function getYoutubeThumbnail(url: string) {
+  if (!url) return ''
+
   try {
     const parsed = new URL(url)
 
@@ -87,6 +95,10 @@ function getYoutubeThumbnail(url: string) {
       if (!id && parsed.pathname.includes('/embed/')) {
         id = parsed.pathname.split('/embed/')[1]
       }
+
+      if (!id && parsed.pathname.includes('/shorts/')) {
+        id = parsed.pathname.split('/shorts/')[1]
+      }
     }
 
     if (id) {
@@ -100,6 +112,8 @@ function getYoutubeThumbnail(url: string) {
 }
 
 function toYoutubeEmbed(url: string) {
+  if (!url) return ''
+
   try {
     const parsed = new URL(url)
 
@@ -121,12 +135,53 @@ function toYoutubeEmbed(url: string) {
       if (parsed.pathname.includes('/embed/')) {
         return url
       }
+
+      if (parsed.pathname.includes('/shorts/')) {
+        const shortsId = parsed.pathname.split('/shorts/')[1]
+
+        if (shortsId) {
+          return `https://www.youtube.com/embed/${shortsId}`
+        }
+      }
     }
   } catch {
     return url
   }
 
   return url
+}
+
+function updateMetaTag(
+  selector: string,
+  attribute: string,
+  value: string,
+) {
+  let element = document.head.querySelector<HTMLMetaElement>(
+    selector,
+  )
+
+  if (!element) {
+    element = document.createElement('meta')
+    element.setAttribute(attribute, value)
+    document.head.appendChild(element)
+  }
+
+  element.setAttribute('content', value)
+}
+
+function updateCanonical(url: string) {
+  let canonical =
+    document.head.querySelector<HTMLLinkElement>(
+      'link[rel="canonical"]',
+    )
+
+  if (!canonical) {
+    canonical = document.createElement('link')
+    canonical.rel = 'canonical'
+    document.head.appendChild(canonical)
+  }
+
+  canonical.href = url
 }
 
 export function IdolMusicVideosPage() {
@@ -136,6 +191,95 @@ export function IdolMusicVideosPage() {
   const [activeVideo, setActiveVideo] =
     useState<IdolMusicVideo | null>(null)
 
+  /*
+   * ==========================================================
+   * SEO
+   * ==========================================================
+   */
+  useEffect(() => {
+    const title =
+      'Music Videos — 39Production Entertainment'
+
+    const description =
+      'Watch official music videos and visual releases from 39Production entertainment artists and idol groups.'
+
+    const canonicalUrl =
+      `${SITE_URL}/idol/music-videos`
+
+    document.title = title
+
+    updateMetaTag(
+      'meta[name="description"]',
+      'name',
+      description,
+    )
+
+    updateMetaTag(
+      'meta[name="robots"]',
+      'name',
+      'index, follow',
+    )
+
+    updateMetaTag(
+      'meta[property="og:type"]',
+      'property',
+      'website',
+    )
+
+    updateMetaTag(
+      'meta[property="og:title"]',
+      'property',
+      title,
+    )
+
+    updateMetaTag(
+      'meta[property="og:description"]',
+      'property',
+      description,
+    )
+
+    updateMetaTag(
+      'meta[property="og:url"]',
+      'property',
+      canonicalUrl,
+    )
+
+    updateMetaTag(
+      'meta[property="og:site_name"]',
+      'property',
+      '39Production',
+    )
+
+    updateMetaTag(
+      'meta[name="twitter:card"]',
+      'name',
+      'summary_large_image',
+    )
+
+    updateMetaTag(
+      'meta[name="twitter:title"]',
+      'name',
+      title,
+    )
+
+    updateMetaTag(
+      'meta[name="twitter:description"]',
+      'name',
+      description,
+    )
+
+    updateCanonical(canonicalUrl)
+
+    return () => {
+      document.title = '39Production'
+    }
+  }, [])
+
+  /*
+   * ==========================================================
+   * LOAD DATA
+   * ==========================================================
+   */
   useEffect(() => {
     const loadVideos = async () => {
       try {
@@ -161,6 +305,11 @@ export function IdolMusicVideosPage() {
     void loadVideos()
   }, [])
 
+  /*
+   * ==========================================================
+   * VIDEO MODAL
+   * ==========================================================
+   */
   useEffect(() => {
     if (!activeVideo) return
 
@@ -172,14 +321,20 @@ export function IdolMusicVideosPage() {
 
     document.addEventListener('keydown', handleKeyDown)
 
+    const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = ''
+      document.body.style.overflow = previousOverflow
     }
   }, [activeVideo])
 
+  /*
+   * ==========================================================
+   * COUNTERS
+   * ==========================================================
+   */
   const publishedCount = videos.filter(
     (video) => video.status === 'Published',
   ).length
@@ -187,6 +342,62 @@ export function IdolMusicVideosPage() {
   const upcomingCount = videos.filter(
     (video) => video.status === 'Upcoming',
   ).length
+
+  /*
+   * ==========================================================
+   * JSON-LD
+   * ==========================================================
+   */
+  useEffect(() => {
+    if (!videos.length) return
+
+    const existing =
+      document.head.querySelector(
+        'script[data-39production-music-videos]',
+      )
+
+    existing?.remove()
+
+    const itemList = videos.map((video, index) => ({
+      '@type': 'VideoObject',
+      position: index + 1,
+      name: video.title,
+      description:
+        video.description ||
+        `Official music video ${video.title} from 39Production.`,
+      thumbnailUrl:
+        video.thumbnail_url ||
+        getYoutubeThumbnail(video.youtube_url) ||
+        undefined,
+      uploadDate: video.release_date || undefined,
+      contentUrl: video.video_url || undefined,
+      embedUrl: video.youtube_url
+        ? toYoutubeEmbed(video.youtube_url)
+        : undefined,
+    }))
+
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: '39Production Music Videos',
+      description:
+        'Official music videos and visual releases from 39Production entertainment.',
+      url: `${SITE_URL}/idol/music-videos`,
+      itemListElement: itemList,
+    }
+
+    const script = document.createElement('script')
+
+    script.type = 'application/ld+json'
+    script.dataset['39productionMusicVideos'] = 'true'
+    script.textContent = JSON.stringify(jsonLd)
+
+    document.head.appendChild(script)
+
+    return () => {
+      script.remove()
+    }
+  }, [videos])
 
   return (
     <main className="min-h-screen overflow-hidden bg-white text-zinc-950">
@@ -213,11 +424,13 @@ export function IdolMusicVideosPage() {
             HERO
         ====================================================== */}
         <section className="border-b border-zinc-200">
-          <div className="mx-auto max-w-7xl px-6 pb-14 pt-8 sm:px-8 sm:pb-16 sm:pt-10">
+          <div className="mx-auto max-w-7xl px-5 pb-12 pt-7 sm:px-8 sm:pb-16 sm:pt-10">
             <div className="flex items-center justify-between border-b border-zinc-200 pb-4">
               <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">
                 39Production
-                <span className="mx-2 text-fuchsia-500">•</span>
+                <span className="mx-2 text-fuchsia-500">
+                  •
+                </span>
                 Music Videos
               </p>
 
@@ -226,7 +439,7 @@ export function IdolMusicVideosPage() {
               </span>
             </div>
 
-            <div className="mt-12 grid gap-8 lg:grid-cols-[1fr_0.65fr] lg:items-end">
+            <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_0.65fr] lg:items-end lg:gap-12">
               <div>
                 <div className="mb-5 flex items-center gap-3">
                   <span className="h-px w-8 bg-fuchsia-500" />
@@ -236,10 +449,12 @@ export function IdolMusicVideosPage() {
                   </span>
                 </div>
 
-                <h1 className="max-w-3xl text-5xl font-semibold leading-[0.9] tracking-[-0.06em] text-zinc-950 sm:text-6xl lg:text-7xl">
+                <h1 className="max-w-3xl text-[3.25rem] font-semibold leading-[0.9] tracking-[-0.06em] text-zinc-950 sm:text-6xl lg:text-7xl">
                   Music,
                   <br />
-                  <span className="text-zinc-400">in motion.</span>
+                  <span className="text-zinc-400">
+                    in motion.
+                  </span>
                 </h1>
               </div>
 
@@ -264,7 +479,7 @@ export function IdolMusicVideosPage() {
         {!loading && !error && videos.length > 0 && (
           <section className="border-b border-zinc-200 bg-zinc-50/60">
             <div className="mx-auto grid max-w-7xl grid-cols-3 divide-x divide-zinc-200">
-              <div className="px-5 py-5 sm:px-8">
+              <div className="px-4 py-5 sm:px-8">
                 <p className="font-mono text-[8px] uppercase tracking-[0.18em] text-zinc-400">
                   Total Videos
                 </p>
@@ -274,7 +489,7 @@ export function IdolMusicVideosPage() {
                 </p>
               </div>
 
-              <div className="px-5 py-5 sm:px-8">
+              <div className="px-4 py-5 sm:px-8">
                 <p className="font-mono text-[8px] uppercase tracking-[0.18em] text-zinc-400">
                   Published
                 </p>
@@ -284,7 +499,7 @@ export function IdolMusicVideosPage() {
                 </p>
               </div>
 
-              <div className="px-5 py-5 sm:px-8">
+              <div className="px-4 py-5 sm:px-8">
                 <p className="font-mono text-[8px] uppercase tracking-[0.18em] text-zinc-400">
                   Upcoming
                 </p>
@@ -300,9 +515,8 @@ export function IdolMusicVideosPage() {
         {/* ======================================================
             CONTENT
         ====================================================== */}
-        <section className="mx-auto max-w-7xl px-6 py-14 sm:px-8 sm:py-18 lg:py-20">
-          {/* SECTION HEADER */}
-          <div className="mb-8 flex items-end justify-between border-b border-zinc-200 pb-5">
+        <section className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16 lg:py-20">
+          <div className="mb-8 flex flex-col gap-4 border-b border-zinc-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-fuchsia-600">
                 01 / Visual Archive
@@ -313,7 +527,7 @@ export function IdolMusicVideosPage() {
               </h2>
             </div>
 
-            <span className="hidden font-mono text-[9px] uppercase tracking-[0.16em] text-zinc-400 sm:block">
+            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-zinc-400">
               {videos.length} Visual Works
             </span>
           </div>
@@ -348,7 +562,7 @@ export function IdolMusicVideosPage() {
           {!loading &&
             !error &&
             videos.length === 0 && (
-              <div className="border border-zinc-200 bg-zinc-50 p-12 text-center">
+              <div className="border border-zinc-200 bg-zinc-50 p-8 text-center sm:p-12">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center border border-zinc-200 bg-white">
                   <Play className="h-6 w-6 text-fuchsia-500" />
                 </div>
@@ -365,10 +579,10 @@ export function IdolMusicVideosPage() {
             )}
 
           {/* ====================================================
-              VIDEO GRID
+              VIDEO LIST / GRID
           ==================================================== */}
           {!loading && !error && videos.length > 0 && (
-            <div className="grid gap-x-5 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-3 sm:grid sm:grid-cols-2 sm:gap-x-5 sm:gap-y-12 sm:space-y-0 lg:grid-cols-3">
               {videos.map((video, index) => {
                 const thumbnail =
                   video.thumbnail_url ||
@@ -377,120 +591,237 @@ export function IdolMusicVideosPage() {
                 return (
                   <article
                     key={video.id}
-                    className="group min-w-0"
+                    className="
+                      group
+                      min-w-0
+                      border-b
+                      border-zinc-200
+                      pb-3
+                      sm:border-0
+                      sm:pb-0
+                    "
                   >
-                    {/* THUMBNAIL */}
-                    <button
-                      type="button"
-                      onClick={() => setActiveVideo(video)}
-                      className="relative block aspect-video w-full overflow-hidden bg-zinc-100 text-left"
-                    >
-                      {thumbnail ? (
-                        <img
-                          src={thumbnail}
-                          alt={video.title}
-                          loading="lazy"
-                          className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.035]"
-                        />
-                      ) : video.video_url ? (
-                        <video
-                          muted
-                          preload="metadata"
-                          src={video.video_url}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-fuchsia-50 via-white to-violet-50">
-                          <Play className="h-12 w-12 text-fuchsia-200" />
-                        </div>
-                      )}
-
-                      {/* OVERLAY */}
-                      <div className="absolute inset-0 bg-black/0 transition duration-300 group-hover:bg-black/25" />
-
-                      {/* INDEX */}
-                      <span className="absolute left-3 top-3 bg-black/70 px-2 py-1 font-mono text-[7px] tracking-[0.12em] text-white backdrop-blur-sm">
-                        {String(index + 1).padStart(2, '0')}
-                      </span>
-
-                      {/* STATUS */}
-                      <span
-                        className={`absolute right-3 top-3 px-2 py-1 font-mono text-[7px] uppercase tracking-[0.12em] backdrop-blur-sm ${video.status === 'Published'
-                            ? 'bg-white/90 text-emerald-700'
-                            : 'bg-white/90 text-amber-700'
-                          }`}
+                    {/* ==================================================
+                        MOBILE COMPACT CARD
+                        ================================================== */}
+                    <div className="flex gap-3 sm:hidden">
+                      {/* THUMBNAIL */}
+                      <button
+                        type="button"
+                        onClick={() => setActiveVideo(video)}
+                        aria-label={`Watch ${video.title}`}
+                        className="relative h-[82px] w-[116px] shrink-0 overflow-hidden bg-zinc-100 text-left"
                       >
-                        {video.status}
-                      </span>
+                        {thumbnail ? (
+                          <img
+                            src={thumbnail}
+                            alt={video.title}
+                            loading="lazy"
+                            className="h-full w-full object-cover transition duration-500 group-active:scale-[1.025]"
+                          />
+                        ) : video.video_url ? (
+                          <video
+                            muted
+                            preload="metadata"
+                            src={video.video_url}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center bg-gradient-to-br from-fuchsia-50 via-white to-violet-50">
+                            <Play className="h-7 w-7 text-fuchsia-200" />
+                          </div>
+                        )}
 
-                      {/* PLAY BUTTON */}
-                      <span className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-zinc-950 opacity-0 shadow-lg transition duration-300 group-hover:opacity-100">
-                        <Play className="ml-0.5 h-4 w-4 fill-current" />
-                      </span>
+                        <div className="absolute inset-0 bg-black/10" />
 
-                      {/* YEAR */}
-                      <span className="absolute bottom-3 left-3 font-mono text-[8px] uppercase tracking-[0.12em] text-white drop-shadow">
-                        {getYear(video.release_date)}
-                      </span>
-                    </button>
+                        <span className="absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-zinc-950 shadow-sm">
+                          <Play className="ml-0.5 h-2.5 w-2.5 fill-current" />
+                        </span>
 
-                    {/* INFO */}
-                    <div className="pt-4">
-                      <div className="flex items-start justify-between gap-4">
+                        <span className="absolute right-2 top-2 bg-black/65 px-1.5 py-1 font-mono text-[6px] text-white backdrop-blur-sm">
+                          {String(index + 1).padStart(2, '0')}
+                        </span>
+                      </button>
+
+                      {/* INFO */}
+                      <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
                         <div className="min-w-0">
-                          <h3 className="truncate text-base font-semibold tracking-[-0.025em] text-zinc-950">
-                            {video.title}
-                          </h3>
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="line-clamp-2 min-w-0 text-[13px] font-semibold leading-[1.2] tracking-[-0.02em] text-zinc-950">
+                              {video.title}
+                            </h3>
+
+                            <span
+                              className={`mt-0.5 shrink-0 font-mono text-[6px] uppercase tracking-[0.08em] ${video.status === 'Published'
+                                  ? 'text-emerald-600'
+                                  : 'text-amber-600'
+                                }`}
+                            >
+                              {video.status}
+                            </span>
+                          </div>
 
                           {video.group_name && (
                             <Link
                               to={`/idol/groups/${video.group_id}`}
-                              onClick={(event) =>
-                                event.stopPropagation()
-                              }
-                              className="mt-1 inline-block truncate text-[10px] font-medium text-fuchsia-600 transition hover:text-fuchsia-700"
+                              className="mt-1 block truncate text-[9px] font-medium text-fuchsia-600"
                             >
                               {video.group_name}
                             </Link>
                           )}
                         </div>
 
-                        <span className="shrink-0 font-mono text-[8px] uppercase tracking-[0.1em] text-zinc-400">
-                          {formatDate(video.release_date)}
-                        </span>
+                        <div className="mt-2 flex items-center justify-between gap-2">
+                          <span className="font-mono text-[7px] uppercase tracking-[0.08em] text-zinc-400">
+                            {formatDate(video.release_date)}
+                          </span>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setActiveVideo(video)
+                              }
+                              className="inline-flex items-center gap-1 text-[7px] font-semibold uppercase tracking-[0.08em] text-zinc-500"
+                            >
+                              Watch
+                              <ArrowRight className="h-2.5 w-2.5" />
+                            </button>
+
+                            {video.youtube_url && (
+                              <a
+                                href={video.youtube_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(event) =>
+                                  event.stopPropagation()
+                                }
+                                aria-label={`Open ${video.title} on YouTube`}
+                                className="text-zinc-400"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
                       </div>
+                    </div>
 
-                      {video.description && (
-                        <p className="mt-3 line-clamp-2 text-xs leading-5 text-zinc-500">
-                          {video.description}
-                        </p>
-                      )}
-
-                      <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-3">
-                        <button
-                          type="button"
-                          onClick={() => setActiveVideo(video)}
-                          className="group/watch inline-flex items-center gap-2 text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-500 transition hover:text-fuchsia-600"
-                        >
-                          <Play className="h-3 w-3" />
-                          Watch video
-                          <ArrowRight className="h-3 w-3 transition-transform group-hover/watch:translate-x-1" />
-                        </button>
-
-                        {video.youtube_url && (
-                          <a
-                            href={video.youtube_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(event) =>
-                              event.stopPropagation()
-                            }
-                            className="inline-flex items-center gap-1.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-zinc-400 transition hover:text-fuchsia-600"
-                          >
-                            YouTube
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
+                    {/* ==================================================
+                        DESKTOP / TABLET CARD
+                        ================================================== */}
+                    <div className="hidden sm:block">
+                      {/* THUMBNAIL */}
+                      <button
+                        type="button"
+                        onClick={() => setActiveVideo(video)}
+                        aria-label={`Watch ${video.title}`}
+                        className="relative block aspect-video w-full overflow-hidden bg-zinc-100 text-left"
+                      >
+                        {thumbnail ? (
+                          <img
+                            src={thumbnail}
+                            alt={video.title}
+                            loading="lazy"
+                            className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.035]"
+                          />
+                        ) : video.video_url ? (
+                          <video
+                            muted
+                            preload="metadata"
+                            src={video.video_url}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center bg-gradient-to-br from-fuchsia-50 via-white to-violet-50">
+                            <Play className="h-12 w-12 text-fuchsia-200" />
+                          </div>
                         )}
+
+                        <div className="absolute inset-0 bg-black/0 transition duration-300 group-hover:bg-black/25" />
+
+                        <span className="absolute left-3 top-3 bg-black/70 px-2 py-1 font-mono text-[7px] tracking-[0.12em] text-white backdrop-blur-sm">
+                          {String(index + 1).padStart(2, '0')}
+                        </span>
+
+                        <span
+                          className={`absolute right-3 top-3 px-2 py-1 font-mono text-[7px] uppercase tracking-[0.12em] backdrop-blur-sm ${video.status === 'Published'
+                              ? 'bg-white/90 text-emerald-700'
+                              : 'bg-white/90 text-amber-700'
+                            }`}
+                        >
+                          {video.status}
+                        </span>
+
+                        <span className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-zinc-950 opacity-0 shadow-lg transition duration-300 group-hover:opacity-100">
+                          <Play className="ml-0.5 h-4 w-4 fill-current" />
+                        </span>
+
+                        <span className="absolute bottom-3 left-3 font-mono text-[8px] uppercase tracking-[0.12em] text-white drop-shadow">
+                          {getYear(video.release_date)}
+                        </span>
+                      </button>
+
+                      {/* INFO */}
+                      <div className="pt-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="truncate text-base font-semibold tracking-[-0.025em] text-zinc-950">
+                              {video.title}
+                            </h3>
+
+                            {video.group_name && (
+                              <Link
+                                to={`/idol/groups/${video.group_id}`}
+                                className="mt-1 inline-block max-w-full truncate text-[10px] font-medium text-fuchsia-600 transition hover:text-fuchsia-700"
+                              >
+                                {video.group_name}
+                              </Link>
+                            )}
+                          </div>
+
+                          <span className="shrink-0 text-right font-mono text-[8px] uppercase tracking-[0.1em] text-zinc-400">
+                            {formatDate(video.release_date)}
+                          </span>
+                        </div>
+
+                        {video.description && (
+                          <p className="mt-3 line-clamp-2 text-xs leading-5 text-zinc-500">
+                            {video.description}
+                          </p>
+                        )}
+
+                        <div className="mt-3 flex flex-col gap-3 border-t border-zinc-100 pt-3 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setActiveVideo(video)
+                            }
+                            className="group/watch inline-flex items-center gap-2 self-start text-[8px] font-semibold uppercase tracking-[0.14em] text-zinc-500 transition hover:text-fuchsia-600"
+                          >
+                            <Play className="h-3 w-3" />
+
+                            Watch video
+
+                            <ArrowRight className="h-3 w-3 transition-transform group-hover/watch:translate-x-1" />
+                          </button>
+
+                          {video.youtube_url && (
+                            <a
+                              href={video.youtube_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(event) =>
+                                event.stopPropagation()
+                              }
+                              className="inline-flex items-center gap-1.5 self-start text-[8px] font-semibold uppercase tracking-[0.12em] text-zinc-400 transition hover:text-fuchsia-600 min-[420px]:self-auto"
+                            >
+                              YouTube
+
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </article>
@@ -504,7 +835,7 @@ export function IdolMusicVideosPage() {
             EDITORIAL STATEMENT
         ====================================================== */}
         <section className="border-t border-zinc-200">
-          <div className="mx-auto max-w-7xl px-6 py-16 sm:px-8 sm:py-20">
+          <div className="mx-auto max-w-7xl px-5 py-14 sm:px-8 sm:py-20">
             <div className="grid gap-6 lg:grid-cols-[120px_1fr]">
               <span className="font-mono text-[9px] font-medium uppercase tracking-[0.18em] text-fuchsia-600">
                 02.01
@@ -538,12 +869,13 @@ export function IdolMusicVideosPage() {
             FOOTER LINE
         ====================================================== */}
         <div className="border-t border-zinc-200">
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 sm:px-8">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
             <Link
               to="/idol"
               className="group inline-flex items-center gap-2 text-[9px] font-semibold uppercase tracking-[0.15em] text-zinc-500 transition hover:text-zinc-950"
             >
               <ArrowLeft className="h-3 w-3 transition group-hover:-translate-x-1" />
+
               Back to Entertainment
             </Link>
 
@@ -559,17 +891,17 @@ export function IdolMusicVideosPage() {
       ======================================================== */}
       {activeVideo && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm sm:p-6"
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/90 p-4 backdrop-blur-sm sm:p-6"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
               setActiveVideo(null)
             }
           }}
         >
-          <div className="relative w-full max-w-5xl">
+          <div className="relative my-auto w-full max-w-5xl">
             {/* TOP BAR */}
-            <div className="mb-3 flex items-center justify-between">
-              <div className="min-w-0 pr-5">
+            <div className="mb-3 flex items-start justify-between gap-4">
+              <div className="min-w-0 pr-2">
                 <p className="font-mono text-[8px] uppercase tracking-[0.18em] text-fuchsia-400">
                   39Production / Music Video
                 </p>
@@ -579,7 +911,7 @@ export function IdolMusicVideosPage() {
                 </h2>
 
                 {activeVideo.group_name && (
-                  <p className="mt-0.5 text-xs text-white/45">
+                  <p className="mt-0.5 truncate text-xs text-white/45">
                     {activeVideo.group_name}
                   </p>
                 )}
@@ -591,7 +923,9 @@ export function IdolMusicVideosPage() {
                 className="flex h-9 w-9 shrink-0 items-center justify-center border border-white/15 text-white transition hover:border-fuchsia-400 hover:bg-fuchsia-500"
                 aria-label="Close video"
               >
-                <span className="text-xl leading-none">×</span>
+                <span className="text-xl leading-none">
+                  ×
+                </span>
               </button>
             </div>
 
@@ -599,7 +933,9 @@ export function IdolMusicVideosPage() {
             <div className="relative aspect-video overflow-hidden bg-black">
               {activeVideo.youtube_url ? (
                 <iframe
-                  src={toYoutubeEmbed(activeVideo.youtube_url)}
+                  src={toYoutubeEmbed(
+                    activeVideo.youtube_url,
+                  )}
                   title={activeVideo.title}
                   className="h-full w-full"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -609,7 +945,9 @@ export function IdolMusicVideosPage() {
                 <video
                   controls
                   autoPlay
-                  poster={activeVideo.thumbnail_url || undefined}
+                  poster={
+                    activeVideo.thumbnail_url || undefined
+                  }
                   src={activeVideo.video_url}
                   className="h-full w-full object-contain"
                 />
@@ -646,6 +984,7 @@ export function IdolMusicVideosPage() {
                     className="inline-flex items-center gap-2 border border-white/15 px-3.5 py-2 text-[8px] font-semibold uppercase tracking-[0.14em] text-white transition hover:border-fuchsia-400 hover:bg-fuchsia-500"
                   >
                     View Group
+
                     <ArrowRight className="h-3 w-3" />
                   </Link>
                 )}
@@ -658,6 +997,7 @@ export function IdolMusicVideosPage() {
                     className="inline-flex items-center gap-2 border border-white/15 px-3.5 py-2 text-[8px] font-semibold uppercase tracking-[0.14em] text-white transition hover:border-fuchsia-400 hover:bg-fuchsia-500"
                   >
                     Open YouTube
+
                     <ExternalLink className="h-3 w-3" />
                   </a>
                 )}

@@ -66,11 +66,16 @@ const serviceIcons = [
 ]
 
 const categoryColors: Record<string, string> = {
-  Development: 'bg-violet-50 text-violet-700 border-violet-200',
-  Design: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200',
-  Multimedia: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  Entertainment: 'bg-violet-50 text-violet-700 border-violet-200',
-  Creative: 'bg-purple-50 text-purple-700 border-purple-200',
+  Development:
+    'bg-violet-50 text-violet-700 border-violet-200',
+  Design:
+    'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200',
+  Multimedia:
+    'bg-indigo-50 text-indigo-700 border-indigo-200',
+  Entertainment:
+    'bg-violet-50 text-violet-700 border-violet-200',
+  Creative:
+    'bg-purple-50 text-purple-700 border-purple-200',
 }
 
 function formatPrice(price: number | null) {
@@ -101,17 +106,19 @@ function getServicePromotion(
   service: Service,
   promotions: Promotion[],
 ) {
-  return promotions.find(
-    (promotion) =>
-      promotion.target_type === 'Service' &&
-      promotion.service_id === service.id &&
-      isPromotionValid(promotion),
+  return (
+    promotions.find(
+      (promotion) =>
+        promotion.target_type === 'Service' &&
+        Number(promotion.service_id) === Number(service.id) &&
+        isPromotionValid(promotion),
+    ) ?? null
   )
 }
 
 function calculateDiscount(
   service: Service,
-  promotion?: Promotion,
+  promotion?: Promotion | null,
 ) {
   if (!promotion) {
     return null
@@ -128,13 +135,14 @@ function calculateDiscount(
     return Math.max(
       0,
       service.price -
-      service.price * (promotion.discount_value / 100),
+      service.price *
+      (Number(promotion.discount_value) / 100),
     )
   }
 
   return Math.max(
     0,
-    service.price - promotion.discount_value,
+    service.price - Number(promotion.discount_value),
   )
 }
 
@@ -143,15 +151,19 @@ function getDiscountLabel(promotion: Promotion) {
     return `-${promotion.discount_value}%`
   }
 
-  return `-${formatPrice(promotion.discount_value)}`
+  return `-${formatPrice(
+    Number(promotion.discount_value),
+  )}`
 }
 
 function getPricingLabel(service: Service) {
   switch (service.pricing_type) {
     case 'starting_from':
       return 'Starting From'
+
     case 'custom_quote':
       return 'Custom Quote'
+
     default:
       return 'Fixed Price'
   }
@@ -169,7 +181,10 @@ function getPricingText(service: Service) {
       return 'Let’s discuss'
 
     default:
-      return formatPrice(service.price) ?? 'Contact us'
+      return (
+        formatPrice(service.price) ??
+        'Contact us'
+      )
   }
 }
 
@@ -195,6 +210,277 @@ export function ServicesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
+  /*
+   * ============================================================
+   * SEO
+   * ============================================================
+   */
+
+  useEffect(() => {
+    const title =
+      'Digital & Creative Services | 39Production'
+
+    const description =
+      'Explore 39Production services across web development, UI/UX design, multimedia, creative production, game development and entertainment.'
+
+    const canonicalUrl =
+      `${window.location.origin}${window.location.pathname}`
+
+    document.title = title
+
+    const setMeta = (
+      attribute: 'name' | 'property',
+      key: string,
+      content: string,
+    ) => {
+      let element = document.head.querySelector(
+        `meta[${attribute}="${key}"]`,
+      ) as HTMLMetaElement | null
+
+      if (!element) {
+        element = document.createElement('meta')
+        element.setAttribute('name', key)
+
+        if (attribute === 'property') {
+          element.setAttribute('property', key)
+          element.removeAttribute('name')
+        }
+
+        document.head.appendChild(element)
+      }
+
+      element.setAttribute('content', content)
+    }
+
+    const setLink = (
+      rel: string,
+      href: string,
+    ) => {
+      let element = document.head.querySelector(
+        `link[rel="${rel}"]`,
+      ) as HTMLLinkElement | null
+
+      if (!element) {
+        element = document.createElement('link')
+        element.setAttribute('rel', rel)
+        document.head.appendChild(element)
+      }
+
+      element.setAttribute('href', href)
+    }
+
+    setMeta(
+      'name',
+      'description',
+      description,
+    )
+
+    setMeta(
+      'name',
+      'keywords',
+      '39Production, web development, UI UX design, graphic design, multimedia production, animation, game development, creative production, entertainment',
+    )
+
+    setMeta(
+      'name',
+      'robots',
+      'index, follow',
+    )
+
+    setMeta(
+      'name',
+      'author',
+      '39Production',
+    )
+
+    setMeta(
+      'name',
+      'theme-color',
+      '#ffffff',
+    )
+
+    setMeta(
+      'property',
+      'og:type',
+      'website',
+    )
+
+    setMeta(
+      'property',
+      'og:title',
+      title,
+    )
+
+    setMeta(
+      'property',
+      'og:description',
+      description,
+    )
+
+    setMeta(
+      'property',
+      'og:url',
+      canonicalUrl,
+    )
+
+    setMeta(
+      'property',
+      'og:site_name',
+      '39Production',
+    )
+
+    setMeta(
+      'property',
+      'og:locale',
+      'en_US',
+    )
+
+    setMeta(
+      'name',
+      'twitter:card',
+      'summary_large_image',
+    )
+
+    setMeta(
+      'name',
+      'twitter:title',
+      title,
+    )
+
+    setMeta(
+      'name',
+      'twitter:description',
+      description,
+    )
+
+    setLink(
+      'canonical',
+      canonicalUrl,
+    )
+
+    /*
+     * Organization schema
+     */
+
+    const existingOrganizationSchema =
+      document.head.querySelector(
+        'script[data-seo="organization-schema"]',
+      )
+
+    existingOrganizationSchema?.remove()
+
+    const organizationSchema =
+      document.createElement('script')
+
+    organizationSchema.type = 'application/ld+json'
+
+    organizationSchema.setAttribute(
+      'data-seo',
+      'organization-schema',
+    )
+
+    organizationSchema.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: '39Production',
+      url: window.location.origin,
+      description:
+        'Creative digital production house and entertainment production platform.',
+    })
+
+    document.head.appendChild(
+      organizationSchema,
+    )
+
+    /*
+     * Collection page schema
+     */
+
+    const existingCollectionSchema =
+      document.head.querySelector(
+        'script[data-seo="services-page"]',
+      )
+
+    existingCollectionSchema?.remove()
+
+    const schema =
+      document.createElement('script')
+
+    schema.type = 'application/ld+json'
+
+    schema.setAttribute(
+      'data-seo',
+      'services-page',
+    )
+
+    schema.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'CollectionPage',
+      name: title,
+      description,
+      url: canonicalUrl,
+      isPartOf: {
+        '@type': 'WebSite',
+        name: '39Production',
+        url: window.location.origin,
+      },
+      about: {
+        '@type': 'Organization',
+        name: '39Production',
+        description:
+          'Creative digital production house and entertainment production platform.',
+      },
+      mainEntity: {
+        '@type': 'ItemList',
+        name: '39Production Services',
+        itemListElement: services.map(
+          (service, index) => ({
+            '@type': 'ListItem',
+            position: index + 1,
+            item: {
+              '@type': 'Service',
+              name: service.name,
+              description:
+                service.description,
+              serviceType:
+                service.category,
+              provider: {
+                '@type': 'Organization',
+                name: '39Production',
+              },
+              url:
+                `${window.location.origin}/services/${service.id}`,
+            },
+          }),
+        ),
+      },
+    })
+
+    document.head.appendChild(schema)
+
+    return () => {
+      document.title = '39Production'
+
+      document
+        .querySelector(
+          'script[data-seo="services-page"]',
+        )
+        ?.remove()
+
+      document
+        .querySelector(
+          'script[data-seo="organization-schema"]',
+        )
+        ?.remove()
+    }
+  }, [services])
+
+  /*
+   * ============================================================
+   * FETCH SERVICES + PROMOTIONS
+   * ============================================================
+   */
+
   useEffect(() => {
     let mounted = true
 
@@ -203,21 +489,33 @@ export function ServicesPage() {
         setIsLoading(true)
         setError('')
 
-        const [servicesResponse, promotionsResponse] =
-          await Promise.all([
-            fetch(`${API_BASE_URL}/api/services`, {
+        const [
+          servicesResponse,
+          promotionsResponse,
+        ] = await Promise.all([
+          fetch(
+            `${API_BASE_URL}/api/services`,
+            {
               cache: 'no-store',
-            }),
-            fetch(`${API_BASE_URL}/api/promotions`, {
+            },
+          ),
+
+          fetch(
+            `${API_BASE_URL}/api/promotions`,
+            {
               cache: 'no-store',
-            }),
-          ])
+            },
+          ),
+        ])
 
         if (!servicesResponse.ok) {
-          throw new Error('Failed to load services')
+          throw new Error(
+            'Failed to load services',
+          )
         }
 
-        const servicesJson = await servicesResponse.json()
+        const servicesJson =
+          await servicesResponse.json()
 
         const normalizedServices: Service[] = (
           servicesJson?.data ?? []
@@ -240,7 +538,9 @@ export function ServicesPage() {
             starting_price:
               service.starting_price !== null &&
                 service.starting_price !== undefined
-                ? Number(service.starting_price)
+                ? Number(
+                  service.starting_price,
+                )
                 : null,
           }))
           .filter(
@@ -288,17 +588,33 @@ export function ServicesPage() {
     }
   }, [])
 
+  /*
+   * ============================================================
+   * CATEGORIES
+   * ============================================================
+   */
+
   const categories = useMemo(() => {
-    const uniqueCategories = Array.from(
-      new Set(
-        services
-          .map((service) => service.category)
-          .filter(Boolean),
-      ),
-    )
+    const uniqueCategories =
+      Array.from(
+        new Set(
+          services
+            .map(
+              (service) =>
+                service.category,
+            )
+            .filter(Boolean),
+        ),
+      )
 
     return ['All', ...uniqueCategories]
   }, [services])
+
+  /*
+   * ============================================================
+   * FILTERED SERVICES
+   * ============================================================
+   */
 
   const filteredServices = useMemo(() => {
     if (activeFilter === 'All') {
@@ -306,19 +622,22 @@ export function ServicesPage() {
     }
 
     return services.filter(
-      (service) => service.category === activeFilter,
+      (service) =>
+        service.category === activeFilter,
     )
   }, [services, activeFilter])
 
-  const hasActiveServicePromotion = promotions.some(
-    (promotion) =>
-      promotion.target_type === 'Service' &&
-      isPromotionValid(promotion),
-  )
+  const hasActiveServicePromotion =
+    promotions.some(
+      (promotion) =>
+        promotion.target_type === 'Service' &&
+        isPromotionValid(promotion),
+    )
 
   return (
     <section className="relative isolate min-h-screen overflow-hidden bg-white text-zinc-950">
       {/* Background grid */}
+
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10 opacity-70"
@@ -341,10 +660,11 @@ export function ServicesPage() {
         className="pointer-events-none absolute right-[13%] top-[38%] h-1.5 w-1.5 rounded-full bg-violet-500"
       />
 
-      <div className="relative mx-auto max-w-[1600px] px-5 pb-20 pt-28 sm:px-8 sm:pt-32 lg:px-12 lg:pb-28 lg:pt-18">
+      <div className="relative mx-auto max-w-[1600px] px-5 pb-16 pt-24 sm:px-8 sm:pb-20 sm:pt-32 lg:px-12 lg:pb-28 lg:pt-18">
         {/* Top editorial line */}
-        <div className="mb-12 flex items-center justify-between border-b border-black/10 pb-5 sm:mb-16">
-          <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-500 sm:text-xs">
+
+        <div className="mb-10 flex items-center justify-between border-b border-black/10 pb-5 sm:mb-16">
+          <div className="flex items-center gap-3 text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-500 sm:text-xs">
             <span className="text-zinc-950">
               39Production
             </span>
@@ -364,20 +684,21 @@ export function ServicesPage() {
         </div>
 
         {/* Hero */}
+
         <div className="relative grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-end lg:gap-16">
           <div>
-            <div className="mb-7 flex items-center gap-3">
-              <span className="inline-flex items-center gap-2 border border-violet-200 bg-violet-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700">
+            <div className="mb-6 flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 border border-violet-200 bg-violet-50 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-violet-700 sm:text-[10px]">
                 <Sparkles className="h-3.5 w-3.5" />
                 What We Build
               </span>
 
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400 sm:text-[10px]">
                 07 Disciplines
               </span>
             </div>
 
-            <h1 className="max-w-5xl text-[clamp(3.5rem,8vw,8rem)] font-black leading-[0.82] tracking-[-0.065em]">
+            <h1 className="max-w-5xl text-[clamp(3rem,8vw,8rem)] font-black leading-[0.84] tracking-[-0.065em]">
               <span className="block text-zinc-950">
                 Build
               </span>
@@ -387,11 +708,11 @@ export function ServicesPage() {
               </span>
             </h1>
 
-            <div className="mt-8 max-w-2xl border-l-2 border-violet-600 pl-5">
-              <p className="text-base leading-7 text-zinc-600 sm:text-lg">
-                From digital products to creative experiences,
-                we bring different disciplines into one
-                production team.
+            <div className="mt-7 max-w-2xl border-l-2 border-violet-600 pl-4 sm:mt-8 sm:pl-5">
+              <p className="text-sm leading-6 text-zinc-600 sm:text-base sm:leading-7 lg:text-lg">
+                From digital products to creative
+                experiences, we bring different
+                disciplines into one production team.
               </p>
             </div>
           </div>
@@ -404,14 +725,14 @@ export function ServicesPage() {
             <div className="relative border-t border-black/10 pt-5">
               <div className="flex items-start justify-between gap-8">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400 sm:text-[10px]">
                     Production Philosophy
                   </p>
 
                   <p className="mt-3 max-w-md text-sm leading-6 text-zinc-600">
                     Strategy, design, technology and
-                    entertainment can work together under
-                    one roof.
+                    entertainment can work together
+                    under one roof.
                   </p>
                 </div>
 
@@ -422,7 +743,7 @@ export function ServicesPage() {
                       .padStart(2, '0')}
                   </span>
 
-                  <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                  <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-400 sm:text-[9px]">
                     Active Services
                   </p>
                 </div>
@@ -432,59 +753,65 @@ export function ServicesPage() {
         </div>
 
         {/* Category navigation */}
-        <div className="mt-20 border-y border-black/10 py-4 sm:mt-24">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-3 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+
+        <div className="mt-16 border-y border-black/10 py-3 sm:mt-24 sm:py-4">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <span className="mr-2 shrink-0 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400 sm:mr-3 sm:text-[10px]">
               Explore
             </span>
 
-            {categories.map((category) => {
-              const isActive =
-                activeFilter === category
+            {categories.map(
+              (category) => {
+                const isActive =
+                  activeFilter === category
 
-              return (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() =>
-                    setActiveFilter(category)
-                  }
-                  className={`
-                    group relative px-4 py-2 text-xs font-bold
-                    transition-all duration-300
-                    ${isActive
-                      ? 'bg-violet-600 text-white'
-                      : 'text-zinc-500 hover:bg-violet-50 hover:text-violet-700'
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() =>
+                      setActiveFilter(
+                        category,
+                      )
                     }
-                  `}
-                >
-                  {category}
+                    className={`
+                      relative shrink-0 px-3.5 py-2 text-[10px] font-bold
+                      transition-all duration-300 sm:px-4 sm:text-xs
+                      ${isActive
+                        ? 'bg-violet-600 text-white'
+                        : 'text-zinc-500 hover:bg-violet-50 hover:text-violet-700'
+                      }
+                    `}
+                  >
+                    {category}
 
-                  {isActive && (
-                    <span className="absolute -bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-violet-600" />
-                  )}
-                </button>
-              )
-            })}
+                    {isActive && (
+                      <span className="absolute -bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-violet-600" />
+                    )}
+                  </button>
+                )
+              },
+            )}
           </div>
         </div>
 
         {/* Section heading */}
-        <div className="mt-14 flex flex-col justify-between gap-6 sm:mt-16 sm:flex-row sm:items-end">
+
+        <div className="mt-12 flex flex-col justify-between gap-5 sm:mt-16 sm:flex-row sm:items-end">
           <div>
             <div className="mb-3 flex items-center gap-3">
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-violet-600">
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-violet-600 sm:text-[10px]">
                 01
               </span>
 
-              <span className="h-px w-10 bg-violet-600" />
+              <span className="h-px w-8 bg-violet-600 sm:w-10" />
 
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400 sm:text-[10px]">
                 Our Capabilities
               </span>
             </div>
 
-            <h2 className="text-3xl font-black tracking-[-0.04em] sm:text-5xl">
+            <h2 className="text-2xl font-black tracking-[-0.04em] sm:text-5xl">
               Different disciplines.
               <span className="ml-2 text-zinc-300">
                 One team.
@@ -494,17 +821,19 @@ export function ServicesPage() {
 
           <Link
             to="/contact"
-            className="group inline-flex w-fit items-center gap-3 border-b border-black pb-2 text-xs font-bold uppercase tracking-[0.16em] text-zinc-950 transition-colors hover:border-violet-600 hover:text-violet-600"
+            className="group inline-flex w-fit items-center gap-3 border-b border-black pb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-950 transition-colors hover:border-violet-600 hover:text-violet-600 sm:text-xs"
           >
             Discuss a Project
+
             <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" />
           </Link>
         </div>
 
         {/* Loading */}
+
         {isLoading && (
-          <div className="mt-10 flex min-h-[300px] items-center justify-center border border-black/10 bg-neutral-50">
-            <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
+          <div className="mt-8 flex min-h-[240px] items-center justify-center border border-black/10 bg-neutral-50 sm:mt-10 sm:min-h-[300px]">
+            <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500 sm:text-xs">
               <Loader2 className="h-4 w-4 animate-spin text-violet-600" />
               Loading services
             </div>
@@ -512,17 +841,19 @@ export function ServicesPage() {
         )}
 
         {/* Error */}
+
         {!isLoading && error && (
-          <div className="mt-10 border border-red-200 bg-red-50 px-6 py-5 text-sm text-red-700">
+          <div className="mt-8 border border-red-200 bg-red-50 px-5 py-5 text-sm text-red-700 sm:mt-10 sm:px-6">
             {error}
           </div>
         )}
 
         {/* Empty */}
+
         {!isLoading &&
           !error &&
           filteredServices.length === 0 && (
-            <div className="mt-10 border border-black/10 bg-neutral-50 px-6 py-20 text-center">
+            <div className="mt-8 border border-black/10 bg-neutral-50 px-6 py-16 text-center sm:mt-10 sm:py-20">
               <Briefcase className="mx-auto h-7 w-7 text-violet-600" />
 
               <h3 className="mt-5 text-xl font-black tracking-tight">
@@ -535,16 +866,20 @@ export function ServicesPage() {
             </div>
           )}
 
-        {/* Services */}
+        {/* =====================================================
+            SERVICES
+            ===================================================== */}
+
         {!isLoading &&
           !error &&
           filteredServices.length > 0 && (
-            <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-12">
+            <div className="mt-8 grid grid-cols-1 gap-3 sm:mt-10 sm:gap-4 md:grid-cols-2 lg:grid-cols-12">
               {filteredServices.map(
                 (service, index) => {
                   const Icon =
                     serviceIcons[
-                    index % serviceIcons.length
+                    index %
+                    serviceIcons.length
                     ]
 
                   const promotion =
@@ -570,9 +905,10 @@ export function ServicesPage() {
                         border border-black/10
                         bg-white
                         transition-all duration-500
-                        hover:-translate-y-1
                         hover:border-violet-300
                         hover:shadow-[0_18px_50px_rgba(124,58,237,0.10)]
+                        md:hover:-translate-y-1
+
                         ${isLarge
                           ? 'md:min-h-[390px] lg:col-span-7'
                           : 'md:min-h-[390px] lg:col-span-5'
@@ -580,174 +916,170 @@ export function ServicesPage() {
                       `}
                     >
                       {/* Accent */}
-                      <div className="absolute inset-x-0 top-0 h-1 bg-violet-600 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-                      {/* Image */}
-                      {service.image_url ? (
-                        <div
-                          className={`
-                            absolute inset-0 overflow-hidden
-                            ${isLarge
-                              ? 'lg:w-[48%]'
-                              : 'lg:w-[42%]'
-                            }
-                          `}
-                        >
+                      <div className="absolute inset-x-0 top-0 z-20 h-0.5 bg-violet-600 opacity-100 transition-opacity duration-300 sm:h-1 sm:opacity-0 sm:group-hover:opacity-100" />
+
+                      {/* =================================================
+                          MOBILE COMPACT IMAGE
+                          ================================================= */}
+
+                      {service.image_url && (
+                        <div className="relative h-28 w-full overflow-hidden sm:hidden">
                           <img
-                            src={service.image_url}
-                            alt={service.name}
-                            className="h-full w-full object-cover grayscale transition-all duration-700 group-hover:scale-105 group-hover:grayscale-0"
+                            src={
+                              service.image_url
+                            }
+                            alt={`${service.name} service by 39Production`}
+                            loading="lazy"
+                            decoding="async"
+                            className="h-full w-full object-cover grayscale-[15%] transition-all duration-700 group-hover:scale-105 group-hover:grayscale-0"
                           />
 
-                          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/0 to-white lg:from-transparent lg:via-transparent" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
 
-                          <div className="absolute left-5 top-5 border border-white/30 bg-black/70 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-white backdrop-blur-sm">
+                          <div className="absolute left-3 top-3 border border-white/25 bg-black/60 px-2 py-1 text-[7px] font-bold uppercase tracking-[0.14em] text-white backdrop-blur-sm">
                             39Production
                           </div>
                         </div>
-                      ) : null}
+                      )}
 
-                      <div
-                        className={`
-                          relative flex h-full flex-col
-                          ${service.image_url
-                            ? 'lg:ml-[42%] lg:min-h-[390px]'
-                            : ''
-                          }
-                          ${isLarge &&
-                            service.image_url
-                            ? 'lg:ml-[48%]'
-                            : ''
-                          }
-                          ${service.image_url
-                            ? 'p-7 lg:p-8'
-                            : 'p-7 sm:p-8'
-                          }
-                        `}
-                      >
+                      {/* =================================================
+                          MOBILE CONTENT
+                          ================================================= */}
+
+                      <div className="relative flex flex-col p-4 sm:hidden">
                         {/* Top */}
-                        <div className="flex items-start justify-between gap-5">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-11 w-11 items-center justify-center border border-violet-200 bg-violet-50 text-violet-600 transition-all duration-300 group-hover:bg-violet-600 group-hover:text-white">
-                              <Icon className="h-5 w-5" />
+
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-violet-200 bg-violet-50 text-violet-600">
+                              <Icon className="h-4 w-4" />
                             </div>
 
-                            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
-                              {String(index + 1).padStart(
+                            <span className="text-[8px] font-black uppercase tracking-[0.16em] text-zinc-400">
+                              {String(
+                                index + 1,
+                              ).padStart(
                                 2,
                                 '0',
                               )}
                             </span>
                           </div>
 
-                          <ArrowUpRight className="h-5 w-5 text-zinc-300 transition-all duration-300 group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-violet-600" />
+                          <ArrowUpRight className="h-4 w-4 text-zinc-300" />
+                        </div>
+
+                        {/* Tags */}
+
+                        <div className="mt-4 flex flex-wrap gap-1.5">
+                          <span
+                            className={`
+                              border px-2 py-1 text-[7px]
+                              font-bold uppercase tracking-[0.12em]
+                              ${categoryColors[
+                              service.category
+                              ] ??
+                              'border-zinc-200 bg-zinc-50 text-zinc-600'
+                              }
+                            `}
+                          >
+                            {service.category}
+                          </span>
+
+                          <span
+                            className={`
+                              border px-2 py-1 text-[7px]
+                              font-bold uppercase tracking-[0.12em]
+                              ${getPricingBadgeClass(
+                              service.pricing_type,
+                            )}
+                            `}
+                          >
+                            {getPricingLabel(
+                              service,
+                            )}
+                          </span>
                         </div>
 
                         {/* Main */}
-                        <div className="mt-8">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className={`
-                                border px-2.5 py-1 text-[9px]
-                                font-bold uppercase tracking-[0.14em]
-                                ${categoryColors[
-                                service.category
-                                ] ??
-                                'border-zinc-200 bg-zinc-50 text-zinc-600'
-                                }
-                              `}
-                            >
-                              {service.category}
-                            </span>
 
-                            <span
-                              className={`
-                                border px-2.5 py-1 text-[9px]
-                                font-bold uppercase tracking-[0.14em]
-                                ${getPricingBadgeClass(
-                                service.pricing_type,
-                              )}
-                              `}
-                            >
-                              {getPricingLabel(
-                                service,
-                              )}
-                            </span>
-                          </div>
+                        <h3 className="mt-3 text-lg font-black leading-[1.05] tracking-[-0.035em] text-zinc-950">
+                          {service.name}
+                        </h3>
 
-                          <h3 className="mt-5 text-2xl font-black leading-[1] tracking-[-0.045em] sm:text-3xl">
-                            {service.name}
-                          </h3>
-
-                          <p className="mt-4 max-w-xl text-sm leading-6 text-zinc-500">
-                            {service.description}
-                          </p>
-                        </div>
+                        <p className="mt-2 line-clamp-2 text-[11px] leading-5 text-zinc-500">
+                          {service.description}
+                        </p>
 
                         {/* Promotion */}
+
                         {promotion && (
-                          <div className="mt-6 border border-violet-200 bg-violet-50 p-4">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex gap-3">
-                                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center bg-violet-600 text-white">
-                                  <Tag className="h-3.5 w-3.5" />
-                                </div>
-
-                                <div>
-                                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-700">
-                                    {promotion.title}
-                                  </p>
-
-                                  <p className="mt-1 text-xs text-violet-700/70">
-                                    Code:{' '}
-                                    <span className="font-bold">
-                                      {promotion.code}
-                                    </span>
-                                  </p>
-                                </div>
+                          <div className="mt-3 flex items-center justify-between gap-3 border border-violet-200 bg-violet-50 px-3 py-2.5">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <div className="flex h-6 w-6 shrink-0 items-center justify-center bg-violet-600 text-white">
+                                <Tag className="h-3 w-3" />
                               </div>
 
-                              <span className="shrink-0 text-sm font-black text-violet-700">
-                                {getDiscountLabel(
-                                  promotion,
-                                )}
-                              </span>
+                              <div className="min-w-0">
+                                <p className="truncate text-[8px] font-black uppercase tracking-[0.12em] text-violet-700">
+                                  {
+                                    promotion.title
+                                  }
+                                </p>
+
+                                <p className="mt-0.5 truncate text-[9px] text-violet-700/70">
+                                  Code:{' '}
+                                  <span className="font-bold">
+                                    {
+                                      promotion.code
+                                    }
+                                  </span>
+                                </p>
+                              </div>
                             </div>
+
+                            <span className="shrink-0 text-xs font-black text-violet-700">
+                              {getDiscountLabel(
+                                promotion,
+                              )}
+                            </span>
                           </div>
                         )}
 
                         {/* Bottom */}
-                        <div className="mt-auto pt-8">
-                          <div className="mb-5 flex items-end justify-between gap-5 border-t border-black/10 pt-5">
-                            <div>
-                              <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+
+                        <div className="mt-4 border-t border-black/10 pt-3">
+                          <div className="flex items-end justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-[7px] font-bold uppercase tracking-[0.14em] text-zinc-400">
                                 {promotion &&
-                                  discountedPrice !== null
+                                  discountedPrice !==
+                                  null
                                   ? 'Promotion Price'
                                   : getPricingLabel(
                                     service,
                                   )}
                               </p>
 
-                              <div className="mt-1 flex flex-wrap items-baseline gap-2">
+                              <div className="mt-1 flex flex-wrap items-baseline gap-1.5">
                                 {promotion &&
                                   discountedPrice !==
                                   null ? (
                                   <>
-                                    <span className="text-xl font-black tracking-tight text-violet-600">
+                                    <span className="text-sm font-black tracking-tight text-violet-600">
                                       {formatPrice(
                                         discountedPrice,
                                       )}
                                     </span>
 
-                                    <span className="text-xs text-zinc-400 line-through">
+                                    <span className="text-[9px] text-zinc-400 line-through">
                                       {formatPrice(
                                         service.price,
                                       )}
                                     </span>
                                   </>
                                 ) : (
-                                  <span className="text-xl font-black tracking-tight">
+                                  <span className="text-sm font-black tracking-tight">
                                     {getPricingText(
                                       service,
                                     )}
@@ -756,19 +1088,239 @@ export function ServicesPage() {
                               </div>
                             </div>
 
-                            <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                            <span className="shrink-0 text-[7px] font-bold uppercase tracking-[0.14em] text-zinc-400">
                               Available
                             </span>
                           </div>
 
                           <Link
                             to={`/services/${service.id}`}
-                            className="group/link flex items-center justify-between border border-black bg-black px-5 py-3.5 text-xs font-bold uppercase tracking-[0.14em] text-white transition-all duration-300 hover:border-violet-600 hover:bg-violet-600"
+                            className="group/link mt-3 flex items-center justify-between border border-black bg-black px-3.5 py-2.5 text-[9px] font-bold uppercase tracking-[0.12em] text-white transition-all duration-300 hover:border-violet-600 hover:bg-violet-600"
                           >
-                            <span>View Detail</span>
+                            <span>
+                              View Detail
+                            </span>
 
-                            <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/link:translate-x-1" />
+                            <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover/link:translate-x-1" />
                           </Link>
+                        </div>
+                      </div>
+
+                      {/* =================================================
+                          DESKTOP CARD
+                          ================================================= */}
+
+                      <div className="hidden sm:block">
+                        {/* Image */}
+
+                        {service.image_url ? (
+                          <div
+                            className={`
+                              absolute inset-0 overflow-hidden
+                              ${isLarge
+                                ? 'lg:w-[48%]'
+                                : 'lg:w-[42%]'
+                              }
+                            `}
+                          >
+                            <img
+                              src={
+                                service.image_url
+                              }
+                              alt={`${service.name} service by 39Production`}
+                              loading="lazy"
+                              decoding="async"
+                              className="h-full w-full object-cover grayscale transition-all duration-700 group-hover:scale-105 group-hover:grayscale-0"
+                            />
+
+                            <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/0 to-white lg:from-transparent lg:via-transparent" />
+
+                            <div className="absolute left-5 top-5 border border-white/30 bg-black/70 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-white backdrop-blur-sm">
+                              39Production
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div
+                          className={`
+                            relative flex h-full flex-col
+                            ${service.image_url
+                              ? 'lg:ml-[42%] lg:min-h-[390px]'
+                              : ''
+                            }
+                            ${isLarge &&
+                              service.image_url
+                              ? 'lg:ml-[48%]'
+                              : ''
+                            }
+                            ${service.image_url
+                              ? 'p-7 lg:p-8'
+                              : 'p-7 sm:p-8'
+                            }
+                          `}
+                        >
+                          {/* Top */}
+
+                          <div className="flex items-start justify-between gap-5">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-11 w-11 items-center justify-center border border-violet-200 bg-violet-50 text-violet-600 transition-all duration-300 group-hover:bg-violet-600 group-hover:text-white">
+                                <Icon className="h-5 w-5" />
+                              </div>
+
+                              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                                {String(
+                                  index + 1,
+                                ).padStart(
+                                  2,
+                                  '0',
+                                )}
+                              </span>
+                            </div>
+
+                            <ArrowUpRight className="h-5 w-5 text-zinc-300 transition-all duration-300 group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-violet-600" />
+                          </div>
+
+                          {/* Main */}
+
+                          <div className="mt-8">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`
+                                  border px-2.5 py-1 text-[9px]
+                                  font-bold uppercase tracking-[0.14em]
+                                  ${categoryColors[
+                                  service.category
+                                  ] ??
+                                  'border-zinc-200 bg-zinc-50 text-zinc-600'
+                                  }
+                                `}
+                              >
+                                {
+                                  service.category
+                                }
+                              </span>
+
+                              <span
+                                className={`
+                                  border px-2.5 py-1 text-[9px]
+                                  font-bold uppercase tracking-[0.14em]
+                                  ${getPricingBadgeClass(
+                                  service.pricing_type,
+                                )}
+                                `}
+                              >
+                                {getPricingLabel(
+                                  service,
+                                )}
+                              </span>
+                            </div>
+
+                            <h3 className="mt-5 text-2xl font-black leading-[1] tracking-[-0.045em] sm:text-3xl">
+                              {service.name}
+                            </h3>
+
+                            <p className="mt-4 max-w-xl text-sm leading-6 text-zinc-500">
+                              {
+                                service.description
+                              }
+                            </p>
+                          </div>
+
+                          {/* Promotion */}
+
+                          {promotion && (
+                            <div className="mt-6 border border-violet-200 bg-violet-50 p-4">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex gap-3">
+                                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center bg-violet-600 text-white">
+                                    <Tag className="h-3.5 w-3.5" />
+                                  </div>
+
+                                  <div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-700">
+                                      {
+                                        promotion.title
+                                      }
+                                    </p>
+
+                                    <p className="mt-1 text-xs text-violet-700/70">
+                                      Code:{' '}
+                                      <span className="font-bold">
+                                        {
+                                          promotion.code
+                                        }
+                                      </span>
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <span className="shrink-0 text-sm font-black text-violet-700">
+                                  {getDiscountLabel(
+                                    promotion,
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Bottom */}
+
+                          <div className="mt-auto pt-8">
+                            <div className="mb-5 flex items-end justify-between gap-5 border-t border-black/10 pt-5">
+                              <div>
+                                <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                                  {promotion &&
+                                    discountedPrice !==
+                                    null
+                                    ? 'Promotion Price'
+                                    : getPricingLabel(
+                                      service,
+                                    )}
+                                </p>
+
+                                <div className="mt-1 flex flex-wrap items-baseline gap-2">
+                                  {promotion &&
+                                    discountedPrice !==
+                                    null ? (
+                                    <>
+                                      <span className="text-xl font-black tracking-tight text-violet-600">
+                                        {formatPrice(
+                                          discountedPrice,
+                                        )}
+                                      </span>
+
+                                      <span className="text-xs text-zinc-400 line-through">
+                                        {formatPrice(
+                                          service.price,
+                                        )}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <span className="text-xl font-black tracking-tight">
+                                      {getPricingText(
+                                        service,
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+                                Available
+                              </span>
+                            </div>
+
+                            <Link
+                              to={`/services/${service.id}`}
+                              className="group/link flex items-center justify-between border border-black bg-black px-5 py-3.5 text-xs font-bold uppercase tracking-[0.14em] text-white transition-all duration-300 hover:border-violet-600 hover:bg-violet-600"
+                            >
+                              <span>
+                                View Detail
+                              </span>
+
+                              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/link:translate-x-1" />
+                            </Link>
+                          </div>
                         </div>
                       </div>
                     </article>
@@ -779,32 +1331,35 @@ export function ServicesPage() {
           )}
 
         {/* Promotion note */}
+
         {!isLoading &&
           !error &&
           hasActiveServicePromotion && (
-            <div className="mt-10 grid border border-violet-200 bg-violet-50 lg:grid-cols-[auto_1fr_auto]">
-              <div className="flex items-center justify-center bg-violet-600 p-5 text-white">
+            <div className="mt-8 grid border border-violet-200 bg-violet-50 sm:mt-10 lg:grid-cols-[auto_1fr_auto]">
+              <div className="flex items-center justify-center bg-violet-600 p-4 text-white sm:p-5">
                 <Tag className="h-5 w-5" />
               </div>
 
-              <div className="px-6 py-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
+              <div className="px-5 py-4 sm:px-6 sm:py-5">
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-violet-700 sm:text-[10px]">
                   Current Offers
                 </p>
 
-                <p className="mt-1 text-sm leading-6 text-violet-900/80">
-                  Selected services currently have active
-                  promotional offers. Check each service
-                  for its available code and terms.
+                <p className="mt-1 text-xs leading-5 text-violet-900/80 sm:text-sm sm:leading-6">
+                  Selected services currently
+                  have active promotional offers.
+                  Check each service for its
+                  available code and terms.
                 </p>
               </div>
 
-              <div className="flex items-center px-6 pb-5 lg:pb-0">
+              <div className="flex items-center px-5 pb-4 sm:px-6 lg:pb-0">
                 <Link
                   to="/promotions"
-                  className="group inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-violet-700"
+                  className="group inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-violet-700 sm:text-xs"
                 >
                   View Promotions
+
                   <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                 </Link>
               </div>
@@ -812,61 +1367,66 @@ export function ServicesPage() {
           )}
 
         {/* CTA */}
-        <div className="relative mt-24 overflow-hidden bg-black px-7 py-12 text-white sm:px-10 lg:mt-28 lg:px-14 lg:py-16">
+
+        <div className="relative mt-16 overflow-hidden bg-black px-6 py-10 text-white sm:mt-24 sm:px-10 sm:py-12 lg:mt-28 lg:px-14 lg:py-16">
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute right-[-3rem] top-1/2 -translate-y-1/2 text-[15rem] font-black leading-none tracking-[-0.12em] text-white/[0.035]"
+            className="pointer-events-none absolute right-[-3rem] top-1/2 -translate-y-1/2 text-[10rem] font-black leading-none tracking-[-0.12em] text-white/[0.035] sm:text-[15rem]"
           >
             39
           </div>
 
           <div
             aria-hidden="true"
-            className="absolute right-8 top-8 h-2 w-2 rounded-full bg-violet-500"
+            className="absolute right-6 top-6 h-2 w-2 rounded-full bg-violet-500 sm:right-8 sm:top-8"
           />
 
-          <div className="relative grid gap-10 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end lg:gap-10">
             <div>
-              <div className="mb-5 flex items-center gap-3">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-400">
+              <div className="mb-5 flex flex-wrap items-center gap-3">
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-violet-400 sm:text-[10px]">
                   39Production
                 </span>
 
-                <span className="h-px w-10 bg-violet-500" />
+                <span className="h-px w-8 bg-violet-500 sm:w-10" />
 
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/35 sm:text-[10px]">
                   Start Something Worth Making
                 </span>
               </div>
 
-              <h2 className="max-w-4xl text-4xl font-black leading-[0.95] tracking-[-0.05em] sm:text-6xl lg:text-7xl">
+              <h2 className="max-w-4xl text-3xl font-black leading-[0.95] tracking-[-0.05em] sm:text-6xl lg:text-7xl">
                 Have something
+
                 <span className="block text-violet-400">
                   different in mind?
                 </span>
               </h2>
 
-              <p className="mt-6 max-w-xl text-sm leading-6 text-white/55 sm:text-base">
-                Tell us what you want to build. We’ll help
-                shape the idea, define the scope and find
-                the right production approach.
+              <p className="mt-5 max-w-xl text-xs leading-6 text-white/55 sm:mt-6 sm:text-base">
+                Tell us what you want to build.
+                We’ll help shape the idea, define
+                the scope and find the right
+                production approach.
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+            <div className="flex flex-col gap-2.5 sm:flex-row lg:flex-col">
               <Link
                 to="/contact"
-                className="group inline-flex items-center justify-center gap-3 bg-violet-600 px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-white transition-all duration-300 hover:bg-violet-500"
+                className="group inline-flex items-center justify-center gap-3 bg-violet-600 px-5 py-3.5 text-[10px] font-black uppercase tracking-[0.14em] text-white transition-all duration-300 hover:bg-violet-500 sm:px-6 sm:py-4 sm:text-xs"
               >
                 Start a Project
+
                 <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" />
               </Link>
 
               <Link
                 to="/portfolio"
-                className="group inline-flex items-center justify-center gap-3 border border-white/15 px-6 py-4 text-xs font-black uppercase tracking-[0.14em] text-white/75 transition-all duration-300 hover:border-violet-400 hover:text-violet-300"
+                className="group inline-flex items-center justify-center gap-3 border border-white/15 px-5 py-3.5 text-[10px] font-black uppercase tracking-[0.14em] text-white/75 transition-all duration-300 hover:border-violet-400 hover:text-violet-300 sm:px-6 sm:py-4 sm:text-xs"
               >
                 See Our Work
+
                 <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
               </Link>
             </div>
@@ -874,19 +1434,31 @@ export function ServicesPage() {
         </div>
 
         {/* Signature */}
-        <div className="mt-7 flex flex-col justify-between gap-3 border-t border-black/10 pt-5 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400 sm:flex-row sm:items-center">
+
+        <div className="mt-6 flex flex-col justify-between gap-3 border-t border-black/10 pt-5 text-[8px] font-bold uppercase tracking-[0.2em] text-zinc-400 sm:mt-7 sm:flex-row sm:items-center sm:text-[9px]">
           <span>
-            39Production / Digital / Creative / Entertainment
+            39Production / Digital / Creative /
+            Entertainment
           </span>
 
           <span className="inline-flex items-center gap-2">
             Creating Digital Works
+
             <MoveUpRight className="h-3 w-3 text-violet-600" />
           </span>
         </div>
       </div>
 
       <style>{`
+        .scrollbar-none {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+
+        .scrollbar-none::-webkit-scrollbar {
+          display: none;
+        }
+
         @media (prefers-reduced-motion: reduce) {
           *,
           *::before,

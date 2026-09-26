@@ -1,3 +1,5 @@
+import { Helmet } from 'react-helmet-async'
+
 import { HeroSection } from '@/components/home/HeroSection'
 import { TrustSection } from '@/components/home/TrustSection'
 import { ServicesSection } from '@/components/home/ServicesSection'
@@ -10,71 +12,139 @@ import { NewsSection } from '@/components/home/NewsSection'
 import { CTASection } from '@/components/home/CTASection'
 
 export function HomePage() {
-  return (
-    <main className="overflow-hidden">
-      {/* =========================================================
-          01 — BRAND / HERO
-          Introduce who 39Production is and what we create.
-      ========================================================== */}
-      <HeroSection />
+    return (
+        <>
+            <Helmet>
+                <title>
+                    39Production — Creative Technology & Entertainment Production
+                </title>
 
-      {/* =========================================================
-          02 — TRUST / VALUE
-          Establish credibility before presenting the services.
-      ========================================================== */}
-      <TrustSection />
+                <meta
+                    name="description"
+                    content="39Production adalah creative technology dan entertainment production house yang menggabungkan technology, design, storytelling, music, dan entertainment untuk menciptakan digital products, creative experiences, dan original entertainment."
+                />
 
-      {/* =========================================================
-          03 — CAPABILITIES
-          Show the creative technology and production services.
-      ========================================================== */}
-      <ServicesSection />
+                <meta
+                    name="keywords"
+                    content="39Production, Sankyuu Production, creative technology Indonesia, digital production house Indonesia, creative studio Indonesia, web development, UI UX design, graphic design, animation, game development, entertainment production, idol production"
+                />
 
-      {/* =========================================================
-          04 — SELECTED WORK
-          Demonstrate what 39Production can actually produce.
-      ========================================================== */}
-      <FeaturedWorksSection />
+                <meta
+                    name="robots"
+                    content="index, follow"
+                />
 
-      {/* =========================================================
-          05 — PROCESS
-          Explain how customers move from idea to delivery.
-      ========================================================== */}
-      <HowItWorksSection />
+                <link
+                    rel="canonical"
+                    href="https://39production.github.io/39Production/"
+                />
 
-      {/* =========================================================
-          06 — DIGITAL PRODUCTS
-          Present ready-to-use products that can be purchased
-          directly without going through the custom project flow.
-      ========================================================== */}
-      <DigitalProductsSection />
+                <meta
+                    property="og:type"
+                    content="website"
+                />
 
-      {/* =========================================================
-          07 — ENTERTAINMENT
-          Introduce the 39Production entertainment / idol
-          production ecosystem.
-      ========================================================== */}
-      <IdolSection />
+                <meta
+                    property="og:title"
+                    content="39Production — Creative Technology & Entertainment Production"
+                />
 
-      {/* =========================================================
-          08 — SPECIAL OFFERS
-          Highlight currently active promotions and offers.
-      ========================================================== */}
-      <PromotionsSection />
+                <meta
+                    property="og:description"
+                    content="Creative technology dan entertainment production house yang mengubah ide menjadi digital products, creative experiences, dan original entertainment."
+                />
 
-      {/* =========================================================
-          09 — JOURNAL / UPDATES
-          Keep the brand active with projects, products,
-          creative technology, and entertainment updates.
-      ========================================================== */}
-      <NewsSection />
+                <meta
+                    property="og:url"
+                    content="https://39production.github.io/39Production/"
+                />
 
-      {/* =========================================================
-          10 — FINAL CTA
-          Convert visitors after they understand the brand,
-          capabilities, proof, process, and offerings.
-      ========================================================== */}
-      <CTASection />
-    </main>
-  )
+                <meta
+                    property="og:site_name"
+                    content="39Production"
+                />
+
+                <meta
+                    name="twitter:card"
+                    content="summary"
+                />
+
+                <meta
+                    name="twitter:title"
+                    content="39Production — Creative Technology & Entertainment Production"
+                />
+
+                <meta
+                    name="twitter:description"
+                    content="39Production menggabungkan technology, design, storytelling, music, dan entertainment untuk menciptakan karya digital dan creative experiences."
+                />
+            </Helmet>
+
+            <main className="overflow-hidden">
+                {/* =========================================================
+            01 — BRAND / HERO
+            Introduce who 39Production is and what we create.
+        ========================================================== */}
+                <HeroSection />
+
+                {/* =========================================================
+            02 — TRUST / VALUE
+            Establish credibility before presenting the services.
+        ========================================================== */}
+                <TrustSection />
+
+                {/* =========================================================
+            03 — CAPABILITIES
+            Show the creative technology and production services.
+        ========================================================== */}
+                <ServicesSection />
+
+                {/* =========================================================
+            04 — SELECTED WORK
+            Demonstrate what 39Production can actually produce.
+        ========================================================== */}
+                <FeaturedWorksSection />
+
+                {/* =========================================================
+            05 — PROCESS
+            Explain how customers move from idea to delivery.
+        ========================================================== */}
+                <HowItWorksSection />
+
+                {/* =========================================================
+            06 — DIGITAL PRODUCTS
+            Present ready-to-use products that can be purchased
+            directly without going through the custom project flow.
+        ========================================================== */}
+                <DigitalProductsSection />
+
+                {/* =========================================================
+            07 — ENTERTAINMENT
+            Introduce the 39Production entertainment / idol
+            production ecosystem.
+        ========================================================== */}
+                <IdolSection />
+
+                {/* =========================================================
+            08 — SPECIAL OFFERS
+            Highlight currently active promotions and offers.
+        ========================================================== */}
+                <PromotionsSection />
+
+                {/* =========================================================
+            09 — JOURNAL / UPDATES
+            Keep the brand active with projects, products,
+            creative technology, and entertainment updates.
+        ========================================================== */}
+                <NewsSection />
+
+                {/* =========================================================
+            10 — FINAL CTA
+            Convert visitors after they understand the brand,
+            capabilities, proof, process, and offerings.
+        ========================================================== */}
+                <CTASection />
+            </main>
+        </>
+    )
 }

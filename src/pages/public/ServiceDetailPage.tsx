@@ -423,6 +423,212 @@ export function ServiceDetailPage() {
     ] ??
     'border-zinc-200 bg-zinc-50 text-zinc-600'
 
+  /* =====================================================
+      DYNAMIC SEO
+  ====================================================== */
+
+  useEffect(() => {
+    if (!service) {
+      return
+    }
+
+    const siteName = '39Production'
+    const serviceName = service.name.trim()
+    const category = service.category?.trim()
+    const description = service.description
+      .trim()
+      .replace(/\s+/g, ' ')
+    const seoDescription =
+      description.length > 155
+        ? `${description.slice(0, 152).trimEnd()}...`
+        : description
+    const pageUrl = `${window.location.origin}/services/${service.id}`
+    const title = `${serviceName} | ${siteName}`
+
+    document.title = title
+
+    const upsertMeta = (
+      attribute: 'name' | 'property',
+      key: string,
+      content: string,
+    ) => {
+      let element =
+        document.head.querySelector<HTMLMetaElement>(
+          `meta[${attribute}="${key}"]`,
+        )
+
+      if (!element) {
+        element = document.createElement('meta')
+        element.setAttribute(attribute, key)
+        document.head.appendChild(element)
+      }
+
+      element.setAttribute('content', content)
+    }
+
+    const upsertLink = (rel: string, href: string) => {
+      let element =
+        document.head.querySelector<HTMLLinkElement>(
+          `link[rel="${rel}"]`,
+        )
+
+      if (!element) {
+        element = document.createElement('link')
+        element.setAttribute('rel', rel)
+        document.head.appendChild(element)
+      }
+
+      element.setAttribute('href', href)
+    }
+
+    upsertMeta(
+      'name',
+      'description',
+      seoDescription,
+    )
+    upsertMeta(
+      'name',
+      'robots',
+      'index, follow',
+    )
+    upsertMeta(
+      'property',
+      'og:type',
+      'website',
+    )
+    upsertMeta(
+      'property',
+      'og:title',
+      title,
+    )
+    upsertMeta(
+      'property',
+      'og:description',
+      seoDescription,
+    )
+    upsertMeta(
+      'property',
+      'og:url',
+      pageUrl,
+    )
+    upsertMeta(
+      'property',
+      'og:site_name',
+      siteName,
+    )
+    upsertMeta(
+      'property',
+      'og:locale',
+      'id_ID',
+    )
+
+    if (service.image_url) {
+      upsertMeta(
+        'property',
+        'og:image',
+        service.image_url,
+      )
+      upsertMeta(
+        'name',
+        'twitter:image',
+        service.image_url,
+      )
+    }
+
+    upsertMeta(
+      'name',
+      'twitter:card',
+      service.image_url
+        ? 'summary_large_image'
+        : 'summary',
+    )
+    upsertMeta(
+      'name',
+      'twitter:title',
+      title,
+    )
+    upsertMeta(
+      'name',
+      'twitter:description',
+      seoDescription,
+    )
+    upsertLink(
+      'canonical',
+      pageUrl,
+    )
+
+    const schemaPrice = isFixedService
+      ? finalPrice
+      : undefined
+
+    const schema = {
+      '@context': 'https://schema.org',
+      '@type': 'Service',
+      name: serviceName,
+      description,
+      url: pageUrl,
+      provider: {
+        '@type': 'Organization',
+        name: siteName,
+        url: window.location.origin,
+      },
+      ...(category
+        ? { serviceType: category }
+        : {}),
+      ...(service.image_url
+        ? { image: service.image_url }
+        : {}),
+      ...(isFixedService &&
+        service.price !== null
+        ? {
+          offers: {
+            '@type': 'Offer',
+            price: schemaPrice,
+            priceCurrency: 'IDR',
+            availability:
+              'https://schema.org/InStock',
+            url: pageUrl,
+          },
+        }
+        : {}),
+    }
+
+    const existingSchema =
+      document.head.querySelector<HTMLScriptElement>(
+        'script[data-service-seo="true"]',
+      )
+
+    const schemaElement =
+      existingSchema ??
+      document.createElement('script')
+
+    schemaElement.type =
+      'application/ld+json'
+    schemaElement.setAttribute(
+      'data-service-seo',
+      'true',
+    )
+    schemaElement.textContent = JSON.stringify(
+      schema,
+    ).replace(/</g, '\\u003c')
+
+    if (!existingSchema) {
+      document.head.appendChild(
+        schemaElement,
+      )
+    }
+
+    return () => {
+      schemaElement.parentNode?.removeChild(
+        schemaElement,
+      )
+    }
+  }, [
+    service,
+    isFixedService,
+    finalPrice,
+  ])
+
   const normalizeWhatsAppNumber = (
     phone: string,
   ) => {
@@ -1282,7 +1488,7 @@ export function ServiceDetailPage() {
             <div className="relative">
               <div className="absolute -left-4 top-8 hidden h-px w-20 bg-violet-600 lg:block" />
 
-              <div className="relative aspect-[4/3] overflow-hidden border border-black/10 bg-zinc-100 shadow-[0_25px_70px_rgba(0,0,0,0.08)] sm:aspect-[5/4]">
+              <div className="relative aspect-[16/9] overflow-hidden border border-black/10 bg-zinc-100 shadow-[0_18px_45px_rgba(0,0,0,0.07)] sm:aspect-[5/4] sm:shadow-[0_25px_70px_rgba(0,0,0,0.08)]">
                 {service.image_url ? (
                   <>
                     <img
@@ -1296,17 +1502,17 @@ export function ServiceDetailPage() {
 
                     <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent" />
 
-                    <div className="absolute left-5 top-5 border border-white/25 bg-black/70 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-white backdrop-blur-sm">
+                    <div className="absolute left-3 top-3 border border-white/25 bg-black/70 px-2.5 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] text-white backdrop-blur-sm sm:left-5 sm:top-5 sm:px-3 sm:text-[9px]">
                       39Production
                     </div>
 
-                    <div className="absolute bottom-5 left-5 right-5">
+                    <div className="absolute bottom-3 left-3 right-3 sm:bottom-5 sm:left-5 sm:right-5">
                       <div className="border-l-2 border-violet-500 pl-4">
                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/60">
                           Service
                         </p>
 
-                        <p className="mt-1 text-lg font-black tracking-[-0.025em] text-white sm:text-xl">
+                        <p className="mt-1 line-clamp-1 text-sm font-black tracking-[-0.025em] text-white sm:text-xl">
                           {service.name}
                         </p>
                       </div>
@@ -1543,17 +1749,17 @@ export function ServiceDetailPage() {
                 </span>
               </div>
 
-              <div className="grid border-l border-t border-black/10 sm:grid-cols-3">
-                <div className="border-b border-r border-black/10 p-5">
+              <div className="grid grid-cols-3 border-l border-t border-black/10">
+                <div className="min-w-0 border-b border-r border-black/10 p-3 sm:p-5">
                   <div className="flex h-10 w-10 items-center justify-center border border-violet-200 bg-violet-50 text-violet-600">
                     <Zap className="h-4 w-4" />
                   </div>
 
-                  <p className="mt-5 text-sm font-black tracking-tight">
+                  <p className="mt-3 text-[10px] font-black leading-tight tracking-tight sm:mt-5 sm:text-sm">
                     Structured Process
                   </p>
 
-                  <p className="mt-2 text-xs leading-5 text-zinc-500">
+                  <p className="mt-1 hidden text-xs leading-5 text-zinc-500 sm:block">
                     Proses kerja dirancang
                     dengan alur yang jelas
                     dari awal hingga
@@ -1561,16 +1767,16 @@ export function ServiceDetailPage() {
                   </p>
                 </div>
 
-                <div className="border-b border-r border-black/10 p-5">
+                <div className="min-w-0 border-b border-r border-black/10 p-3 sm:p-5">
                   <div className="flex h-10 w-10 items-center justify-center border border-violet-200 bg-violet-50 text-violet-600">
                     <ShieldCheck className="h-4 w-4" />
                   </div>
 
-                  <p className="mt-5 text-sm font-black tracking-tight">
+                  <p className="mt-3 text-[10px] font-black leading-tight tracking-tight sm:mt-5 sm:text-sm">
                     Professional
                   </p>
 
-                  <p className="mt-2 text-xs leading-5 text-zinc-500">
+                  <p className="mt-1 hidden text-xs leading-5 text-zinc-500 sm:block">
                     Dikerjakan dengan
                     standar produksi
                     profesional dan
@@ -1578,16 +1784,16 @@ export function ServiceDetailPage() {
                   </p>
                 </div>
 
-                <div className="border-b border-r border-black/10 p-5">
+                <div className="min-w-0 border-b border-r border-black/10 p-3 sm:p-5">
                   <div className="flex h-10 w-10 items-center justify-center border border-violet-200 bg-violet-50 text-violet-600">
                     <Sparkles className="h-4 w-4" />
                   </div>
 
-                  <p className="mt-5 text-sm font-black tracking-tight">
+                  <p className="mt-3 text-[10px] font-black leading-tight tracking-tight sm:mt-5 sm:text-sm">
                     Tailored
                   </p>
 
-                  <p className="mt-2 text-xs leading-5 text-zinc-500">
+                  <p className="mt-1 hidden text-xs leading-5 text-zinc-500 sm:block">
                     Pendekatan disesuaikan
                     dengan kebutuhan dan
                     tujuan project.
@@ -1633,7 +1839,7 @@ export function ServiceDetailPage() {
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" />
 
                   <div>
-                    <p className="text-xs font-black text-zinc-950">
+                    <p className="truncate text-[10px] font-black text-zinc-950 sm:text-xs">
                       DP 50% untuk memulai
                     </p>
 
@@ -1696,11 +1902,11 @@ export function ServiceDetailPage() {
                 </p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 {testimonials.slice(0, 4).map((testimonial) => (
                   <article
                     key={testimonial.id}
-                    className="border border-black/10 bg-white p-5 transition hover:border-violet-200 hover:shadow-[0_18px_50px_rgba(0,0,0,0.06)]"
+                    className="min-w-0 border border-black/10 bg-white p-3 transition hover:border-violet-200 hover:shadow-[0_18px_50px_rgba(0,0,0,0.06)] sm:p-5"
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-1" aria-label={`${testimonial.rating} dari 5 bintang`}>
@@ -1708,8 +1914,8 @@ export function ServiceDetailPage() {
                           <Star
                             key={index}
                             className={`h-3.5 w-3.5 ${index < testimonial.rating
-                                ? 'fill-violet-500 text-violet-500'
-                                : 'text-zinc-200'
+                              ? 'fill-violet-500 text-violet-500'
+                              : 'text-zinc-200'
                               }`}
                           />
                         ))}
@@ -1720,17 +1926,17 @@ export function ServiceDetailPage() {
                       </span>
                     </div>
 
-                    <p className="mt-5 text-sm leading-6 text-zinc-600">
+                    <p className="mt-3 line-clamp-4 text-[11px] leading-5 text-zinc-600 sm:mt-5 sm:text-sm sm:leading-6">
                       “{testimonial.message}”
                     </p>
 
-                    <div className="mt-6 border-t border-black/10 pt-4">
+                    <div className="mt-4 border-t border-black/10 pt-3 sm:mt-6 sm:pt-4">
                       <p className="text-xs font-black text-zinc-950">
                         {testimonial.customer_name}
                       </p>
 
                       {testimonial.company && (
-                        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+                        <p className="mt-1 truncate text-[8px] font-semibold uppercase tracking-[0.1em] text-zinc-400 sm:text-[10px] sm:tracking-[0.12em]">
                           {testimonial.company}
                         </p>
                       )}

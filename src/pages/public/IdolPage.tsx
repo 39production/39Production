@@ -16,6 +16,8 @@ import { Link } from 'react-router-dom'
 const API_BASE_URL =
   'https://39production-api.39production.workers.dev'
 
+const SITE_URL = 'https://39production.github.io/39Production'
+
 interface IdolGroup {
   id: number
   name: string
@@ -29,7 +31,9 @@ interface IdolGroup {
 }
 
 async function apiRequest<T>(endpoint: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${endpoint} `)
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    cache: 'no-store',
+  })
 
   const text = await response.text()
 
@@ -39,7 +43,7 @@ async function apiRequest<T>(endpoint: string): Promise<T> {
     result = JSON.parse(text)
   } catch {
     throw new Error(
-      `API mengembalikan response yang tidak valid(${response.status}).`,
+      `API mengembalikan response yang tidak valid (${response.status}).`,
     )
   }
 
@@ -50,12 +54,125 @@ async function apiRequest<T>(endpoint: string): Promise<T> {
   return result.data
 }
 
+function upsertMetaTag(
+  attribute: 'name' | 'property',
+  key: string,
+  content: string,
+) {
+  let element = document.head.querySelector<HTMLMetaElement>(
+    `meta[${attribute}="${key}"]`,
+  )
+
+  if (!element) {
+    element = document.createElement('meta')
+    element.setAttribute(attribute, key)
+    document.head.appendChild(element)
+  }
+
+  element.setAttribute('content', content)
+
+  return element
+}
+
+function upsertCanonical(url: string) {
+  let canonical = document.head.querySelector<HTMLLinkElement>(
+    'link[rel="canonical"]',
+  )
+
+  if (!canonical) {
+    canonical = document.createElement('link')
+    canonical.setAttribute('rel', 'canonical')
+    document.head.appendChild(canonical)
+  }
+
+  canonical.setAttribute('href', url)
+
+  return canonical
+}
+
 export function IdolPage() {
   const [groups, setGroups] = useState<IdolGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    const pageTitle =
+      '39Production Idol — Music, Artists & Entertainment'
+
+    const pageDescription =
+      'Discover 39Production Idol, an entertainment platform featuring idol groups, artists, original music releases, music videos, performances, and visual stories.'
+
+    const canonicalUrl = `${SITE_URL}/idol`
+
+    document.title = pageTitle
+
+    upsertMetaTag('name', 'description', pageDescription)
+    upsertMetaTag(
+      'name',
+      'robots',
+      'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
+    )
+    upsertMetaTag(
+      'name',
+      'author',
+      '39Production',
+    )
+
+    upsertMetaTag(
+      'property',
+      'og:type',
+      'website',
+    )
+    upsertMetaTag(
+      'property',
+      'og:title',
+      pageTitle,
+    )
+    upsertMetaTag(
+      'property',
+      'og:description',
+      pageDescription,
+    )
+    upsertMetaTag(
+      'property',
+      'og:url',
+      canonicalUrl,
+    )
+    upsertMetaTag(
+      'property',
+      'og:site_name',
+      '39Production',
+    )
+
+    upsertMetaTag(
+      'property',
+      'og:image',
+      `${SITE_URL}/og-image.png`,
+    )
+
+    upsertMetaTag(
+      'name',
+      'twitter:card',
+      'summary_large_image',
+    )
+    upsertMetaTag(
+      'name',
+      'twitter:title',
+      pageTitle,
+    )
+    upsertMetaTag(
+      'name',
+      'twitter:description',
+      pageDescription,
+    )
+    upsertMetaTag(
+      'name',
+      'twitter:image',
+      `${SITE_URL}/og-image.png`,
+    )
+
+    upsertCanonical(canonicalUrl)
+
     const loadGroups = async () => {
       try {
         setLoading(true)
@@ -78,7 +195,71 @@ export function IdolPage() {
     }
 
     void loadGroups()
+
+    return () => {
+      const structuredData =
+        document.getElementById(
+          'idol-page-structured-data',
+        )
+
+      structuredData?.remove()
+    }
   }, [])
+
+  useEffect(() => {
+    const pageUrl = `${SITE_URL}/idol`
+
+    const itemList = groups
+      .slice(0, 6)
+      .map((group, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: group.name,
+        url: `${SITE_URL}/idol/groups/${group.id}`,
+      }))
+
+    const structuredData = {
+      '@context': 'https://schema.org',
+      '@type': 'CollectionPage',
+      '@id': `${pageUrl}#collection`,
+      url: pageUrl,
+      name: '39Production Idol',
+      description:
+        'Discover idol groups, artists, music releases, music videos, and entertainment projects from 39Production.',
+      isPartOf: {
+        '@type': 'WebSite',
+        name: '39Production',
+        url: SITE_URL,
+      },
+      publisher: {
+        '@type': 'Organization',
+        name: '39Production',
+        url: SITE_URL,
+      },
+      mainEntity: {
+        '@type': 'ItemList',
+        itemListElement: itemList,
+      },
+    }
+
+    let script =
+      document.getElementById(
+        'idol-page-structured-data',
+      ) as HTMLScriptElement | null
+
+    if (!script) {
+      script = document.createElement('script')
+      script.id = 'idol-page-structured-data'
+      script.type = 'application/ld+json'
+      document.head.appendChild(script)
+    }
+
+    script.textContent = JSON.stringify(structuredData)
+
+    return () => {
+      script?.remove()
+    }
+  }, [groups])
 
   const stats = useMemo(() => {
     return groups.reduce(
@@ -86,7 +267,8 @@ export function IdolPage() {
         acc.members += group.member_count || 0
         acc.releases += group.release_count || 0
         acc.videos += group.music_video_count || 0
-        acc.activities += group.upcoming_activity_count || 0
+        acc.activities +=
+          group.upcoming_activity_count || 0
 
         return acc
       },
@@ -102,17 +284,18 @@ export function IdolPage() {
   const featuredGroup = groups[0]
 
   return (
-    <div className="min-h-screen bg-white text-zinc-950">
+    <main className="min-h-screen bg-white text-zinc-950">
       {/* =========================================================
           GLOBAL GRID
       ========================================================= */}
       <div
+        aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-0 opacity-[0.028]"
         style={{
           backgroundImage: `
-linear - gradient(to right, #111 1px, transparent 1px),
-  linear - gradient(to bottom, #111 1px, transparent 1px)
-    `,
+            linear-gradient(to right, #111 1px, transparent 1px),
+            linear-gradient(to bottom, #111 1px, transparent 1px)
+          `,
           backgroundSize: '72px 72px',
         }}
       />
@@ -120,16 +303,28 @@ linear - gradient(to right, #111 1px, transparent 1px),
       {/* =========================================================
           HERO
       ========================================================= */}
-      <section className="relative overflow-hidden border-b border-zinc-200 bg-white">
-        <div className="pointer-events-none absolute -right-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-violet-100/60 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-48 left-1/3 h-96 w-96 rounded-full bg-fuchsia-100/40 blur-3xl" />
+      <section
+        aria-labelledby="idol-page-title"
+        className="relative overflow-hidden border-b border-zinc-200 bg-white"
+      >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-violet-100/60 blur-3xl"
+        />
+
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-48 left-1/3 h-96 w-96 rounded-full bg-fuchsia-100/40 blur-3xl"
+        />
 
         <div className="relative mx-auto max-w-7xl px-6 pb-14 pt-20 sm:pb-16 sm:pt-24 lg:px-8 lg:pb-20 lg:pt-24">
           {/* Top editorial bar */}
           <div className="flex items-center justify-between border-b border-zinc-200 pb-4">
             <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-zinc-500">
               39Production
-              <span className="mx-2 text-violet-500">•</span>
+              <span className="mx-2 text-violet-500">
+                •
+              </span>
               Entertainment
             </p>
 
@@ -157,7 +352,10 @@ linear - gradient(to right, #111 1px, transparent 1px),
             {/* Copy */}
             <div className="relative z-10">
               <div className="flex items-center gap-3">
-                <span className="flex h-7 w-7 items-center justify-center border border-violet-200 bg-violet-50">
+                <span
+                  aria-hidden="true"
+                  className="flex h-7 w-7 items-center justify-center border border-violet-200 bg-violet-50"
+                >
                   <Music className="h-3.5 w-3.5 text-violet-600" />
                 </span>
 
@@ -166,7 +364,10 @@ linear - gradient(to right, #111 1px, transparent 1px),
                 </span>
               </div>
 
-              <h1 className="mt-7 max-w-xl text-[3.25rem] font-semibold leading-[0.9] tracking-[-0.06em] text-zinc-950 sm:text-5xl lg:text-[4.75rem]">
+              <h1
+                id="idol-page-title"
+                className="mt-7 max-w-xl text-[3.25rem] font-semibold leading-[0.9] tracking-[-0.06em] text-zinc-950 sm:text-5xl lg:text-[4.75rem]"
+              >
                 Where music
                 <span className="block text-violet-600">
                   meets
@@ -175,9 +376,9 @@ linear - gradient(to right, #111 1px, transparent 1px),
               </h1>
 
               <p className="mt-7 max-w-lg text-sm leading-7 text-zinc-600 sm:text-base">
-                Discover the artists, idol groups, music releases,
-                and visual experiences created within the
-                39Production entertainment universe.
+                Discover the artists, idol groups, music
+                releases, and visual experiences created within
+                the 39Production entertainment universe.
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-6">
@@ -186,14 +387,22 @@ linear - gradient(to right, #111 1px, transparent 1px),
                   className="group inline-flex items-center gap-3 bg-zinc-950 px-5 py-3.5 text-xs font-medium text-white transition hover:bg-violet-600"
                 >
                   Explore Groups
-                  <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+
+                  <ArrowRight
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1"
+                  />
                 </Link>
 
                 <Link
                   to="/idol/music-videos"
                   className="group inline-flex items-center gap-2 border-b border-zinc-300 pb-1.5 text-xs font-medium text-zinc-700 transition hover:border-violet-600 hover:text-violet-600"
                 >
-                  <Play className="h-3 w-3" />
+                  <Play
+                    aria-hidden="true"
+                    className="h-3 w-3"
+                  />
+
                   Watch Music Videos
                 </Link>
               </div>
@@ -203,7 +412,10 @@ linear - gradient(to right, #111 1px, transparent 1px),
             <div className="relative">
               <div className="relative ml-auto max-w-2xl">
                 {/* Decorative number */}
-                <div className="absolute -left-5 top-7 z-20 hidden -translate-x-full lg:block">
+                <div
+                  aria-hidden="true"
+                  className="absolute -left-5 top-7 z-20 hidden -translate-x-full lg:block"
+                >
                   <p className="font-mono text-[10px] text-zinc-400">
                     ENTERTAINMENT
                   </p>
@@ -217,22 +429,35 @@ linear - gradient(to right, #111 1px, transparent 1px),
                   {featuredGroup?.image_url ? (
                     <img
                       src={featuredGroup.image_url}
-                      alt={featuredGroup.name}
+                      alt={`${featuredGroup.name} — 39Production Idol`}
+                      loading="eager"
+                      fetchPriority="high"
+                      decoding="async"
                       className="h-full w-full object-cover"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center bg-gradient-to-br from-violet-100 via-white to-fuchsia-100">
-                      <Music className="h-16 w-16 text-violet-200" />
+                      <Music
+                        aria-hidden="true"
+                        className="h-16 w-16 text-violet-200"
+                      />
                     </div>
                   )}
 
                   {/* Gradient */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/5 to-transparent" />
+                  <div
+                    aria-hidden="true"
+                    className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/5 to-transparent"
+                  />
 
                   {/* Featured label */}
                   <div className="absolute left-5 top-5">
                     <span className="inline-flex items-center gap-2 border border-white/30 bg-black/30 px-3 py-1.5 text-[9px] font-medium uppercase tracking-[0.15em] text-white backdrop-blur-md">
-                      <Sparkles className="h-3 w-3" />
+                      <Sparkles
+                        aria-hidden="true"
+                        className="h-3 w-3"
+                      />
+
                       Featured
                     </span>
                   </div>
@@ -258,10 +483,13 @@ linear - gradient(to right, #111 1px, transparent 1px),
 
                         <Link
                           to={`/idol/groups/${featuredGroup.id}`}
-                          aria-label={`View ${featuredGroup.name} `}
+                          aria-label={`View ${featuredGroup.name}`}
                           className="flex h-10 w-10 shrink-0 items-center justify-center border border-white/30 bg-white/10 text-white backdrop-blur-sm transition hover:bg-white hover:text-zinc-950"
                         >
-                          <ArrowRight className="h-4 w-4" />
+                          <ArrowRight
+                            aria-hidden="true"
+                            className="h-4 w-4"
+                          />
                         </Link>
                       </div>
                     </div>
@@ -311,7 +539,10 @@ linear - gradient(to right, #111 1px, transparent 1px),
       {/* =========================================================
           ENTERTAINMENT INDEX
       ========================================================= */}
-      <section className="relative border-b border-zinc-200 bg-zinc-50/40">
+      <section
+        aria-label="39Production Idol categories"
+        className="relative border-b border-zinc-200 bg-zinc-50/40"
+      >
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="grid grid-cols-1 border-x border-zinc-200 sm:grid-cols-2 lg:grid-cols-4">
             <Link
@@ -323,11 +554,17 @@ linear - gradient(to right, #111 1px, transparent 1px),
                   01
                 </span>
 
-                <ArrowDownRight className="h-4 w-4 text-zinc-300 transition group-hover:translate-x-1 group-hover:translate-y-1 group-hover:text-violet-500" />
+                <ArrowDownRight
+                  aria-hidden="true"
+                  className="h-4 w-4 text-zinc-300 transition group-hover:translate-x-1 group-hover:translate-y-1 group-hover:text-violet-500"
+                />
               </div>
 
               <div className="mt-12">
-                <Users className="h-5 w-5 text-zinc-800" />
+                <Users
+                  aria-hidden="true"
+                  className="h-5 w-5 text-zinc-800"
+                />
 
                 <h3 className="mt-5 text-sm font-medium">
                   Idol Groups
@@ -348,11 +585,17 @@ linear - gradient(to right, #111 1px, transparent 1px),
                   02
                 </span>
 
-                <ArrowDownRight className="h-4 w-4 text-zinc-300 transition group-hover:translate-x-1 group-hover:translate-y-1 group-hover:text-violet-500" />
+                <ArrowDownRight
+                  aria-hidden="true"
+                  className="h-4 w-4 text-zinc-300 transition group-hover:translate-x-1 group-hover:translate-y-1 group-hover:text-violet-500"
+                />
               </div>
 
               <div className="mt-12">
-                <Users className="h-5 w-5 text-zinc-800" />
+                <Users
+                  aria-hidden="true"
+                  className="h-5 w-5 text-zinc-800"
+                />
 
                 <h3 className="mt-5 text-sm font-medium">
                   Members
@@ -373,11 +616,17 @@ linear - gradient(to right, #111 1px, transparent 1px),
                   03
                 </span>
 
-                <ArrowDownRight className="h-4 w-4 text-zinc-300 transition group-hover:translate-x-1 group-hover:translate-y-1 group-hover:text-violet-500" />
+                <ArrowDownRight
+                  aria-hidden="true"
+                  className="h-4 w-4 text-zinc-300 transition group-hover:translate-x-1 group-hover:translate-y-1 group-hover:text-violet-500"
+                />
               </div>
 
               <div className="mt-12">
-                <Disc3 className="h-5 w-5 text-zinc-800" />
+                <Disc3
+                  aria-hidden="true"
+                  className="h-5 w-5 text-zinc-800"
+                />
 
                 <h3 className="mt-5 text-sm font-medium">
                   Releases
@@ -398,11 +647,17 @@ linear - gradient(to right, #111 1px, transparent 1px),
                   04
                 </span>
 
-                <ArrowDownRight className="h-4 w-4 text-zinc-300 transition group-hover:translate-x-1 group-hover:translate-y-1 group-hover:text-violet-500" />
+                <ArrowDownRight
+                  aria-hidden="true"
+                  className="h-4 w-4 text-zinc-300 transition group-hover:translate-x-1 group-hover:translate-y-1 group-hover:text-violet-500"
+                />
               </div>
 
               <div className="mt-12">
-                <CalendarDays className="h-5 w-5 text-zinc-800" />
+                <CalendarDays
+                  aria-hidden="true"
+                  className="h-5 w-5 text-zinc-800"
+                />
 
                 <h3 className="mt-5 text-sm font-medium">
                   Events
@@ -420,7 +675,10 @@ linear - gradient(to right, #111 1px, transparent 1px),
       {/* =========================================================
           ENTERTAINMENT STATS
       ========================================================= */}
-      <section className="border-b border-zinc-200 bg-white">
+      <section
+        aria-label="39Production Idol statistics"
+        className="border-b border-zinc-200 bg-white"
+      >
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="grid grid-cols-2 border-x border-zinc-200 sm:grid-cols-4">
             <div className="border-b border-r border-zinc-200 px-6 py-7 sm:border-b-0">
@@ -469,7 +727,10 @@ linear - gradient(to right, #111 1px, transparent 1px),
       {/* =========================================================
           GROUP ROSTER
       ========================================================= */}
-      <section className="relative overflow-hidden bg-white">
+      <section
+        aria-labelledby="group-roster-title"
+        className="relative overflow-hidden bg-white"
+      >
         <div className="relative mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-24">
           {/* Section header */}
           <div className="grid gap-8 border-b border-zinc-200 pb-8 lg:grid-cols-[150px_1fr_auto] lg:items-end">
@@ -488,7 +749,10 @@ linear - gradient(to right, #111 1px, transparent 1px),
                 39Production Idol
               </p>
 
-              <h2 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-zinc-950 sm:text-4xl">
+              <h2
+                id="group-roster-title"
+                className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-zinc-950 sm:text-4xl"
+              >
                 The Groups
               </h2>
 
@@ -503,7 +767,11 @@ linear - gradient(to right, #111 1px, transparent 1px),
               className="group inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-zinc-600 transition hover:text-violet-600"
             >
               View all groups
-              <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+
+              <ChevronRight
+                aria-hidden="true"
+                className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1"
+              />
             </Link>
           </div>
 
@@ -511,7 +779,11 @@ linear - gradient(to right, #111 1px, transparent 1px),
           {loading && (
             <div className="flex min-h-72 items-center justify-center border-x border-b border-zinc-200">
               <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.18em] text-zinc-400">
-                <Loader2 className="h-4 w-4 animate-spin text-violet-600" />
+                <Loader2
+                  aria-hidden="true"
+                  className="h-4 w-4 animate-spin text-violet-600"
+                />
+
                 Loading roster
               </div>
             </div>
@@ -534,158 +806,198 @@ linear - gradient(to right, #111 1px, transparent 1px),
           {!loading && !error && groups.length === 0 && (
             <div className="border-x border-b border-zinc-200 bg-zinc-50/60 px-6 py-20 text-center">
               <div className="mx-auto flex h-16 w-16 items-center justify-center border border-zinc-200 bg-white">
-                <Music className="h-6 w-6 text-violet-500" />
+                <Music
+                  aria-hidden="true"
+                  className="h-6 w-6 text-violet-500"
+                />
               </div>
 
               <p className="mt-6 text-sm font-medium text-zinc-700">
-                Our artist roster is currently being prepared.
+                Our artist roster is currently being
+                prepared.
               </p>
 
               <p className="mx-auto mt-2 max-w-md text-xs leading-6 text-zinc-500">
-                Check back soon for the latest 39Production idol
-                projects.
+                Check back soon for the latest 39Production
+                idol projects.
               </p>
             </div>
           )}
 
           {/* Cards */}
-          {!loading && !error && groups.length > 0 && (
-            <div className="grid gap-px border-x border-b border-zinc-200 bg-zinc-200 md:grid-cols-2 lg:grid-cols-3">
-              {groups.slice(0, 6).map((group, index) => {
-                const isWide = index === 1 || index === 4
+          {!loading &&
+            !error &&
+            groups.length > 0 && (
+              <div className="grid gap-px border-x border-b border-zinc-200 bg-zinc-200 md:grid-cols-2 lg:grid-cols-3">
+                {groups.slice(0, 6).map(
+                  (group, index) => {
+                    const isWide =
+                      index === 1 || index === 4
 
-                return (
-                  <Link
-                    key={group.id}
-                    to={`/idol/groups/${group.id}`}
-                    className={`group relative bg - white transition duration - 500 hover: z - 10 ${isWide ? 'lg:col-span-2' : ''
-                      } `}
-                  >
-                    {/* Image */}
-                    <div
-                      className={`relative overflow - hidden bg - zinc - 100 ${isWide
-                        ? 'aspect-[16/8]'
-                        : 'aspect-[4/3]'
-                        } `}
-                    >
-                      {group.image_url ? (
-                        <img
-                          src={group.image_url}
-                          alt={group.name}
-                          className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-violet-50 via-white to-fuchsia-50">
-                          <Music className="h-12 w-12 text-violet-200" />
-                        </div>
-                      )}
-
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-70" />
-
-                      {/* Index */}
-                      <div className="absolute left-4 top-4">
-                        <span className="font-mono text-[9px] text-white/70">
-                          {String(index + 1).padStart(2, '0')}
-                        </span>
-                      </div>
-
-                      {/* Status */}
-                      <div className="absolute right-4 top-4">
-                        <span
-                          className={`inline - flex items - center gap - 1.5 border border - white / 30 bg - black / 25 px - 2.5 py - 1.5 text - [8px] uppercase tracking - [0.14em] text - white backdrop - blur - md ${group.status === 'Active'
-                            ? ''
-                            : 'opacity-80'
-                            } `}
+                    return (
+                      <Link
+                        key={group.id}
+                        to={`/idol/groups/${group.id}`}
+                        aria-label={`View ${group.name} idol group`}
+                        className={`group relative bg-white transition duration-500 hover:z-10 ${isWide
+                            ? 'lg:col-span-2'
+                            : ''
+                          }`}
+                      >
+                        {/* Image */}
+                        <div
+                          className={`relative overflow-hidden bg-zinc-100 ${isWide
+                              ? 'aspect-[16/8]'
+                              : 'aspect-[4/3]'
+                            }`}
                         >
-                          <span
-                            className={`h - 1.5 w - 1.5 rounded - full ${group.status === 'Active'
-                              ? 'bg-emerald-400'
-                              : 'bg-amber-400'
-                              } `}
+                          {group.image_url ? (
+                            <img
+                              src={group.image_url}
+                              alt={`${group.name} idol group — 39Production`}
+                              loading={
+                                index < 3
+                                  ? 'eager'
+                                  : 'lazy'
+                              }
+                              decoding="async"
+                              className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center bg-gradient-to-br from-violet-50 via-white to-fuchsia-50">
+                              <Music
+                                aria-hidden="true"
+                                className="h-12 w-12 text-violet-200"
+                              />
+                            </div>
+                          )}
+
+                          <div
+                            aria-hidden="true"
+                            className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-70"
                           />
 
-                          {group.status}
-                        </span>
-                      </div>
-
-                      {/* Image bottom */}
-                      <div className="absolute bottom-0 left-0 right-0 p-5">
-                        <p className="text-[8px] uppercase tracking-[0.2em] text-white/60">
-                          Idol Group
-                        </p>
-
-                        <div className="mt-1 flex items-end justify-between gap-4">
-                          <h3 className="text-2xl font-semibold tracking-[-0.04em] text-white">
-                            {group.name}
-                          </h3>
-
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center border border-white/30 bg-white/10 backdrop-blur-sm transition group-hover:bg-white group-hover:text-zinc-950">
-                            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Card information */}
-                    <div className="p-5 sm:p-6">
-                      <p className="line-clamp-2 text-xs leading-6 text-zinc-500">
-                        {group.description ||
-                          'An original idol project from 39Production.'}
-                      </p>
-
-                      <div className="mt-6 grid grid-cols-3 border-t border-zinc-100 pt-5">
-                        <div className="border-r border-zinc-100">
-                          <p className="font-mono text-base text-zinc-900">
-                            {group.member_count || 0}
-                          </p>
-
-                          <p className="mt-1 text-[8px] uppercase tracking-[0.12em] text-zinc-400">
-                            Members
-                          </p>
-                        </div>
-
-                        <div className="border-r border-zinc-100 px-4">
-                          <p className="font-mono text-base text-zinc-900">
-                            {group.release_count || 0}
-                          </p>
-
-                          <p className="mt-1 text-[8px] uppercase tracking-[0.12em] text-zinc-400">
-                            Releases
-                          </p>
-                        </div>
-
-                        <div className="pl-4">
-                          <p className="font-mono text-base text-zinc-900">
-                            {group.music_video_count || 0}
-                          </p>
-
-                          <p className="mt-1 text-[8px] uppercase tracking-[0.12em] text-zinc-400">
-                            Videos
-                          </p>
-                        </div>
-                      </div>
-
-                      {group.upcoming_activity_count > 0 && (
-                        <div className="mt-5 flex items-center justify-between border-t border-zinc-100 pt-4">
-                          <div className="flex items-center gap-2">
-                            <CalendarDays className="h-3.5 w-3.5 text-violet-600" />
-
-                            <span className="text-[8px] font-medium uppercase tracking-[0.14em] text-violet-600">
-                              Upcoming Activity
+                          {/* Index */}
+                          <div className="absolute left-4 top-4">
+                            <span className="font-mono text-[9px] text-white/70">
+                              {String(
+                                index + 1,
+                              ).padStart(2, '0')}
                             </span>
                           </div>
 
-                          <span className="font-mono text-xs text-zinc-700">
-                            {group.upcoming_activity_count}
-                          </span>
+                          {/* Status */}
+                          <div className="absolute right-4 top-4">
+                            <span
+                              className={`inline-flex items-center gap-1.5 border border-white/30 bg-black/25 px-2.5 py-1.5 text-[8px] uppercase tracking-[0.14em] text-white backdrop-blur-md ${group.status ===
+                                  'Active'
+                                  ? ''
+                                  : 'opacity-80'
+                                }`}
+                            >
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${group.status ===
+                                    'Active'
+                                    ? 'bg-emerald-400'
+                                    : 'bg-amber-400'
+                                  }`}
+                              />
+
+                              {group.status}
+                            </span>
+                          </div>
+
+                          {/* Image bottom */}
+                          <div className="absolute bottom-0 left-0 right-0 p-5">
+                            <p className="text-[8px] uppercase tracking-[0.2em] text-white/60">
+                              Idol Group
+                            </p>
+
+                            <div className="mt-1 flex items-end justify-between gap-4">
+                              <h3 className="text-2xl font-semibold tracking-[-0.04em] text-white">
+                                {group.name}
+                              </h3>
+
+                              <div
+                                aria-hidden="true"
+                                className="flex h-8 w-8 shrink-0 items-center justify-center border border-white/30 bg-white/10 backdrop-blur-sm transition group-hover:bg-white group-hover:text-zinc-950"
+                              >
+                                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          )}
+
+                        {/* Card information */}
+                        <div className="p-5 sm:p-6">
+                          <p className="line-clamp-2 text-xs leading-6 text-zinc-500">
+                            {group.description ||
+                              'An original idol project from 39Production.'}
+                          </p>
+
+                          <div className="mt-6 grid grid-cols-3 border-t border-zinc-100 pt-5">
+                            <div className="border-r border-zinc-100">
+                              <p className="font-mono text-base text-zinc-900">
+                                {group.member_count ||
+                                  0}
+                              </p>
+
+                              <p className="mt-1 text-[8px] uppercase tracking-[0.12em] text-zinc-400">
+                                Members
+                              </p>
+                            </div>
+
+                            <div className="border-r border-zinc-100 px-4">
+                              <p className="font-mono text-base text-zinc-900">
+                                {group.release_count ||
+                                  0}
+                              </p>
+
+                              <p className="mt-1 text-[8px] uppercase tracking-[0.12em] text-zinc-400">
+                                Releases
+                              </p>
+                            </div>
+
+                            <div className="pl-4">
+                              <p className="font-mono text-base text-zinc-900">
+                                {group.music_video_count ||
+                                  0}
+                              </p>
+
+                              <p className="mt-1 text-[8px] uppercase tracking-[0.12em] text-zinc-400">
+                                Videos
+                              </p>
+                            </div>
+                          </div>
+
+                          {group.upcoming_activity_count >
+                            0 && (
+                              <div className="mt-5 flex items-center justify-between border-t border-zinc-100 pt-4">
+                                <div className="flex items-center gap-2">
+                                  <CalendarDays
+                                    aria-hidden="true"
+                                    className="h-3.5 w-3.5 text-violet-600"
+                                  />
+
+                                  <span className="text-[8px] font-medium uppercase tracking-[0.14em] text-violet-600">
+                                    Upcoming Activity
+                                  </span>
+                                </div>
+
+                                <span className="font-mono text-xs text-zinc-700">
+                                  {
+                                    group.upcoming_activity_count
+                                  }
+                                </span>
+                              </div>
+                            )}
+                        </div>
+                      </Link>
+                    )
+                  },
+                )}
+              </div>
+            )}
         </div>
       </section>
 
@@ -694,17 +1006,21 @@ linear - gradient(to right, #111 1px, transparent 1px),
       ========================================================= */}
       <section className="relative overflow-hidden border-t border-zinc-200 bg-zinc-950 text-white">
         <div
+          aria-hidden="true"
           className="pointer-events-none absolute inset-0 opacity-[0.07]"
           style={{
             backgroundImage: `
-linear - gradient(to right, #fff 1px, transparent 1px),
-  linear - gradient(to bottom, #fff 1px, transparent 1px)
-    `,
+              linear-gradient(to right, #fff 1px, transparent 1px),
+              linear-gradient(to bottom, #fff 1px, transparent 1px)
+            `,
             backgroundSize: '72px 72px',
           }}
         />
 
-        <div className="pointer-events-none absolute -right-32 top-1/2 h-96 w-96 -translate-y-1/2 rounded-full bg-violet-600/20 blur-3xl" />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-32 top-1/2 h-96 w-96 -translate-y-1/2 rounded-full bg-violet-600/20 blur-3xl"
+        />
 
         <div className="relative mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-20">
           <div className="grid gap-10 lg:grid-cols-[150px_1fr_auto] lg:items-end">
@@ -736,11 +1052,15 @@ linear - gradient(to right, #fff 1px, transparent 1px),
               className="group inline-flex items-center gap-3 bg-white px-5 py-3.5 text-xs font-medium text-zinc-950 transition hover:bg-violet-500 hover:text-white"
             >
               Explore Releases
-              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+
+              <ArrowRight
+                aria-hidden="true"
+                className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1"
+              />
             </Link>
           </div>
         </div>
       </section>
-    </div>
+    </main>
   )
 }

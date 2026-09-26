@@ -1356,6 +1356,237 @@ export function ProductDetailPage() {
 
   /*
    * =========================================================
+   * DYNAMIC SEO
+   * =========================================================
+   *
+   * Metadata mengikuti data produk yang dipublikasikan.
+   * Tidak menambah dependency dan tidak mengubah logic checkout,
+   * payment, gallery, zoom, atau UI yang sudah ada.
+   */
+  useEffect(() => {
+    const siteName = '39Production'
+    const fallbackTitle = 'Products — 39Production'
+    const fallbackDescription =
+      'Explore digital products crafted by 39Production for creators, brands, and modern digital experiences.'
+
+    const siteOrigin =
+      typeof window !== 'undefined'
+        ? window.location.origin
+        : 'https://fiidhanz.github.io'
+
+    const productUrl =
+      typeof window !== 'undefined'
+        ? window.location.href.split('#')[0]
+        : `${siteOrigin}/products/${id ?? ''}`
+
+    const title = product
+      ? `${product.name} — ${siteName}`
+      : fallbackTitle
+
+    const description = product?.description?.trim()
+      ? product.description.trim().slice(0, 160)
+      : fallbackDescription
+
+    const image = productImages[0] || undefined
+
+    const setMeta = (
+      key: string,
+      attribute: 'name' | 'property',
+      value: string,
+    ) => {
+      let element = document.head.querySelector<HTMLMetaElement>(
+        `meta[${attribute}="${key}"]`,
+      )
+
+      if (!element) {
+        element = document.createElement('meta')
+        element.setAttribute(attribute, key)
+        document.head.appendChild(element)
+      }
+
+      element.setAttribute('content', value)
+    }
+
+    const setLink = (
+      rel: string,
+      href: string,
+    ) => {
+      let element = document.head.querySelector<HTMLLinkElement>(
+        `link[rel="${rel}"]`,
+      )
+
+      if (!element) {
+        element = document.createElement('link')
+        element.setAttribute('rel', rel)
+        document.head.appendChild(element)
+      }
+
+      element.setAttribute('href', href)
+    }
+
+    document.title = title
+
+    setMeta('description', 'name', description)
+
+    setMeta(
+      'robots',
+      'name',
+      product
+        ? 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
+        : 'noindex, nofollow',
+    )
+
+    setMeta(
+      'googlebot',
+      'name',
+      product
+        ? 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
+        : 'noindex, nofollow',
+    )
+
+    setMeta('author', 'name', siteName)
+    setMeta('theme-color', 'name', '#ffffff')
+
+    setMeta('og:type', 'property', 'product')
+    setMeta('og:site_name', 'property', siteName)
+    setMeta('og:title', 'property', title)
+    setMeta('og:description', 'property', description)
+    setMeta('og:url', 'property', productUrl)
+
+    if (image) {
+      setMeta('og:image', 'property', image)
+      setMeta(
+        'og:image:alt',
+        'property',
+        product?.name || siteName,
+      )
+
+      setMeta('twitter:image', 'name', image)
+      setMeta(
+        'twitter:image:alt',
+        'name',
+        product?.name || siteName,
+      )
+    }
+
+    setMeta(
+      'twitter:card',
+      'name',
+      image ? 'summary_large_image' : 'summary',
+    )
+
+    setMeta('twitter:title', 'name', title)
+    setMeta(
+      'twitter:description',
+      'name',
+      description,
+    )
+
+    setLink(
+      'canonical',
+      product ? productUrl : siteOrigin,
+    )
+
+    document
+      .head
+      .querySelectorAll(
+        'script[data-39production-product-schema="true"]',
+      )
+      .forEach((element) => element.remove())
+
+    if (product) {
+      const price = Number(
+        promotion && discount > 0
+          ? finalPrice
+          : product.price,
+      )
+
+      const availability =
+        Number(product.stock) > 0
+          ? 'https://schema.org/InStock'
+          : 'https://schema.org/OutOfStock'
+
+      const productSchema = {
+        '@context': 'https://schema.org',
+        '@type': 'Product',
+        name: product.name,
+        description,
+        category:
+          product.category || 'Digital Product',
+        image: productImages,
+        url: productUrl,
+        brand: {
+          '@type': 'Brand',
+          name: siteName,
+        },
+        offers: {
+          '@type': 'Offer',
+          url: productUrl,
+          priceCurrency: 'IDR',
+          price: price.toString(),
+          availability,
+          itemCondition:
+            'https://schema.org/NewCondition',
+        },
+      }
+
+      const breadcrumbSchema = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: siteName,
+            item: siteOrigin,
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: 'Products',
+            item: `${siteOrigin}/products`,
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: product.name,
+            item: productUrl,
+          },
+        ],
+      }
+
+      const script = document.createElement('script')
+      script.type = 'application/ld+json'
+      script.dataset['39productionProductSchema'] =
+        'true'
+      script.textContent = JSON.stringify([
+        productSchema,
+        breadcrumbSchema,
+      ])
+
+      document.head.appendChild(script)
+    }
+
+    return () => {
+      document
+        .head
+        .querySelectorAll(
+          'script[data-39production-product-schema="true"]',
+        )
+        .forEach((element) => element.remove())
+    }
+  }, [
+    id,
+    product,
+    productImages,
+    promotion,
+    discount,
+    finalPrice,
+  ])
+
+
+  /*
+   * =========================================================
    * LOADING
    * =========================================================
    */
@@ -1607,16 +1838,16 @@ export function ProductDetailPage() {
                       className={`inline-flex items-center gap-2 border px-2.5 py-1.5 text-[8px] font-black uppercase tracking-[0.12em] backdrop-blur-md sm:px-3 sm:text-[9px] sm:tracking-[0.15em] ${Number(
                         product.stock,
                       ) > 0
-                          ? 'border-white/25 bg-white/90 text-zinc-900'
-                          : 'border-red-200 bg-white/95 text-red-700'
+                        ? 'border-white/25 bg-white/90 text-zinc-900'
+                        : 'border-red-200 bg-white/95 text-red-700'
                         }`}
                     >
                       <span
                         className={`h-1.5 w-1.5 shrink-0 rounded-full ${Number(
                           product.stock,
                         ) > 0
-                            ? 'bg-emerald-500'
-                            : 'bg-red-500'
+                          ? 'bg-emerald-500'
+                          : 'bg-red-500'
                           }`}
                       />
 
@@ -1689,9 +1920,9 @@ export function ProductDetailPage() {
                               }}
                               aria-label={`View image ${index + 1}`}
                               className={`relative h-14 w-16 shrink-0 overflow-hidden border transition sm:h-16 sm:w-20 ${activeImageIndex ===
-                                  index
-                                  ? 'border-violet-600 ring-1 ring-violet-600'
-                                  : 'border-black/10 opacity-60 hover:opacity-100'
+                                index
+                                ? 'border-violet-600 ring-1 ring-violet-600'
+                                : 'border-black/10 opacity-60 hover:opacity-100'
                                 }`}
                             >
                               <img
@@ -2056,10 +2287,10 @@ export function ProductDetailPage() {
 
               <div
                 className={`absolute inset-x-0 bottom-16 top-16 z-10 flex items-center justify-center overflow-hidden px-12 sm:bottom-24 sm:top-24 sm:px-24 ${imageZoom > 1
-                    ? isDraggingImage
-                      ? 'cursor-grabbing'
-                      : 'cursor-grab'
-                    : 'cursor-zoom-in'
+                  ? isDraggingImage
+                    ? 'cursor-grabbing'
+                    : 'cursor-grab'
+                  : 'cursor-zoom-in'
                   }`}
                 style={{
                   touchAction:
