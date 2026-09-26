@@ -67,41 +67,54 @@
   <!--
     GitHub Pages SPA Route Recovery
 
-    404.html redirects:
-      /39Production/about
-        ↓
-      /39Production/?redirect=%2Fabout
+    When GitHub Pages cannot find a physical file for a
+    React Router route, public/404.html stores the original
+    URL in sessionStorage and redirects to the app root.
 
-    This script restores the original route before
-    React Router initializes.
+    This script restores that original URL BEFORE React
+    Router initializes.
   -->
   <script>
     ; (function () {
-      const basePath = '/39Production/'
-      const params = new URLSearchParams(
-        window.location.search
+      const redirect = sessionStorage.getItem(
+        'spa-redirect'
       )
-
-      const redirect = params.get('redirect')
 
       if (!redirect) {
         return
       }
 
-      const normalizedRedirect =
-        redirect.startsWith('/')
-          ? redirect
-          : '/' + redirect
-
-      const target =
-        basePath.replace(/\/$/, '') +
-        normalizedRedirect
-
-      window.history.replaceState(
-        null,
-        '',
-        target
+      sessionStorage.removeItem(
+        'spa-redirect'
       )
+
+      try {
+        const url = new URL(redirect)
+
+        const isSameOrigin =
+          url.origin === window.location.origin
+
+        const isAppRoute =
+          url.pathname === '/39Production' ||
+          url.pathname.startsWith(
+            '/39Production/'
+          )
+
+        if (
+          isSameOrigin &&
+          isAppRoute
+        ) {
+          window.history.replaceState(
+            null,
+            '',
+            url.pathname +
+            url.search +
+            url.hash
+          )
+        }
+      } catch {
+        // Ignore invalid redirect values.
+      }
     })()
   </script>
 </head>
