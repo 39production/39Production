@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>39Production</title>
+
+    <script>
+        const base = '/39Production/'
+
+        const path = window.location.pathname
+        const search = window.location.search
+        const hash = window.location.hash
+
+        const route = path.startsWith(base)
+            ? path.slice(base.length)
+            : path.replace(/^\/+/, '')
+
+        const redirectUrl =
+            base +
+            '?redirect=' +
+            encodeURIComponent('/' + route + search + hash)
+
+        window.location.replace(redirectUrl)
+    </script>
+</head>
+
+<body>
+    <p>Redirecting...</p>
+</body>
+
+</html>
