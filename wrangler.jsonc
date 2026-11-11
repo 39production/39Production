@@ -3,6 +3,15 @@
   "name": "39production-api",
   "main": "worker/index.ts",
   "compatibility_date": "2026-09-06",
+  "vars": {
+    "BANK_ACCOUNT_NAME": "HAFIIDH YUPIZA RAMADHANI",
+    "BANK_ACCOUNT_NUMBER": "1942742230",
+    "BANK_NAME": "BNI",
+    "DANA_NAME": "Hafiidh Yupiza Ramadhani",
+    "DANA_NUMBER": "085706251543",
+    "PAYMENT_METHOD": "BANK_TRANSFER",
+    "PAYMENT_METHOD2": "DANA"
+  },
   "d1_databases": [
     {
       "binding": "DB",

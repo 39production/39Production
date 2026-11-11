@@ -18,7 +18,7 @@ const API_BASE_URL =
     'https://39production-api.39production.workers.dev'
 
 interface PublicQuote {
-    id: string
+    id: number | string
     service_id?: number
 
     quote_number?: string
@@ -53,15 +53,12 @@ interface QuoteResponse {
 interface AcceptResponse {
     success?: boolean
     message?: string
-    data?: {
-        quote?: PublicQuote
-        order_id?: string
-        checkout_url?: string
-    }
+    data?: PublicQuote
 }
 
 interface PaymentData {
     payment_reference: string
+    access_token: string
     partner_reference_no?: string
     payment_method?: string
     payment_stage?: string
@@ -92,15 +89,22 @@ interface PaymentStatusResponse {
     data?: {
         payment_reference?: string
         status?: string
-        payment_status?: string
-
-        order_id?: number | string | null
-        order_number?: string | null
-
+        payment_stage?: string
         amount?: number | null
         final_amount?: number | null
         dp_amount?: number | null
         remaining_amount?: number | null
+        paid_amount?: number | null
+        order?: {
+            id?: number | string
+            order_number?: string
+            final_total?: number
+            paid_amount?: number
+            remaining_amount?: number
+            dp_amount?: number
+            payment_status?: string
+            status?: string
+        } | null
     }
 }
 
@@ -282,17 +286,23 @@ export function QuotePage() {
             const result: AcceptResponse =
                 await response.json()
 
-            if (!response.ok) {
+            if (!response.ok || !result.success) {
                 throw new Error(
                     result.message ||
                     'Quotation gagal diterima.',
                 )
             }
 
-            setAccepted(true)
-
             const acceptedQuote =
-                result.data?.quote
+                result.data
+
+            if (!acceptedQuote) {
+                throw new Error(
+                    'Quotation berhasil diproses, tetapi data hasil penerimaan tidak tersedia. Muat ulang halaman untuk memeriksa status terbaru.',
+                )
+            }
+
+            setAccepted(true)
 
             if (acceptedQuote) {
                 setQuote((current) => {
@@ -416,7 +426,7 @@ export function QuotePage() {
             const result: PaymentResponse =
                 await response.json()
 
-            if (!response.ok) {
+            if (!response.ok || !result.success) {
                 throw new Error(
                     result.message ||
                     'Gagal membuat pembayaran DP.',
@@ -424,10 +434,11 @@ export function QuotePage() {
             }
 
             if (
-                !result.data?.payment_reference
+                !result.data?.payment_reference ||
+                !result.data?.access_token
             ) {
                 throw new Error(
-                    'Payment reference tidak ditemukan.',
+                    'Payment reference atau access token tidak diterima dari server.',
                 )
             }
 
@@ -471,7 +482,13 @@ export function QuotePage() {
                 const response = await fetch(
                     `${API_BASE_URL}/api/payments/${encodeURIComponent(
                         paymentData.payment_reference,
-                    )}/status`,
+                    )}/status?token=${encodeURIComponent(
+                        paymentData.access_token,
+                    )}`,
+                    {
+                        method: 'GET',
+                        cache: 'no-store',
+                    },
                 )
 
                 const result: PaymentStatusResponse =
@@ -481,42 +498,40 @@ export function QuotePage() {
                     return
                 }
 
+                if (!result.success || !result.data) {
+                    return
+                }
+
                 const status = (
-                    result.data?.status ||
-                    result.data?.payment_status ||
-                    ''
+                    result.data.status || ''
                 ).toUpperCase()
 
+                const order = result.data.order
+
                 if (
-                    status === 'PAID' ||
-                    status === 'SUCCESS'
+                    (status === 'PAID' || status === 'SUCCESS') &&
+                    order
                 ) {
                     setCreatedOrder({
-                        order_id:
-                            result.data?.order_id ??
-                            undefined,
-
-                        order_number:
-                            result.data?.order_number ??
-                            undefined,
-
+                        order_id: order.id,
+                        order_number: order.order_number,
                         status,
-
                         total_amount:
-                            result.data?.amount ??
-                            result.data?.final_amount ??
+                            order.final_total ??
+                            result.data.final_amount ??
                             paymentData.final_amount ??
                             quote?.proposed_price ??
                             undefined,
-
                         paid_amount:
-                            result.data?.dp_amount ??
+                            order.paid_amount ??
+                            result.data.paid_amount ??
+                            result.data.dp_amount ??
                             paymentData.dp_amount ??
                             quote?.dp_amount ??
                             undefined,
-
                         remaining_amount:
-                            result.data?.remaining_amount ??
+                            order.remaining_amount ??
+                            result.data.remaining_amount ??
                             paymentData.remaining_amount ??
                             quote?.remaining_amount ??
                             undefined,

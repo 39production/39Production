@@ -369,6 +369,11 @@ export function AdminQuotesPage() {
     ] = useState('')
 
     const [
+        dpAmount,
+        setDpAmount,
+    ] = useState('')
+
+    const [
         status,
         setStatus,
     ] =
@@ -608,6 +613,15 @@ export function AdminQuotesPage() {
                 : '',
         )
 
+        setDpAmount(
+            quote.dp_amount !== null &&
+                quote.dp_amount !== undefined
+                ? String(quote.dp_amount)
+                : quote.proposed_price
+                    ? String(Math.ceil(quote.proposed_price / 2))
+                    : '',
+        )
+
         setStatus(
             quote.status,
         )
@@ -648,12 +662,30 @@ export function AdminQuotesPage() {
                 )
                 : null
 
+        const numericDpAmount =
+            dpAmount.trim()
+                ? Number(dpAmount.replace(/[^0-9]/g, ''))
+                : null
+
         const effectiveStatus =
             nextStatus || status
 
+        if (selectedQuote.status === 'Accepted') {
+            setError(
+                'Quotation sudah diterima customer. Harga dan status tidak dapat diubah lagi.',
+            )
+            return
+        }
+
+        if (effectiveStatus === 'Accepted') {
+            setError(
+                'Status Accepted hanya dapat ditetapkan oleh customer melalui halaman quotation publik.',
+            )
+            return
+        }
+
         if (
-            effectiveStatus ===
-            'Quoted' &&
+            effectiveStatus === 'Quoted' &&
             (!numericPrice ||
                 numericPrice <= 0)
         ) {
@@ -661,6 +693,21 @@ export function AdminQuotesPage() {
                 'Masukkan harga final terlebih dahulu sebelum membuat quotation.',
             )
 
+            return
+        }
+
+        if (
+            effectiveStatus === 'Quoted' &&
+            (
+                numericDpAmount === null ||
+                !Number.isFinite(numericDpAmount) ||
+                numericDpAmount <= 0 ||
+                numericDpAmount > (numericPrice ?? 0)
+            )
+        ) {
+            setError(
+                'Masukkan nominal DP yang valid. DP harus lebih dari 0 dan tidak boleh melebihi harga final.',
+            )
             return
         }
 
@@ -697,6 +744,8 @@ export function AdminQuotesPage() {
                             {
                                 proposed_price:
                                     numericPrice,
+                                dp_amount:
+                                    numericDpAmount,
                                 status:
                                     effectiveStatus,
                             },
@@ -747,6 +796,13 @@ export function AdminQuotesPage() {
                         result.data
                             .proposed_price,
                     )
+                    : '',
+            )
+
+            setDpAmount(
+                result.data.dp_amount !== null &&
+                    result.data.dp_amount !== undefined
+                    ? String(result.data.dp_amount)
                     : '',
             )
 
@@ -876,7 +932,7 @@ export function AdminQuotesPage() {
                 }
 
                 setSuccess(
-                    'Quotation berhasil dibuat dan WhatsApp customer sudah disiapkan dengan link quotation.',
+                    'Quotation berhasil dipublikasikan. WhatsApp terbuka dengan pesan dan link quotation yang sudah disiapkan; tekan Kirim di WhatsApp untuk mengirimkannya ke customer.',
                 )
             } else {
                 if (
@@ -2176,6 +2232,7 @@ export function AdminQuotesPage() {
                                             }
                                             inputMode="numeric"
                                             placeholder="Contoh: 2500000"
+                                            disabled={selectedQuote.status === 'Accepted'}
                                             className={`
                                                 h-12
                                                 w-full
@@ -2200,6 +2257,72 @@ export function AdminQuotesPage() {
                                     </div>
                                 </label>
 
+                                {/* DP Amount */}
+                                <label className="block">
+                                    <span
+                                        className={`
+                                            mb-2
+                                            block
+                                            text-sm
+                                            font-semibold
+                                            ${pageText}
+                                        `}
+                                    >
+                                        Nominal DP
+                                    </span>
+
+                                    <div className="relative">
+                                        <span
+                                            className={`
+                                                pointer-events-none
+                                                absolute
+                                                left-3
+                                                top-1/2
+                                                -translate-y-1/2
+                                                text-sm
+                                                ${mutedText}
+                                            `}
+                                        >
+                                            Rp
+                                        </span>
+
+                                        <input
+                                            value={dpAmount}
+                                            onChange={(event) =>
+                                                setDpAmount(
+                                                    event.target.value.replace(/\D/g, ''),
+                                                )
+                                            }
+                                            inputMode="numeric"
+                                            placeholder="Contoh: 1250000"
+                                            disabled={selectedQuote.status === 'Accepted'}
+                                            className={`
+                                                h-12
+                                                w-full
+                                                rounded-xl
+                                                border
+                                                pl-10
+                                                pr-4
+                                                text-sm
+                                                font-semibold
+                                                outline-none
+                                                disabled:cursor-not-allowed
+                                                disabled:opacity-60
+                                                ${border}
+                                                ${inputBg}
+                                                ${pageText}
+                                                ${isDark
+                                                    ? 'placeholder:text-white/25 focus:border-violet-500/50'
+                                                    : 'placeholder:text-neutral-400 focus:border-violet-400'
+                                                }
+                                            `}
+                                        />
+                                    </div>
+                                    <p className={`mt-2 text-xs ${mutedText}`}>
+                                        Sisa pembayaran dihitung otomatis dari harga final dikurangi DP.
+                                    </p>
+                                </label>
+
                                 {/* Status */}
                                 <label className="block">
                                     <span
@@ -2219,6 +2342,7 @@ export function AdminQuotesPage() {
                                         value={
                                             status
                                         }
+                                        disabled={selectedQuote.status === 'Accepted'}
                                         onChange={(
                                             event,
                                         ) =>
@@ -2259,8 +2383,8 @@ export function AdminQuotesPage() {
                                             Quoted
                                         </option>
 
-                                        <option value="Accepted">
-                                            Accepted
+                                        <option value="Accepted" disabled>
+                                            Accepted (diterima customer)
                                         </option>
 
                                         <option value="Rejected">
@@ -2274,26 +2398,25 @@ export function AdminQuotesPage() {
                                 </label>
 
                                 {/* DP / Remaining */}
-                                {selectedQuote.proposed_price && (
+                                {Number(finalPrice) > 0 && (
                                     <div className="grid grid-cols-2 gap-3">
                                         <AmountCard
-                                            label="DP (50%)"
+                                            label="DP"
                                             value={formatCurrency(
-                                                selectedQuote.dp_amount,
+                                                Number(dpAmount) || 0,
                                             )}
-                                            isDark={
-                                                isDark
-                                            }
+                                            isDark={isDark}
                                         />
 
                                         <AmountCard
                                             label="Sisa"
                                             value={formatCurrency(
-                                                selectedQuote.remaining_amount,
+                                                Math.max(
+                                                    0,
+                                                    Number(finalPrice) - (Number(dpAmount) || 0),
+                                                ),
                                             )}
-                                            isDark={
-                                                isDark
-                                            }
+                                            isDark={isDark}
                                         />
                                     </div>
                                 )}
@@ -2331,7 +2454,8 @@ export function AdminQuotesPage() {
                                         )
                                     }
                                     disabled={
-                                        submitting
+                                        submitting ||
+                                        selectedQuote.status === 'Accepted'
                                     }
                                     className="
                                         inline-flex

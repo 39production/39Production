@@ -1087,6 +1087,12 @@ export function TrackOrderPage() {
             </button>
           </form>
 
+          {!paymentToken && !error && (
+            <p className="mt-3 text-xs leading-5 text-zinc-500">
+              Tracking requires the secure link sent after checkout. Open the original tracking link containing your order number and security token.
+            </p>
+          )}
+
           {error && (
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-600">
               {error}
@@ -1164,9 +1170,9 @@ export function TrackOrderPage() {
                                     index + 1
                                     ],
                                   ) ===
-                                      'completed'
-                                      ? 'bg-purple-500'
-                                      : 'bg-zinc-200'
+                                    'completed'
+                                    ? 'bg-purple-500'
+                                    : 'bg-zinc-200'
                                     }`}
                                 />
                               )}
@@ -1174,12 +1180,12 @@ export function TrackOrderPage() {
                             <div className="relative flex items-center gap-3">
                               <div
                                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${state ===
-                                    'completed'
-                                    ? 'bg-emerald-500 text-white'
-                                    : state ===
-                                      'current'
-                                      ? 'bg-zinc-950 text-white'
-                                      : 'bg-zinc-100 text-zinc-400'
+                                  'completed'
+                                  ? 'bg-emerald-500 text-white'
+                                  : state ===
+                                    'current'
+                                    ? 'bg-zinc-950 text-white'
+                                    : 'bg-zinc-100 text-zinc-400'
                                   }`}
                               >
                                 {state ===
@@ -1196,9 +1202,9 @@ export function TrackOrderPage() {
                               <div>
                                 <p
                                   className={`text-sm font-medium ${state ===
-                                      'waiting'
-                                      ? 'text-zinc-400'
-                                      : 'text-zinc-900'
+                                    'waiting'
+                                    ? 'text-zinc-400'
+                                    : 'text-zinc-900'
                                     }`}
                                 >
                                   {step}
@@ -1276,17 +1282,17 @@ export function TrackOrderPage() {
 
               <div
                 className={`rounded-2xl border p-5 shadow-sm ${getRemainingAmount() >
-                    0
-                    ? 'border-amber-200 bg-amber-50/50'
-                    : 'border-emerald-200 bg-emerald-50/50'
+                  0
+                  ? 'border-amber-200 bg-amber-50/50'
+                  : 'border-emerald-200 bg-emerald-50/50'
                   }`}
               >
                 <div className="flex items-center gap-3">
                   <div
                     className={`flex h-10 w-10 items-center justify-center rounded-xl ${getRemainingAmount() >
-                        0
-                        ? 'bg-amber-100'
-                        : 'bg-emerald-100'
+                      0
+                      ? 'bg-amber-100'
+                      : 'bg-emerald-100'
                       }`}
                   >
                     {getRemainingAmount() >
@@ -1848,9 +1854,9 @@ export function TrackOrderPage() {
 
                       <span
                         className={`text-right text-sm font-semibold ${getRemainingAmount() >
-                            0
-                            ? 'text-amber-700'
-                            : 'text-emerald-700'
+                          0
+                          ? 'text-amber-700'
+                          : 'text-emerald-700'
                           }`}
                       >
                         {formatPrice(
@@ -1994,14 +2000,14 @@ export function TrackOrderPage() {
                   <div className="flex gap-3">
                     <div
                       className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${isFullyPaid()
-                          ? 'bg-emerald-50'
-                          : 'bg-zinc-100'
+                        ? 'bg-emerald-50'
+                        : 'bg-zinc-100'
                         }`}
                     >
                       <div
                         className={`h-2.5 w-2.5 rounded-full ${isFullyPaid()
-                            ? 'bg-emerald-600'
-                            : 'bg-zinc-300'
+                          ? 'bg-emerald-600'
+                          : 'bg-zinc-300'
                           }`}
                       />
                     </div>

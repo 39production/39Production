@@ -1,5 +1,15 @@
 interface Env {
     DB: D1Database
+    PAYMENT_PROOFS?: R2Bucket
+
+    // Manual checkout payment destination (Cloudflare Worker variables/secrets).
+    PAYMENT_METHOD?: string
+    BANK_NAME?: string
+    BANK_ACCOUNT_NUMBER?: string
+    BANK_ACCOUNT_NAME?: string
+    DANA_NUMBER?: string
+    DANA_NAME?: string
+    PAYMENT_INSTRUCTIONS?: string
 
     // Required only for the first admin bootstrap.
     // Store ADMIN_PASSWORD as a Cloudflare Secret.
@@ -36,7 +46,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
     'http://127.0.0.1:5173',
 ]
 
-const MAX_REQUEST_BODY_BYTES = 2 * 1024 * 1024
+const MAX_REQUEST_BODY_BYTES = 7 * 1024 * 1024
 const LOGIN_WINDOW_MS = 15 * 60 * 1000
 const LOGIN_MAX_ATTEMPTS = 5
 
@@ -276,12 +286,12 @@ const ADMIN_PERMISSIONS: Record<AdminRole, Set<string>> = {
         'dashboard:read', 'members:read', 'members:write',
         'projects:read', 'projects:write', 'finance:read', 'finance:write',
         'revenue:read', 'revenue:write', 'documents:read', 'documents:write',
-        'audit:read', 'content:read', 'content:write', 'orders:read', 'settings:write', 'notifications:read', 'notifications:write',
+        'audit:read', 'content:read', 'content:write', 'orders:read', 'orders:write', 'settings:write', 'notifications:read', 'notifications:write',
     ]),
     Admin: new Set([
         'dashboard:read', 'members:read', 'projects:read', 'projects:write',
         'finance:read', 'finance:write', 'documents:read', 'documents:write', 'settings:write', 'notifications:read', 'notifications:write',
-        'content:read', 'content:write', 'orders:read',
+        'content:read', 'content:write', 'orders:read', 'orders:write',
     ]),
     Viewer: new Set(['dashboard:read', 'members:read', 'projects:read', 'finance:read', 'documents:read', 'orders:read']),
 }
@@ -1944,9 +1954,15 @@ async function createQuote(env: Env, body: QuotePayload) {
             )
         }
 
-        // Public quote links are generated only after the admin publishes
-        // the request as `Quoted`. A pending request has no public token.
+        // The current production D1 schema requires accept_token_hash.
+        // Pending requests receive a private placeholder hash so the INSERT
+        // satisfies that constraint without exposing a usable public token.
+        // updateQuote() replaces this hash with a fresh token when publishing.
         const quoteNumber = generateQuoteNumber()
+        const pendingToken = bytesToBase64Url(
+            crypto.getRandomValues(new Uint8Array(32)),
+        )
+        const pendingTokenHash = await sha256(pendingToken)
 
         const result = await env.DB.prepare(`
       INSERT INTO quotes (
@@ -1972,7 +1988,7 @@ async function createQuote(env: Env, body: QuotePayload) {
       )
       VALUES (
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-        NULL, NULL, NULL, 'Pending', NULL, NULL,
+        NULL, NULL, NULL, 'Pending', ?, NULL,
         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       )
     `)
@@ -1988,6 +2004,7 @@ async function createQuote(env: Env, body: QuotePayload) {
                 data.deadline,
                 data.referenceUrl,
                 data.additionalRequirements,
+                pendingTokenHash,
             )
             .run()
 
@@ -3909,6 +3926,12 @@ function validateOrderPayload(
     }
 }
 
+function generatePublicPaymentToken() {
+    const bytes = new Uint8Array(32)
+    crypto.getRandomValues(bytes)
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
 function generateOrderNumber() {
     const timestamp =
         Date.now().toString(36).toUpperCase()
@@ -3949,6 +3972,9 @@ async function getOrders(
         paid_amount,
         final_paid_at,
         payment_status,
+        payment_method,
+        payment_proof_uploaded_at,
+        CASE WHEN payment_proof_key IS NOT NULL AND payment_proof_key != '' THEN 1 ELSE 0 END AS has_payment_proof,
         business_project_id,
         type,
         status,
@@ -6590,21 +6616,81 @@ async function getPaymentStatus(
     })
 }
 
+let manualOrderPaymentSchemaReady = false
+
+async function ensureManualOrderPaymentSchema(env: Env) {
+    if (manualOrderPaymentSchemaReady) return
+    const columns = [
+        ['dp_amount', 'REAL NOT NULL DEFAULT 0'],
+        ['remaining_amount', 'REAL NOT NULL DEFAULT 0'],
+        ['paid_amount', 'REAL NOT NULL DEFAULT 0'],
+        ['payment_status', "TEXT NOT NULL DEFAULT 'UNPAID'"],
+        ['payment_method', 'TEXT'],
+        ['payment_instruction_json', 'TEXT'],
+        ['payment_proof_key', 'TEXT'],
+        ['payment_proof_content_type', 'TEXT'],
+        ['payment_proof_size', 'INTEGER'],
+        ['payment_proof_uploaded_at', 'TEXT'],
+        ['payment_verified_at', 'TEXT'],
+        ['public_payment_token', 'TEXT'],
+        ['public_payment_token_hash', 'TEXT'],
+    ] as const
+
+    for (const [column, definition] of columns) {
+        try {
+            await env.DB.prepare(`ALTER TABLE orders ADD COLUMN ${column} ${definition}`).run()
+        } catch (error) {
+            const message = error instanceof Error ? error.message.toLowerCase() : ''
+            if (!message.includes('duplicate column') && !message.includes('already exists')) {
+                throw error
+            }
+        }
+    }
+    manualOrderPaymentSchemaReady = true
+}
+
+function getManualPaymentInstruction(env: Env, amount: number, remainingAmount: number) {
+    // Return both configured destinations. The customer chooses the method
+    // on the checkout page; PAYMENT_METHOD is retained for legacy env setups.
+    const bankName = env.BANK_NAME?.trim()
+    const accountNumber = env.BANK_ACCOUNT_NUMBER?.trim()
+    const accountName = env.BANK_ACCOUNT_NAME?.trim()
+    const danaNumber = env.DANA_NUMBER?.trim()
+    const danaName = env.DANA_NAME?.trim()
+
+    if (!bankName || !accountNumber || !accountName) {
+        throw new Error('Manual bank transfer details are not configured.')
+    }
+
+    if (!danaNumber || !danaName) {
+        throw new Error('Manual DANA payment details are not configured.')
+    }
+
+    return {
+        payment_method: 'BANK_TRANSFER' as const,
+        payment_method2: 'DANA' as const,
+        payment_stage: 'DP' as const,
+        amount,
+        remaining_amount: remainingAmount,
+        bank_name: bankName,
+        account_number: accountNumber,
+        account_name: accountName,
+        dana_number: danaNumber,
+        dana_name: danaName,
+        instructions: env.PAYMENT_INSTRUCTIONS?.trim() ||
+            'Pilih DANA atau Transfer Bank, lakukan pembayaran sesuai nominal DP, lalu unggah bukti pembayaran.',
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    }
+}
+
 async function createOrder(
     env: Env,
     body: OrderPayload,
 ) {
-    const validation =
-        validateOrderPayload(body)
+    const validation = validateOrderPayload(body)
 
     if ('error' in validation) {
-        return json(
-            {
-                success: false,
-                message: validation.error,
-            },
-            400,
-        )
+        return json({ success: false, message: validation.error }, 400)
     }
 
     const {
@@ -6618,174 +6704,134 @@ async function createOrder(
     } = validation.data
 
     try {
+        await ensureManualOrderPaymentSchema(env)
+
         let itemName = ''
         let unitPrice = 0
 
         if (type === 'Product') {
-            const product =
-                await env.DB.prepare(
-                    `
-          SELECT
-            id,
-            name,
-            price,
-            stock,
-            status
-          FROM products
-          WHERE id = ?
-          `,
-                )
-                    .bind(productId)
-                    .first<{
-                        id: number
-                        name: string
-                        price: number
-                        stock: number
-                        status: string
-                    }>()
+            const product = await env.DB.prepare(`
+                SELECT id, name, price, stock, status
+                FROM products
+                WHERE id = ?
+                LIMIT 1
+            `).bind(productId).first<{
+                id: number
+                name: string
+                price: number
+                stock: number
+                status: string
+            }>()
 
-            if (!product) {
-                return json(
-                    {
-                        success: false,
-                        message: 'Product not found.',
-                    },
-                    404,
-                )
-            }
-
-            if (product.status !== 'Published') {
-                return json(
-                    {
-                        success: false,
-                        message:
-                            'This product is not available.',
-                    },
-                    400,
-                )
-            }
-
-            if (product.stock < quantity) {
-                return json(
-                    {
-                        success: false,
-                        message:
-                            'Insufficient product stock.',
-                    },
-                    400,
-                )
-            }
+            if (!product) return json({ success: false, message: 'Product not found.' }, 404)
+            if (product.status !== 'Published') return json({ success: false, message: 'This product is not available.' }, 400)
+            if (Number(product.stock) < quantity) return json({ success: false, message: 'Insufficient product stock.' }, 400)
 
             itemName = product.name
             unitPrice = Number(product.price)
         }
 
         if (type === 'Service') {
-            const service =
-                await env.DB.prepare(
-                    `
-          SELECT
-            id,
-            name,
-            price,
-            pricing_type,
-            status
-          FROM services
-          WHERE id = ?
-          `,
-                )
-                    .bind(serviceId)
-                    .first<{
-                        id: number
-                        name: string
-                        price: number
-                        pricing_type: ServicePricingType
-                        status: string
-                    }>()
+            const service = await env.DB.prepare(`
+                SELECT id, name, price, pricing_type, status
+                FROM services
+                WHERE id = ?
+                LIMIT 1
+            `).bind(serviceId).first<{
+                id: number
+                name: string
+                price: number
+                pricing_type: ServicePricingType
+                status: string
+            }>()
 
-            if (!service) {
-                return json(
-                    {
-                        success: false,
-                        message: 'Service not found.',
-                    },
-                    404,
-                )
-            }
-
-            if (service.status !== 'Active') {
-                return json(
-                    {
-                        success: false,
-                        message:
-                            'This service is not available.',
-                    },
-                    400,
-                )
-            }
-
+            if (!service) return json({ success: false, message: 'Service not found.' }, 404)
+            if (service.status !== 'Active') return json({ success: false, message: 'This service is not available.' }, 400)
             if (service.pricing_type !== 'fixed') {
-                return json(
-                    {
-                        success: false,
-                        message:
-                            'This service must go through Request Quote and cannot be created directly as an order.',
-                    },
-                    400,
-                )
+                return json({
+                    success: false,
+                    message: 'This service must go through Request Quote and cannot be created directly as an order.',
+                }, 400)
             }
 
             itemName = service.name
             unitPrice = Number(service.price)
         }
 
-        const totalPrice =
-            unitPrice * quantity
+        if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+            return json({ success: false, message: 'Invalid item price.' }, 400)
+        }
 
-        const orderNumber =
-            generateOrderNumber()
+        const totalPrice = Math.round(unitPrice * quantity)
+        const dpAmount = Math.ceil(totalPrice * 0.5)
+        const remainingAmount = totalPrice - dpAmount
+        const paymentInstruction = getManualPaymentInstruction(env, dpAmount, remainingAmount)
+        const orderNumber = generateOrderNumber()
+        const publicPaymentToken = generatePublicPaymentToken()
+        const publicPaymentTokenHash = await sha256(publicPaymentToken)
 
-        const insertResult =
-            await env.DB.prepare(
-                `
-        INSERT INTO orders (
-          order_number,
-          product_id,
-          service_id,
-          customer_name,
-          customer_email,
-          customer_phone,
-          product_name,
-          quantity,
-          unit_price,
-          total_price,
-          type,
-          status
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
+        const insertResult = await env.DB.prepare(`
+            INSERT INTO orders (
+                order_number,
+                product_id,
+                service_id,
+                customer_name,
+                customer_email,
+                customer_phone,
+                product_name,
+                quantity,
+                unit_price,
+                total_price,
+                type,
+                status,
+                dp_amount,
+                remaining_amount,
+                paid_amount,
+                payment_status,
+                payment_method,
+                payment_instruction_json,
+                public_payment_token,
+                public_payment_token_hash
             )
-                .bind(
-                    orderNumber,
-                    productId,
-                    serviceId,
-                    customerName,
-                    customerEmail,
-                    customerPhone,
-                    itemName,
-                    quantity,
-                    unitPrice,
-                    totalPrice,
-                    type,
-                    'Pending',
-                )
-                .run()
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, 0, 'UNPAID', ?, ?, NULL, ?)
+        `).bind(
+            orderNumber,
+            productId,
+            serviceId,
+            customerName,
+            customerEmail,
+            customerPhone,
+            itemName,
+            quantity,
+            unitPrice,
+            totalPrice,
+            type,
+            dpAmount,
+            remainingAmount,
+            paymentInstruction.payment_method,
+            JSON.stringify(paymentInstruction),
+            publicPaymentTokenHash,
+        ).run()
 
         const orderId = Number(insertResult.meta.last_row_id)
 
+        // Re-check and decrement stock atomically to reduce overselling risk.
+        if (type === 'Product') {
+            const stockUpdate = await env.DB.prepare(`
+                UPDATE products
+                SET stock = stock - ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND stock >= ? AND status = 'Published'
+            `).bind(quantity, productId, quantity).run()
+
+            if (!stockUpdate.meta.changes) {
+                await env.DB.prepare(`DELETE FROM orders WHERE id = ?`).bind(orderId).run()
+                return json({ success: false, message: 'Product stock changed. Please refresh and try again.' }, 409)
+            }
+        }
+
         await createAdminNotification(env, {
             type: 'order',
-            title: 'New Order',
+            title: 'New Order — Waiting for DP',
             message: `${itemName} — ${customerName}`,
             referenceType: 'order',
             referenceId: orderId,
@@ -6793,33 +6839,23 @@ async function createOrder(
         })
 
         await sendAdminEmailNotification(env, {
-            title: 'New Order',
-            message: `A new ${type.toLowerCase()} order has been created.`,
-            referenceType: 'order', referenceNumber: orderNumber,
-            customerName, customerEmail, customerPhone, itemName, amount: totalPrice,
+            title: 'New Order — Waiting for DP',
+            message: `A new ${type.toLowerCase()} order has been created and is waiting for the DP payment proof.`,
+            referenceType: 'order',
+            referenceNumber: orderNumber,
+            customerName,
+            customerEmail,
+            customerPhone,
+            itemName,
+            amount: dpAmount,
         })
 
-        if (type === 'Product') {
-            await env.DB.prepare(
-                `
-        UPDATE products
-        SET
-          stock = stock - ?,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-        `,
-            )
-                .bind(quantity, productId)
-                .run()
-        }
-
-        return json(
-            {
-                success: true,
-                message:
-                    'Order created successfully.',
-                data: {
-                    id: insertResult.meta.last_row_id,
+        return json({
+            success: true,
+            message: 'Order created. Please complete the DP payment.',
+            data: {
+                order: {
+                    id: orderId,
                     order_number: orderNumber,
                     product_id: productId,
                     service_id: serviceId,
@@ -6830,25 +6866,283 @@ async function createOrder(
                     quantity,
                     unit_price: unitPrice,
                     total_price: totalPrice,
+                    dp_amount: dpAmount,
+                    remaining_amount: remainingAmount,
+                    paid_amount: 0,
+                    payment_status: 'UNPAID',
+                    payment_method: paymentInstruction.payment_method,
+                    public_payment_token: publicPaymentToken,
                     type,
                     status: 'Pending',
+                    created_at: new Date().toISOString(),
                 },
+                payment_instruction: paymentInstruction,
             },
-            201,
-        )
+        }, 201)
     } catch (error) {
-        console.error(
-            'Create order error:',
-            error,
-        )
-
-        return json(
-            {
+        console.error('Create order error:', error)
+        const message = error instanceof Error ? error.message : ''
+        if (message.includes('payment details are not configured') || message.includes('PAYMENT_METHOD')) {
+            return json({
                 success: false,
-                message: 'Failed to create order.',
+                message: 'Payment destination is not configured. Please contact the administrator.',
+            }, 503)
+        }
+        return json({ success: false, message: 'Failed to create order.' }, 500)
+    }
+}
+
+const MAX_PAYMENT_PROOF_BYTES = 5 * 1024 * 1024
+const ALLOWED_PAYMENT_PROOF_TYPES = new Set([
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'application/pdf',
+])
+
+function getOrderNumberFromProofPath(pathname: string) {
+    const match = pathname.match(/^\/api\/orders\/([^/]+)\/payment-proof$/)
+    return match ? decodeURIComponent(match[1]) : null
+}
+
+async function uploadOrderPaymentProof(request: Request, env: Env, orderNumber: string) {
+    if (!env.PAYMENT_PROOFS) {
+        return json({ success: false, message: 'Payment proof storage is not configured.' }, 503)
+    }
+
+    let formData: FormData
+    try {
+        formData = await request.formData()
+    } catch {
+        return json({ success: false, message: 'Invalid multipart form data.' }, 400)
+    }
+
+    const proof = formData.get('proof')
+    const requestedPaymentMethod = formData.get('payment_method')
+    if (
+        requestedPaymentMethod !== null &&
+        requestedPaymentMethod !== 'BANK_TRANSFER' &&
+        requestedPaymentMethod !== 'DANA'
+    ) {
+        return json({ success: false, message: 'Invalid payment method.' }, 400)
+    }
+    if (!(proof instanceof File)) {
+        return json({ success: false, message: 'Payment proof file is required.' }, 400)
+    }
+    if (proof.size <= 0 || proof.size > MAX_PAYMENT_PROOF_BYTES) {
+        return json({ success: false, message: 'Payment proof must be between 1 byte and 5 MB.' }, 413)
+    }
+    if (!ALLOWED_PAYMENT_PROOF_TYPES.has(proof.type)) {
+        return json({ success: false, message: 'Only JPG, PNG, WEBP, or PDF files are allowed.' }, 415)
+    }
+
+    const bytes = new Uint8Array(await proof.arrayBuffer())
+    const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+    const isPng = bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+    const isWebp = bytes.length >= 12 && String.fromCharCode(...bytes.slice(0, 4)) === 'RIFF' && String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP'
+    const isPdf = bytes.length >= 5 && String.fromCharCode(...bytes.slice(0, 5)) === '%PDF-'
+    const signatureValid =
+        (proof.type === 'image/jpeg' && isJpeg) ||
+        (proof.type === 'image/png' && isPng) ||
+        (proof.type === 'image/webp' && isWebp) ||
+        (proof.type === 'application/pdf' && isPdf)
+
+    if (!signatureValid) {
+        return json({ success: false, message: 'File content does not match its declared type.' }, 415)
+    }
+
+    try {
+        await ensureManualOrderPaymentSchema(env)
+
+        const order = await env.DB.prepare(`
+            SELECT id, order_number, payment_proof_key, payment_status, payment_method, status
+            FROM orders
+            WHERE order_number = ?
+            LIMIT 1
+        `).bind(orderNumber).first<{
+            id: number
+            order_number: string
+            payment_proof_key: string | null
+            payment_status: string | null
+            payment_method: string | null
+            status: string
+        }>()
+
+        if (!order) return json({ success: false, message: 'Order not found.' }, 404)
+        if (order.status === 'Cancelled' || order.payment_status === 'PAID') {
+            return json({ success: false, message: 'This order can no longer accept a payment proof.' }, 409)
+        }
+        if (order.payment_proof_key) {
+            return json({ success: false, message: 'A payment proof has already been submitted. Please contact the administrator for changes.' }, 409)
+        }
+
+        const selectedPaymentMethod = requestedPaymentMethod === 'DANA' || requestedPaymentMethod === 'BANK_TRANSFER'
+            ? requestedPaymentMethod
+            : order.payment_method || 'BANK_TRANSFER'
+
+        const extension = proof.type === 'image/jpeg' ? 'jpg'
+            : proof.type === 'image/png' ? 'png'
+                : proof.type === 'image/webp' ? 'webp' : 'pdf'
+        const objectKey = `payment-proofs/${order.order_number}/${crypto.randomUUID()}.${extension}`
+
+        await env.PAYMENT_PROOFS.put(objectKey, bytes, {
+            httpMetadata: { contentType: proof.type, cacheControl: 'private, no-store' },
+            customMetadata: {
+                orderNumber: order.order_number,
+                uploadedAt: new Date().toISOString(),
             },
-            500,
-        )
+        })
+
+        const update = await env.DB.prepare(`
+            UPDATE orders
+            SET payment_method = ?,
+                payment_proof_key = ?,
+                payment_proof_content_type = ?,
+                payment_proof_size = ?,
+                payment_proof_uploaded_at = CURRENT_TIMESTAMP,
+                payment_status = 'PROOF_SUBMITTED',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND (payment_proof_key IS NULL OR payment_proof_key = '')
+        `).bind(selectedPaymentMethod, objectKey, proof.type, proof.size, order.id).run()
+
+        if (!update.meta.changes) {
+            await env.PAYMENT_PROOFS.delete(objectKey)
+            return json({ success: false, message: 'A payment proof was submitted concurrently. Please refresh the order.' }, 409)
+        }
+
+        await createAdminNotification(env, {
+            type: 'payment',
+            title: 'Payment Proof Submitted',
+            message: `Payment proof submitted for order ${order.order_number} via ${selectedPaymentMethod === 'DANA' ? 'DANA' : 'Bank Transfer'}. Admin verification is required.`,
+            referenceType: 'order',
+            referenceId: order.id,
+            referenceNumber: order.order_number,
+        })
+
+        await sendAdminEmailNotification(env, {
+            title: 'Payment Proof Submitted',
+            message: `A customer has submitted a DP payment proof for order ${order.order_number} via ${selectedPaymentMethod === 'DANA' ? 'DANA' : 'Bank Transfer'}. Please verify it in the admin panel.`,
+            referenceType: 'order',
+            referenceNumber: order.order_number,
+            itemName: 'DP Payment Proof',
+        })
+
+        return json({
+            success: true,
+            message: 'Payment proof uploaded successfully. Waiting for admin verification.',
+            data: {
+                order_number: order.order_number,
+                payment_status: 'PROOF_SUBMITTED',
+                uploaded_at: new Date().toISOString(),
+            },
+        }, 201)
+    } catch (error) {
+        console.error('Upload payment proof error:', error)
+        return json({ success: false, message: 'Failed to upload payment proof.' }, 500)
+    }
+}
+
+
+async function verifyOrderDpPayment(request: Request, env: Env, orderNumber: string) {
+    const auth = await requirePermission(request, env, 'orders:write')
+    if (auth instanceof Response) return auth
+
+    try {
+        const order = await env.DB.prepare(`
+            SELECT id, order_number, dp_amount, paid_amount, payment_status, payment_proof_key, status
+            FROM orders
+            WHERE order_number = ?
+            LIMIT 1
+        `).bind(orderNumber).first<{
+            id: number
+            order_number: string
+            dp_amount: number
+            paid_amount: number
+            payment_status: string
+            payment_proof_key: string | null
+            status: string
+        }>()
+
+        if (!order) return json({ success: false, message: 'Order not found.' }, 404)
+        if (!order.payment_proof_key) return json({ success: false, message: 'Payment proof has not been submitted.' }, 409)
+        if (order.payment_status === 'DP_PAID' || order.payment_status === 'PAID') {
+            return json({ success: false, message: 'DP payment has already been verified.' }, 409)
+        }
+        if (order.status === 'Cancelled') return json({ success: false, message: 'Cancelled orders cannot be verified.' }, 409)
+
+        await env.DB.prepare(`
+            UPDATE orders
+            SET paid_amount = ?,
+                dp_paid_at = CURRENT_TIMESTAMP,
+                payment_verified_at = CURRENT_TIMESTAMP,
+                payment_status = 'DP_PAID',
+                status = CASE WHEN status = 'Pending' THEN 'Processing' ELSE status END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `).bind(Number(order.dp_amount), order.id).run()
+
+        await createAdminNotification(env, {
+            type: 'payment',
+            title: 'DP Payment Verified',
+            message: `DP payment for order ${order.order_number} has been verified.`,
+            referenceType: 'order',
+            referenceId: order.id,
+            referenceNumber: order.order_number,
+        })
+
+        return json({
+            success: true,
+            message: 'DP payment verified. Order can proceed.',
+            data: {
+                order_number: order.order_number,
+                payment_status: 'DP_PAID',
+                paid_amount: Number(order.dp_amount),
+                verified_by: auth.user.id,
+            },
+        })
+    } catch (error) {
+        console.error('Verify order DP payment error:', error)
+        return json({ success: false, message: 'Failed to verify DP payment.' }, 500)
+    }
+}
+
+async function getAdminOrderPaymentProof(request: Request, env: Env, orderNumber: string) {
+    if (!env.PAYMENT_PROOFS) {
+        return json({ success: false, message: 'Payment proof storage is not configured.' }, 503)
+    }
+
+    const auth = await requirePermission(request, env, 'orders:read')
+    if (auth instanceof Response) return auth
+
+    try {
+        const order = await env.DB.prepare(`
+            SELECT payment_proof_key, payment_proof_content_type
+            FROM orders
+            WHERE order_number = ?
+            LIMIT 1
+        `).bind(orderNumber).first<{
+            payment_proof_key: string | null
+            payment_proof_content_type: string | null
+        }>()
+
+        if (!order?.payment_proof_key) return json({ success: false, message: 'Payment proof not found.' }, 404)
+
+        const object = await env.PAYMENT_PROOFS.get(order.payment_proof_key)
+        if (!object) return json({ success: false, message: 'Payment proof file is missing.' }, 404)
+
+        const headers = new Headers({
+            'Content-Type': order.payment_proof_content_type || 'application/octet-stream',
+            'Content-Length': String(object.size),
+            'Content-Disposition': `attachment; filename="payment-proof-${orderNumber}"`,
+            'Cache-Control': 'private, no-store',
+            'X-Content-Type-Options': 'nosniff',
+            ...getCorsHeaders(request.headers.get('Origin') || undefined, env),
+        })
+
+        return new Response(object.body, { status: 200, headers })
+    } catch (error) {
+        console.error('Get admin payment proof error:', error)
+        return json({ success: false, message: 'Failed to retrieve payment proof.' }, 500)
     }
 }
 
@@ -7077,10 +7371,16 @@ async function trackOrder(
                 .first<any>()
             : null
 
+        const {
+            public_payment_token: _publicPaymentToken,
+            public_payment_token_hash: _publicPaymentTokenHash,
+            ...safeOrder
+        } = order
+
         return json({
             success: true,
             data: {
-                ...order,
+                order: safeOrder,
                 payments: payments.results,
                 project,
                 payment_summary: {
@@ -12776,18 +13076,21 @@ async function handleWorkerRequest(
                     pathname === '/api/quotes' ? 'quote-create' :
                         pathname.startsWith('/api/quotes/public/') ? 'quote-public' :
                             pathname.startsWith('/api/orders/track/') ? 'order-track' :
-                                /^\/api\/payments\/[^/]+\/status$/.test(pathname) ? 'payment-status' :
-                                    (pathname === '/api/payments/webhook' || pathname === '/v1.0/debit/notify') ? 'payment-webhook' :
-                                        null
+                                (pathname === '/api/orders' && method === 'POST') ? 'order-create' :
+                                    /^\/api\/payments\/[^/]+\/status$/.test(pathname) ? 'payment-status' :
+                                        /^\/api\/orders\/[^/]+\/payment-proof$/.test(pathname) ? 'payment-proof' :
+                                            (pathname === '/api/payments/webhook' || pathname === '/v1.0/debit/notify') ? 'payment-webhook' :
+                                                null
 
     if (publicRateLimitBucket) {
-        const limit = publicRateLimitBucket === 'payment-webhook' ? 120 : publicRateLimitBucket === 'order-track' ? 30 : publicRateLimitBucket === 'quote-public' ? 30 : 20
+        const limit = publicRateLimitBucket === 'payment-webhook' ? 120 : publicRateLimitBucket === 'order-track' ? 30 : publicRateLimitBucket === 'quote-public' ? 30 : publicRateLimitBucket === 'order-create' ? 8 : 20
         const rate = consumePublicRateLimit(request, publicRateLimitBucket, limit, 60 * 1000)
         if (!rate.allowed) return rateLimitResponse(rate.retryAfter, request, env)
     }
 
     try {
         await ensureSecuritySchema(env)
+        await ensureManualOrderPaymentSchema(env)
         await ensureProductGallerySchema(env)
         await ensurePortfolioGallerySchema(env)
         await cleanupExpiredSessions(env)
@@ -12994,6 +13297,8 @@ async function handleWorkerRequest(
             (pathname === '/api/payments/webhook' && method === 'POST') ||
             (pathname === '/v1.0/debit/notify' && method === 'POST') ||
             (pathname.startsWith('/api/orders/track/') && method === 'GET') ||
+            (pathname === '/api/orders' && method === 'POST') ||
+            (/^\/api\/orders\/[^/]+\/payment-proof$/.test(pathname) && method === 'POST') ||
             (pathname === '/api/services' && method === 'GET') ||
             (/^\/api\/services\/\d+$/.test(pathname) && method === 'GET') ||
             (pathname === '/api/quotes' && method === 'POST') ||
@@ -13018,8 +13323,10 @@ async function handleWorkerRequest(
                                 pathname.startsWith('/api/portfolio') || pathname.startsWith('/api/news') ||
                                 pathname.startsWith('/api/promotions') || pathname.startsWith('/api/idol/') ?
                                 (method === 'GET' ? 'content:read' : 'content:write') :
-                                pathname.startsWith('/api/orders') ? 'orders:read' :
-                                    'dashboard:read'
+                                pathname.startsWith('/api/admin/orders/') && method !== 'GET' ? 'orders:write' :
+                                    pathname.startsWith('/api/admin/orders/') ? 'orders:read' :
+                                        pathname.startsWith('/api/orders') ? 'orders:read' :
+                                            'dashboard:read'
 
             const auth = await requirePermission(request, env, permission)
             if (auth instanceof Response) return auth
@@ -13728,6 +14035,36 @@ async function handleWorkerRequest(
         }
 
         /* =========================
+           PUBLIC PAYMENT PROOF UPLOAD
+        ========================= */
+
+        const paymentProofOrderNumber = getOrderNumberFromProofPath(pathname)
+        if (paymentProofOrderNumber !== null && method === 'POST') {
+            if (!/^[A-Za-z0-9_-]{6,64}$/.test(paymentProofOrderNumber)) {
+                return json({ success: false, message: 'Invalid order number.' }, 400)
+            }
+            const rate = consumePublicRateLimit(request, 'payment-proof-upload', 5, 60 * 60 * 1000)
+            if (!rate.allowed) return rateLimitResponse(rate.retryAfter, request, env)
+            return await uploadOrderPaymentProof(request, env, paymentProofOrderNumber)
+        }
+
+        /* =========================
+           ADMIN PAYMENT PROOF ACCESS
+        ========================= */
+
+        const adminVerifyPaymentMatch = pathname.match(/^\/api\/admin\/orders\/([^/]+)\/verify-payment$/)
+        if (adminVerifyPaymentMatch && method === 'PUT') {
+            const orderNumber = decodeURIComponent(adminVerifyPaymentMatch[1])
+            return await verifyOrderDpPayment(request, env, orderNumber)
+        }
+
+        const adminPaymentProofMatch = pathname.match(/^\/api\/admin\/orders\/([^/]+)\/payment-proof$/)
+        if (adminPaymentProofMatch && method === 'GET') {
+            const orderNumber = decodeURIComponent(adminPaymentProofMatch[1])
+            return await getAdminOrderPaymentProof(request, env, orderNumber)
+        }
+
+        /* =========================
            ORDERS
         ========================= */
 
@@ -13995,4 +14332,3 @@ export default {
         })
     },
 }
-

@@ -1,12 +1,13 @@
 import {
   ArrowRight,
+  ArrowUpRight,
   Calendar,
   FileText,
   Loader2,
   Newspaper,
-  Sparkles,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties, PointerEvent, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
 const API_BASE_URL =
@@ -98,6 +99,19 @@ function getDateParts(date: string) {
   }
 }
 
+function shortDate(date: string) {
+  const parts = getDateParts(date)
+  return `${parts.day} ${parts.month} ${parts.year}`
+}
+
+function timestamp(date: string) {
+  const value = new Date(`${date}T00:00:00`).getTime()
+  return Number.isNaN(value) ? 0 : value
+}
+
+const delay = (ms: number) =>
+  ({ '--d': `${ms}ms` }) as CSSProperties
+
 /*
  * ============================================================
  * SEO HELPERS
@@ -140,17 +154,379 @@ function setCanonical(url: string) {
   return canonical
 }
 
-/*
- * ============================================================
- * PAGE
- * ============================================================
- */
+/* ------------------------------------------------------------------ */
+/* Tilt 3D mengikuti kursor                                            */
+/* ------------------------------------------------------------------ */
+function useTilt<T extends HTMLElement>(max = 5) {
+  const ref = useRef<T | null>(null)
 
+  const onMove = (e: PointerEvent<T>) => {
+    if (e.pointerType === 'touch') return
+    const el = ref.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const x = (e.clientX - r.left) / r.width
+    const y = (e.clientY - r.top) / r.height
+    el.style.setProperty('--ry', `${((x - 0.5) * max).toFixed(2)}deg`)
+    el.style.setProperty('--rx', `${((0.5 - y) * max).toFixed(2)}deg`)
+    el.style.setProperty('--gx', `${(x * 100).toFixed(1)}%`)
+    el.style.setProperty('--gy', `${(y * 100).toFixed(1)}%`)
+  }
+
+  const onLeave = () => {
+    const el = ref.current
+    if (!el) return
+    el.style.setProperty('--ry', '0deg')
+    el.style.setProperty('--rx', '0deg')
+  }
+
+  return { ref, onMove, onLeave }
+}
+
+/* ------------------------------------------------------------------ */
+/* Gambar dummy lokal (SVG) — dipakai bila foto kosong / gagal         */
+/* ------------------------------------------------------------------ */
+function PlaceholderArt({ seed }: { seed: string }) {
+  const variant =
+    Array.from(seed).reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % 4
+  const id = `nw-${variant}-${seed.replace(/[^a-z0-9]/gi, '').slice(0, 8)}`
+
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 400 260"
+      preserveAspectRatio="xMidYMid slice"
+      className="absolute inset-0 h-full w-full"
+    >
+      <defs>
+        <radialGradient id={`${id}-a`} cx="18%" cy="15%" r="70%">
+          <stop offset="0%" stopColor="#7C3AED" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#7C3AED" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id={`${id}-b`} cx="92%" cy="95%" r="60%">
+          <stop offset="0%" stopColor="#E78FBA" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#E78FBA" stopOpacity="0" />
+        </radialGradient>
+        <pattern id={`${id}-g`} width="20" height="20" patternUnits="userSpaceOnUse">
+          <path d="M20 0H0V20" fill="none" stroke="#fff" strokeOpacity="0.05" />
+        </pattern>
+      </defs>
+
+      <rect width="400" height="260" fill="#0d0820" />
+      <rect width="400" height="260" fill={`url(#${id}-a)`} />
+      <rect width="400" height="260" fill={`url(#${id}-b)`} />
+      <rect width="400" height="260" fill={`url(#${id}-g)`} />
+
+      {variant === 0 && (
+        <g className="nw-art-a">
+          {[110, 76, 44].map((r, i) => (
+            <circle key={r} cx="290" cy="110" r={r} fill="none" stroke="#fff" strokeOpacity={0.1 + i * 0.08} />
+          ))}
+          <circle cx="290" cy="110" r="18" fill="#7C3AED" />
+          <circle cx="338" cy="60" r="5" fill="#E78FBA" />
+          <rect x="36" y="160" width="110" height="6" fill="#fff" opacity="0.25" />
+          <rect x="36" y="174" width="72" height="6" fill="#fff" opacity="0.15" />
+        </g>
+      )}
+
+      {variant === 1 && (
+        <g>
+          {Array.from({ length: 14 }).map((_, i) => {
+            const h = 36 + ((i * 53) % 110)
+            return (
+              <rect
+                key={i}
+                x={36 + i * 24}
+                y={216 - h}
+                width="13"
+                height={h}
+                fill={i % 5 === 0 ? '#E78FBA' : '#7C3AED'}
+                opacity={0.35 + (i % 4) * 0.15}
+                className="nw-art-bar"
+                style={{ animationDelay: `${(i % 8) * 0.22}s` }}
+              />
+            )
+          })}
+          <rect x="36" y="222" width="330" height="1" fill="#fff" opacity="0.25" />
+        </g>
+      )}
+
+      {variant === 2 && (
+        <g className="nw-art-a">
+          <rect x="52" y="44" width="296" height="160" fill="none" stroke="#fff" strokeOpacity="0.2" />
+          <rect x="52" y="44" width="296" height="20" fill="#fff" opacity="0.08" />
+          <circle cx="64" cy="54" r="3" fill="#E78FBA" />
+          <rect x="66" y="78" width="116" height="60" fill="#7C3AED" opacity="0.75" />
+          <rect x="194" y="78" width="138" height="28" fill="#fff" opacity="0.14" />
+          <rect x="194" y="114" width="88" height="24" fill="#E78FBA" opacity="0.6" />
+          <rect x="66" y="152" width="266" height="7" fill="#fff" opacity="0.16" />
+          <rect x="66" y="167" width="180" height="7" fill="#fff" opacity="0.1" />
+        </g>
+      )}
+
+      {variant === 3 && (
+        <g className="nw-art-a">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <path
+              key={i}
+              d={`M-20 ${160 + i * 10} C 80 ${100 + i * 6}, 180 ${210 - i * 6}, 420 ${120 + i * 9}`}
+              fill="none"
+              stroke={i % 3 === 0 ? '#E78FBA' : '#7C3AED'}
+              strokeOpacity={0.25 + i * 0.08}
+              strokeWidth="1.5"
+            />
+          ))}
+          <circle cx="96" cy="76" r="28" fill="#7C3AED" opacity="0.85" />
+          <circle cx="108" cy="68" r="28" fill="none" stroke="#fff" strokeOpacity="0.35" />
+        </g>
+      )}
+
+      <text
+        x="30"
+        y="244"
+        fill="none"
+        stroke="#fff"
+        strokeOpacity="0.28"
+        fontFamily="ui-sans-serif, system-ui, sans-serif"
+        fontSize="56"
+        fontWeight="900"
+        letterSpacing="-5"
+      >
+        39
+      </text>
+    </svg>
+  )
+}
+
+function NewsImage({
+  src,
+  alt,
+  seed,
+  eager = false,
+  className = '',
+}: {
+  src?: string | null
+  alt: string
+  seed: string
+  eager?: boolean
+  className?: string
+}) {
+  const [failed, setFailed] = useState(false)
+
+  if (!src || failed) {
+    return (
+      <div role="img" aria-label={alt} className="absolute inset-0 overflow-hidden bg-[#0d0820]">
+        <PlaceholderArt seed={seed} />
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading={eager ? 'eager' : 'lazy'}
+      decoding="async"
+      onError={() => setFailed(true)}
+      onLoad={(e) => {
+        if (e.currentTarget.naturalWidth === 0) setFailed(true)
+      }}
+      className={`absolute inset-0 h-full w-full object-cover ${className}`}
+    />
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Label kategori                                                      */
+/* ------------------------------------------------------------------ */
+function Tag({
+  children,
+  dark = false,
+}: {
+  children: ReactNode
+  dark?: boolean
+}) {
+  return (
+    <span
+      className={`inline-flex w-fit items-center px-2 py-1 font-mono text-[8px] font-bold uppercase tracking-[0.16em] sm:text-[9px] ${dark
+        ? 'bg-white text-violet-700'
+        : 'bg-violet-600 text-white'
+        }`}
+    >
+      {children}
+    </span>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Berita utama (lead)                                                 */
+/* ------------------------------------------------------------------ */
+function LeadStory({ item }: { item: News }) {
+  const { ref, onMove, onLeave } = useTilt<HTMLAnchorElement>(4)
+
+  return (
+    <Link
+      ref={ref}
+      to={`/news/${item.id}`}
+      onPointerMove={onMove}
+      onPointerLeave={onLeave}
+      className="nw-card group relative block h-full min-h-[320px] overflow-hidden bg-[#0d0820] sm:min-h-[420px] lg:min-h-[480px]"
+    >
+      <NewsImage
+        src={item.image_url}
+        alt={item.title}
+        seed={item.title}
+        eager
+        className="nw-kb transition-transform duration-700 group-hover:scale-[1.04]"
+      />
+
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/10" />
+      <div className="nw-glare pointer-events-none absolute inset-0 z-10 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+      <div className="nw-shine pointer-events-none absolute inset-y-0 -left-1/2 z-10 w-1/3 -skew-x-12 bg-white/20 opacity-0" />
+
+      <div className="absolute left-4 top-4 z-20 flex items-center gap-2 sm:left-6 sm:top-6">
+        <span className="inline-flex items-center gap-2 bg-violet-600 px-2.5 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-white shadow-[4px_4px_0_0_rgba(0,0,0,0.85)]">
+          <span className="nw-blink h-1.5 w-1.5 bg-white" />
+          Top story
+        </span>
+        <Tag dark>{item.category}</Tag>
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 z-20 p-4 sm:p-7 lg:p-9">
+        <h2 className="nw-ul max-w-3xl text-[1.6rem] font-semibold leading-[1.05] tracking-[-0.045em] text-white sm:text-4xl lg:text-[2.7rem]">
+          <span>{item.title}</span>
+        </h2>
+
+        {item.excerpt && (
+          <p className="mt-3 hidden max-w-2xl line-clamp-2 text-sm leading-6 text-white/75 sm:block">
+            {item.excerpt}
+          </p>
+        )}
+
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/20 pt-4 font-mono text-[9px] uppercase tracking-[0.14em] text-white/70 sm:text-[10px]">
+          <span>By {item.author}</span>
+          <span className="h-1 w-1 bg-white/40" />
+          <span className="flex items-center gap-1.5">
+            <Calendar className="h-3 w-3" />
+            {formatDate(item.date)}
+          </span>
+          <span className="ml-auto flex items-center gap-2 font-bold text-white">
+            Read story
+            <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+          </span>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Berita samping (di sebelah lead)                                    */
+/* ------------------------------------------------------------------ */
+function SideStory({ item, index }: { item: News; index: number }) {
+  return (
+    <Link
+      to={`/news/${item.id}`}
+      className="group relative flex flex-1 gap-3.5 border border-zinc-200 bg-white p-3 transition-[border-color,box-shadow] duration-500 hover:border-violet-400 hover:shadow-[6px_6px_0_0_rgba(124,58,237,0.9)] sm:gap-4 sm:p-3.5"
+    >
+      <div className="absolute left-0 top-0 h-0.5 w-0 bg-violet-600 transition-all duration-700 group-hover:w-full" />
+
+      <div className="relative aspect-[4/3] w-[104px] shrink-0 overflow-hidden bg-[#0d0820] sm:w-[148px]">
+        <NewsImage
+          src={item.image_url}
+          alt={item.title}
+          seed={item.title}
+          className="transition-transform duration-700 group-hover:scale-[1.06]"
+        />
+        <span className="absolute left-0 top-0 z-10 bg-zinc-950 px-1.5 py-1 font-mono text-[8px] font-bold text-white">
+          {String(index).padStart(2, '0')}
+        </span>
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col justify-between">
+        <div>
+          <p className="font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-violet-600 sm:text-[9px]">
+            {item.category}
+          </p>
+          <h3 className="mt-1.5 line-clamp-3 text-[14px] font-semibold leading-[1.18] tracking-[-0.03em] text-zinc-950 transition-colors group-hover:text-violet-600 sm:text-base">
+            {item.title}
+          </h3>
+        </div>
+
+        <p className="mt-2 font-mono text-[8px] uppercase tracking-[0.14em] text-zinc-400 sm:text-[9px]">
+          {shortDate(item.date)} · {item.author}
+        </p>
+      </div>
+    </Link>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Baris berita (daftar utama)                                         */
+/* ------------------------------------------------------------------ */
+function StoryRow({ item }: { item: News }) {
+  return (
+    <Link
+      to={`/news/${item.id}`}
+      className="group relative flex gap-4 border-b border-zinc-200 py-4 transition-colors hover:bg-violet-50/40 sm:gap-6 sm:py-6"
+    >
+      <div className="absolute bottom-[-1px] left-0 h-px w-0 bg-violet-600 transition-all duration-700 group-hover:w-full" />
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Tag>{item.category}</Tag>
+          <span className="font-mono text-[8px] uppercase tracking-[0.14em] text-zinc-400 sm:text-[9px]">
+            {shortDate(item.date)}
+          </span>
+        </div>
+
+        <h3 className="nw-ul mt-2.5 text-[16px] font-semibold leading-[1.15] tracking-[-0.035em] text-zinc-950 sm:mt-3 sm:text-2xl">
+          <span>{item.title}</span>
+        </h3>
+
+        {item.excerpt && (
+          <p className="mt-2 line-clamp-2 text-xs leading-5 text-zinc-500 sm:mt-3 sm:text-sm sm:leading-6">
+            {item.excerpt}
+          </p>
+        )}
+
+        <div className="mt-3 flex items-center justify-between gap-3 sm:mt-4">
+          <span className="truncate text-[10px] text-zinc-500 sm:text-xs">
+            By <span className="font-medium text-zinc-800">{item.author}</span>
+          </span>
+
+          <span className="flex shrink-0 items-center gap-1.5 font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-violet-600 sm:text-[9px]">
+            Read
+            <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-1" />
+          </span>
+        </div>
+      </div>
+
+      <div className="relative aspect-[4/3] w-[104px] shrink-0 self-start overflow-hidden bg-[#0d0820] sm:w-[220px]">
+        <NewsImage
+          src={item.image_url}
+          alt={item.title}
+          seed={item.title}
+          className="transition-transform duration-700 group-hover:scale-[1.06]"
+        />
+        <div className="nw-shine pointer-events-none absolute inset-y-0 -left-1/2 z-10 w-1/3 -skew-x-12 bg-white/25 opacity-0" />
+      </div>
+    </Link>
+  )
+}
+
+/* ============================================================
+   PAGE
+============================================================ */
 export function NewsPage() {
   const [news, setNews] = useState<News[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [category, setCategory] = useState('All')
+  const [reduceMotion, setReduceMotion] = useState(false)
+
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const stageRef = useRef<HTMLDivElement | null>(null)
 
   /*
    * ============================================================
@@ -161,169 +537,61 @@ export function NewsPage() {
   useEffect(() => {
     const previousTitle = document.title
 
-    const previousDescription =
-      document.head.querySelector(
-        'meta[name="description"]',
-      ) as HTMLMetaElement | null
-
-    const previousKeywords =
-      document.head.querySelector(
-        'meta[name="keywords"]',
-      ) as HTMLMetaElement | null
-
-    const previousRobots =
-      document.head.querySelector(
-        'meta[name="robots"]',
-      ) as HTMLMetaElement | null
-
-    const previousCanonical =
-      document.head.querySelector(
-        'link[rel="canonical"]',
-      ) as HTMLLinkElement | null
-
-    const previousOgTitle =
-      document.head.querySelector(
-        'meta[property="og:title"]',
-      ) as HTMLMetaElement | null
-
-    const previousOgDescription =
-      document.head.querySelector(
-        'meta[property="og:description"]',
-      ) as HTMLMetaElement | null
-
-    const previousOgUrl =
-      document.head.querySelector(
-        'meta[property="og:url"]',
-      ) as HTMLMetaElement | null
-
-    const previousOgType =
-      document.head.querySelector(
-        'meta[property="og:type"]',
-      ) as HTMLMetaElement | null
-
-    const previousOgSiteName =
-      document.head.querySelector(
-        'meta[property="og:site_name"]',
-      ) as HTMLMetaElement | null
-
-    const previousOgImage =
-      document.head.querySelector(
-        'meta[property="og:image"]',
-      ) as HTMLMetaElement | null
-
-    const previousTwitterCard =
-      document.head.querySelector(
-        'meta[name="twitter:card"]',
-      ) as HTMLMetaElement | null
-
-    const previousTwitterTitle =
-      document.head.querySelector(
-        'meta[name="twitter:title"]',
-      ) as HTMLMetaElement | null
-
-    const previousTwitterDescription =
-      document.head.querySelector(
-        'meta[name="twitter:description"]',
-      ) as HTMLMetaElement | null
-
-    const previousTwitterImage =
-      document.head.querySelector(
-        'meta[name="twitter:image"]',
-      ) as HTMLMetaElement | null
-
-    const previousJsonLd =
-      document.getElementById(
-        'news-page-jsonld',
-      )
-
-    document.title =
-      'Journal — 39Production | Ideas, Stories & Updates'
-
     const description =
       'Read the latest stories, creative insights, project updates, announcements, and ideas from 39Production.'
 
     const keywords =
       '39Production, 39Production Journal, creative studio, digital production, creative technology, design, development, animation, UI UX, project updates, Indonesia'
 
-    setMetaTag(
-      'name',
-      'description',
-      description,
-    )
+    const metas: Array<['name' | 'property', string, string]> = [
+      ['name', 'description', description],
+      ['name', 'keywords', keywords],
+      [
+        'name',
+        'robots',
+        'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
+      ],
+      ['property', 'og:title', 'Journal — 39Production'],
+      ['property', 'og:description', description],
+      ['property', 'og:url', PAGE_URL],
+      ['property', 'og:type', 'website'],
+      ['property', 'og:site_name', '39Production'],
+      ['property', 'og:image', DEFAULT_OG_IMAGE],
+      ['name', 'twitter:card', 'summary_large_image'],
+      ['name', 'twitter:title', 'Journal — 39Production'],
+      ['name', 'twitter:description', description],
+      ['name', 'twitter:image', DEFAULT_OG_IMAGE],
+    ]
 
-    setMetaTag(
-      'name',
-      'keywords',
-      keywords,
-    )
+    /* Simpan nilai lama supaya bisa dipulihkan saat halaman ditinggalkan */
+    const previous = metas.map(([attribute, key]) => {
+      const element = document.head.querySelector(
+        `meta[${attribute}="${key}"]`,
+      ) as HTMLMetaElement | null
 
-    setMetaTag(
-      'name',
-      'robots',
-      'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
-    )
+      return {
+        attribute,
+        key,
+        content: element ? element.content : null,
+      }
+    })
 
-    setMetaTag(
-      'property',
-      'og:title',
-      'Journal — 39Production',
-    )
+    const previousCanonical = (
+      document.head.querySelector(
+        'link[rel="canonical"]',
+      ) as HTMLLinkElement | null
+    )?.href
 
-    setMetaTag(
-      'property',
-      'og:description',
-      description,
-    )
+    document.title =
+      'Journal — 39Production | Ideas, Stories & Updates'
 
-    setMetaTag(
-      'property',
-      'og:url',
-      PAGE_URL,
-    )
-
-    setMetaTag(
-      'property',
-      'og:type',
-      'website',
-    )
-
-    setMetaTag(
-      'property',
-      'og:site_name',
-      '39Production',
-    )
-
-    setMetaTag(
-      'property',
-      'og:image',
-      DEFAULT_OG_IMAGE,
-    )
-
-    setMetaTag(
-      'name',
-      'twitter:card',
-      'summary_large_image',
-    )
-
-    setMetaTag(
-      'name',
-      'twitter:title',
-      'Journal — 39Production',
-    )
-
-    setMetaTag(
-      'name',
-      'twitter:description',
-      description,
-    )
-
-    setMetaTag(
-      'name',
-      'twitter:image',
-      DEFAULT_OG_IMAGE,
+    metas.forEach(([attribute, key, content]) =>
+      setMetaTag(attribute, key, content),
     )
 
     setCanonical(PAGE_URL)
+
+    document.getElementById('news-page-jsonld')?.remove()
 
     const jsonLd = document.createElement('script')
 
@@ -353,201 +621,26 @@ export function NewsPage() {
     return () => {
       document.title = previousTitle
 
-      if (previousDescription) {
-        setMetaTag(
-          'name',
-          'description',
-          previousDescription.content,
-        )
-      } else {
-        document.head
-          .querySelector(
-            'meta[name="description"]',
-          )
-          ?.remove()
-      }
-
-      if (previousKeywords) {
-        setMetaTag(
-          'name',
-          'keywords',
-          previousKeywords.content,
-        )
-      } else {
-        document.head
-          .querySelector(
-            'meta[name="keywords"]',
-          )
-          ?.remove()
-      }
-
-      if (previousRobots) {
-        setMetaTag(
-          'name',
-          'robots',
-          previousRobots.content,
-        )
-      } else {
-        document.head
-          .querySelector(
-            'meta[name="robots"]',
-          )
-          ?.remove()
-      }
+      previous.forEach(({ attribute, key, content }) => {
+        if (content !== null) {
+          setMetaTag(attribute, key, content)
+        } else {
+          document.head
+            .querySelector(`meta[${attribute}="${key}"]`)
+            ?.remove()
+        }
+      })
 
       if (previousCanonical) {
-        setCanonical(previousCanonical.href)
+        setCanonical(previousCanonical)
       } else {
         document.head
-          .querySelector(
-            'link[rel="canonical"]',
-          )
+          .querySelector('link[rel="canonical"]')
           ?.remove()
       }
 
-      if (previousOgTitle) {
-        setMetaTag(
-          'property',
-          'og:title',
-          previousOgTitle.content,
-        )
-      } else {
-        document.head
-          .querySelector(
-            'meta[property="og:title"]',
-          )
-          ?.remove()
-      }
-
-      if (previousOgDescription) {
-        setMetaTag(
-          'property',
-          'og:description',
-          previousOgDescription.content,
-        )
-      } else {
-        document.head
-          .querySelector(
-            'meta[property="og:description"]',
-          )
-          ?.remove()
-      }
-
-      if (previousOgUrl) {
-        setMetaTag(
-          'property',
-          'og:url',
-          previousOgUrl.content,
-        )
-      } else {
-        document.head
-          .querySelector(
-            'meta[property="og:url"]',
-          )
-          ?.remove()
-      }
-
-      if (previousOgType) {
-        setMetaTag(
-          'property',
-          'og:type',
-          previousOgType.content,
-        )
-      } else {
-        document.head
-          .querySelector(
-            'meta[property="og:type"]',
-          )
-          ?.remove()
-      }
-
-      if (previousOgSiteName) {
-        setMetaTag(
-          'property',
-          'og:site_name',
-          previousOgSiteName.content,
-        )
-      } else {
-        document.head
-          .querySelector(
-            'meta[property="og:site_name"]',
-          )
-          ?.remove()
-      }
-
-      if (previousOgImage) {
-        setMetaTag(
-          'property',
-          'og:image',
-          previousOgImage.content,
-        )
-      } else {
-        document.head
-          .querySelector(
-            'meta[property="og:image"]',
-          )
-          ?.remove()
-      }
-
-      if (previousTwitterCard) {
-        setMetaTag(
-          'name',
-          'twitter:card',
-          previousTwitterCard.content,
-        )
-      } else {
-        document.head
-          .querySelector(
-            'meta[name="twitter:card"]',
-          )
-          ?.remove()
-      }
-
-      if (previousTwitterTitle) {
-        setMetaTag(
-          'name',
-          'twitter:title',
-          previousTwitterTitle.content,
-        )
-      } else {
-        document.head
-          .querySelector(
-            'meta[name="twitter:title"]',
-          )
-          ?.remove()
-      }
-
-      if (previousTwitterDescription) {
-        setMetaTag(
-          'name',
-          'twitter:description',
-          previousTwitterDescription.content,
-        )
-      } else {
-        document.head
-          .querySelector(
-            'meta[name="twitter:description"]',
-          )
-          ?.remove()
-      }
-
-      if (previousTwitterImage) {
-        setMetaTag(
-          'name',
-          'twitter:image',
-          previousTwitterImage.content,
-        )
-      } else {
-        document.head
-          .querySelector(
-            'meta[name="twitter:image"]',
-          )
-          ?.remove()
-      }
-
-      if (previousJsonLd) {
-        previousJsonLd.remove()
-      }
+      jsonLd.remove()
+      document.getElementById('news-items-jsonld')?.remove()
     }
   }, [])
 
@@ -561,9 +654,7 @@ export function NewsPage() {
     if (news.length === 0) return
 
     const existing =
-      document.getElementById(
-        'news-items-jsonld',
-      )
+      document.getElementById('news-items-jsonld')
 
     existing?.remove()
 
@@ -591,9 +682,7 @@ export function NewsPage() {
               `Latest story from 39Production: ${item.title}`,
             url: `${SITE_URL}/news/${item.id}`,
             ...(item.image_url
-              ? {
-                image: item.image_url,
-              }
+              ? { image: item.image_url }
               : {}),
             datePublished: item.date,
             author: {
@@ -606,9 +695,7 @@ export function NewsPage() {
               url: SITE_URL,
             },
             ...(item.category
-              ? {
-                articleSection: item.category,
-              }
+              ? { articleSection: item.category }
               : {}),
           },
         })),
@@ -656,34 +743,121 @@ export function NewsPage() {
 
   /*
    * ============================================================
-   * CATEGORIES
+   * TURUNAN DATA
    * ============================================================
    */
+
+  /* Berita terbaru di depan, seperti halaman berita pada umumnya */
+  const sortedNews = useMemo(
+    () =>
+      [...news].sort(
+        (a, b) => timestamp(b.date) - timestamp(a.date),
+      ),
+    [news],
+  )
 
   const categories = useMemo(
     () =>
       Array.from(
         new Set(
-          news
+          sortedNews
             .map((item) => item.category)
             .filter(Boolean),
         ),
       ),
-    [news],
+    [sortedNews],
   )
 
   const filteredNews =
     category === 'All'
-      ? news
-      : news.filter(
+      ? sortedNews
+      : sortedNews.filter(
         (item) => item.category === category,
       )
 
-  const featuredNews = filteredNews[0]
-  const remainingNews = filteredNews.slice(1)
+  const lead = filteredNews[0]
+  const sideStories = filteredNews.slice(1, 4)
+  const restStories = filteredNews.slice(4)
+
+  const countByCategory = (name: string) =>
+    sortedNews.filter((item) => item.category === name).length
+
+  const tickerItems = sortedNews.slice(0, 8)
+
+  const todayLabel = useMemo(
+    () =>
+      new Intl.DateTimeFormat('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }).format(new Date()),
+    [],
+  )
+
+  /*
+   * ============================================================
+   * MOTION
+   * ============================================================
+   */
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setReduceMotion(mq.matches)
+
+    const onChange = (e: MediaQueryListEvent) =>
+      setReduceMotion(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+
+    const items = root.querySelectorAll(
+      '[data-reveal]:not(.is-visible)',
+    )
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible')
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.06, rootMargin: '0px 0px -4% 0px' },
+    )
+
+    items.forEach((item) => observer.observe(item))
+    return () => observer.disconnect()
+  }, [loading, error, category, news.length])
+
+  const onStageMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (reduceMotion || e.pointerType === 'touch') return
+    const el = stageRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const x = (e.clientX - r.left) / r.width - 0.5
+    const y = (e.clientY - r.top) / r.height - 0.5
+    el.style.setProperty('--ry', `${(x * 18).toFixed(2)}deg`)
+    el.style.setProperty('--rx', `${(-y * 12).toFixed(2)}deg`)
+  }
+
+  const onStageLeave = () => {
+    const el = stageRef.current
+    if (!el) return
+    el.style.setProperty('--ry', '0deg')
+    el.style.setProperty('--rx', '0deg')
+  }
 
   return (
-    <div className="min-h-screen bg-white text-zinc-900">
+    <div
+      ref={rootRef}
+      className="nw min-h-screen overflow-x-hidden bg-white text-zinc-900"
+    >
       {/* EDITORIAL GRID */}
 
       <div
@@ -698,19 +872,19 @@ export function NewsPage() {
         }}
       />
 
-      {/* HERO */}
+      {/* ======================================================
+          MASTHEAD
+          ====================================================== */}
 
-      <section className="relative overflow-hidden border-b border-zinc-200">
-        <div className="pointer-events-none absolute -right-40 -top-48 h-[520px] w-[520px] rounded-full bg-violet-100/60 blur-[120px]" />
-
-        <div className="pointer-events-none absolute -bottom-48 left-1/3 h-[420px] w-[420px] rounded-full bg-fuchsia-100/40 blur-[120px]" />
-
-        <div className="relative mx-auto max-w-7xl px-5 pb-12 pt-8 sm:px-6 sm:pb-14 sm:pt-14 lg:px-8 lg:pb-20">
-          {/* TOP LINE */}
-
-          <div className="flex items-center justify-between border-b border-zinc-200 pb-4">
-            <p className="font-mono text-[9px] font-medium uppercase tracking-[0.2em] text-zinc-500 sm:text-[10px] sm:tracking-[0.22em]">
-              39Production • Journal
+      <header className="relative border-b-2 border-zinc-950">
+        <div className="mx-auto max-w-7xl px-5 pt-6 sm:px-6 sm:pt-8 lg:px-8">
+          {/* Utility bar */}
+          <div
+            className="nw-in flex items-center justify-between gap-4 border-b border-zinc-200 pb-3"
+            style={delay(0)}
+          >
+            <p className="truncate font-mono text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-500 sm:text-[10px] sm:tracking-[0.22em]">
+              {todayLabel}
             </p>
 
             <div className="hidden items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-400 sm:flex">
@@ -720,129 +894,262 @@ export function NewsPage() {
               <span className="text-zinc-300">/</span>
               <span>Updates</span>
             </div>
+
+            <p className="flex shrink-0 items-center gap-2 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-violet-600 sm:hidden">
+              <span className="nw-blink h-1.5 w-1.5 bg-violet-600" />
+              Live
+            </p>
           </div>
 
-          <div className="grid gap-9 pt-10 sm:gap-12 sm:pt-14 lg:grid-cols-[1fr_300px] lg:items-end lg:pt-18">
-            {/* TITLE */}
+          <div className="grid items-center gap-2 py-5 sm:py-7 lg:grid-cols-[1fr_340px] lg:gap-10">
+            {/* Wordmark */}
+            <div className="relative z-10">
+              <p
+                className="nw-in flex items-center gap-3 font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-violet-600 sm:text-[10px]"
+                style={delay(80)}
+              >
+                <span className="nw-grow h-px w-8 bg-violet-600" />
+                39Production • Publication
+              </p>
 
-            <div>
-              <div className="mb-5 flex items-center gap-3 sm:mb-7">
-                <div className="flex h-9 w-9 items-center justify-center border border-zinc-200 bg-white sm:h-10 sm:w-10">
-                  <Newspaper className="h-4 w-4 text-violet-600" />
-                </div>
-
-                <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-violet-600 sm:text-[10px] sm:tracking-[0.2em]">
-                  Publication
-                </span>
-              </div>
-
-              <h1 className="max-w-4xl text-[3.25rem] font-semibold leading-[0.94] tracking-[-0.065em] text-zinc-950 sm:text-6xl lg:text-[5.25rem]">
-                Stories behind
-                <br />
-                <span className="text-zinc-400">
-                  what we create.
+              <h1 className="mt-3 text-[3.3rem] font-semibold leading-[0.88] tracking-[-0.075em] text-zinc-950 sm:text-7xl lg:text-[6.4rem]">
+                <span className="block overflow-hidden pb-[0.05em]">
+                  <span className="nw-up block" style={delay(140)}>
+                    The Journal
+                    <span className="text-violet-600">.</span>
+                  </span>
                 </span>
               </h1>
 
-              <p className="mt-6 max-w-2xl text-sm leading-6 text-zinc-600 sm:mt-7 sm:text-base sm:leading-7">
-                Ideas, projects, releases, creative
-                experiments, and stories shaping the world
-                of 39Production.
+              <p
+                className="nw-in mt-3 max-w-xl text-sm leading-6 text-zinc-600 sm:mt-4 sm:text-base sm:leading-7"
+                style={delay(300)}
+              >
+                Stories behind what we create — ideas, projects, releases,
+                and creative experiments from 39Production.
               </p>
-            </div>
 
-            {/* PUBLICATION INFO */}
-
-            {!loading && !error && (
-              <div className="border-y border-zinc-200">
-                <div className="grid grid-cols-2 divide-x divide-zinc-200">
-                  <div className="px-4 py-4 sm:py-5">
+              {!loading && !error && (
+                <div
+                  className="nw-in mt-5 flex items-center gap-5 sm:gap-7"
+                  style={delay(380)}
+                >
+                  <div>
                     <p className="font-mono text-2xl font-medium tracking-[-0.05em] text-zinc-950 sm:text-3xl">
                       {String(news.length).padStart(2, '0')}
                     </p>
-
-                    <p className="mt-1 text-[8px] font-semibold uppercase tracking-[0.15em] text-zinc-400 sm:text-[9px] sm:tracking-[0.17em]">
+                    <p className="mt-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-400 sm:text-[9px]">
                       Published
                     </p>
                   </div>
 
-                  <div className="px-4 py-4 sm:py-5">
-                    <p className="font-mono text-2xl font-medium tracking-[-0.05em] text-zinc-950 sm:text-3xl">
-                      {String(categories.length).padStart(
-                        2,
-                        '0',
-                      )}
-                    </p>
+                  <span className="h-9 w-px bg-zinc-200" />
 
-                    <p className="mt-1 text-[8px] font-semibold uppercase tracking-[0.15em] text-zinc-400 sm:text-[9px] sm:tracking-[0.17em]">
+                  <div>
+                    <p className="font-mono text-2xl font-medium tracking-[-0.05em] text-zinc-950 sm:text-3xl">
+                      {String(categories.length).padStart(2, '0')}
+                    </p>
+                    <p className="mt-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-400 sm:text-[9px]">
                       Topics
                     </p>
                   </div>
                 </div>
+              )}
+            </div>
 
-                <div className="border-t border-zinc-200 px-4 py-3">
-                  <div className="flex items-center gap-2 text-[10px] text-zinc-500">
-                    <Sparkles className="h-3 w-3 text-violet-500" />
+            {/* Stage 3D: tumpukan koran */}
+            <div
+              ref={stageRef}
+              onPointerMove={onStageMove}
+              onPointerLeave={onStageLeave}
+              className="nw-in nw-stage relative h-[170px] sm:h-[210px] lg:h-[230px]"
+              style={delay(200)}
+            >
+              <div className="nw-tilt absolute inset-0">
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 border border-zinc-200"
+                />
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-2.5 top-2 font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-zinc-400"
+                >
+                  Fig.39 / Edition
+                </span>
 
-                    <span>
-                      The latest from our studio.
-                    </span>
+                {/* Tumpukan koran isometrik */}
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-1/2 top-1/2 -ml-[52px] -mt-[38px] sm:-ml-[62px] sm:-mt-[44px] lg:-ml-[74px] lg:-mt-[52px]"
+                >
+                  <div className="nw-iso">
+                    <span className="nw-shadow" />
+                    {[0, 1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className="nw-sheet"
+                        style={{ ['--i' as string]: i }}
+                      >
+                        {i === 3 && <i />}
+                        {i === 3 && <strong>39</strong>}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
 
-      <main className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-        {/* FILTER INDEX */}
-
-        {!loading && !error && categories.length > 0 && (
-          <section className="border-b border-zinc-200 py-5 sm:py-7">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-400">
-                  Story index
-                </p>
-
-                <p className="mt-1 text-xs text-zinc-600 sm:text-sm">
-                  Browse the journal by topic.
-                </p>
-              </div>
-
-              <div className="-mx-5 overflow-x-auto px-5 scrollbar-none sm:mx-0 sm:px-0">
-                <div className="flex w-max border border-zinc-200">
-                  <FilterButton
-                    active={category === 'All'}
-                    onClick={() => setCategory('All')}
-                  >
-                    All Stories
-                  </FilterButton>
-
-                  {categories.map((item) => (
-                    <FilterButton
-                      key={item}
-                      active={category === item}
-                      onClick={() => setCategory(item)}
-                    >
-                      {item}
-                    </FilterButton>
-                  ))}
+                {/* Kubus */}
+                <div
+                  aria-hidden="true"
+                  className="nw-z-a pointer-events-none absolute right-[8%] top-[10%]"
+                >
+                  <div className="nw-float-slow">
+                    <div className="nw-cube">
+                      <i className="nw-f1">N</i>
+                      <i className="nw-f2" />
+                      <i className="nw-f3">39</i>
+                      <i className="nw-f4" />
+                      <i className="nw-f5" />
+                      <i className="nw-f6" />
+                    </div>
+                  </div>
                 </div>
+
+                {/* Bola */}
+                <div
+                  aria-hidden="true"
+                  className="nw-z-b pointer-events-none absolute bottom-[14%] left-[8%]"
+                >
+                  <div className="nw-float" style={{ animationDelay: '-2s' }}>
+                    <div className="nw-sphere" />
+                  </div>
+                </div>
+
+                {/* Label melayang */}
+                <div
+                  aria-hidden="true"
+                  className="nw-z-b pointer-events-none absolute bottom-[10%] right-[5%]"
+                >
+                  <div className="nw-float" style={{ animationDelay: '-3.5s' }}>
+                    <div className="nw-plane border border-zinc-950 bg-white px-2.5 py-1.5 shadow-[5px_5px_0_0_rgba(124,58,237,0.9)]">
+                      <p className="flex items-center gap-1.5 font-mono text-[7px] font-bold uppercase tracking-[0.18em] text-violet-600">
+                        <span className="nw-blink h-1 w-1 bg-violet-600" />
+                        Breaking
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {[
+                  ['14%', '22%'],
+                  ['84%', '58%'],
+                  ['44%', '84%'],
+                ].map(([l, t], i) => (
+                  <span
+                    key={i}
+                    aria-hidden="true"
+                    className="nw-twinkle pointer-events-none absolute h-1.5 w-1.5 bg-violet-600"
+                    style={{ left: l, top: t, animationDelay: `${i * 0.7}s` }}
+                  />
+                ))}
               </div>
             </div>
-          </section>
-        )}
+          </div>
+        </div>
 
+        {/* Navigasi kategori */}
+        <nav
+          aria-label="Kategori"
+          className="nw-in border-t border-zinc-950 bg-white"
+          style={delay(440)}
+        >
+          <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+            <div className="nw-scroll -mx-5 flex overflow-x-auto px-5 sm:mx-0 sm:px-0">
+              <NavTab
+                active={category === 'All'}
+                onClick={() => setCategory('All')}
+                count={news.length}
+              >
+                All Stories
+              </NavTab>
+
+              {categories.map((item) => (
+                <NavTab
+                  key={item}
+                  active={category === item}
+                  onClick={() => setCategory(item)}
+                  count={countByCategory(item)}
+                >
+                  {item}
+                </NavTab>
+              ))}
+            </div>
+          </div>
+        </nav>
+      </header>
+
+      {/* ======================================================
+          TICKER — BERITA TERBARU
+          ====================================================== */}
+
+      {!loading && !error && tickerItems.length > 0 && (
+        <div className="border-b border-zinc-200 bg-zinc-50">
+          <div className="mx-auto flex max-w-7xl items-stretch px-5 sm:px-6 lg:px-8">
+            <span className="relative z-10 flex shrink-0 items-center gap-2 bg-violet-600 px-3 py-2.5 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-white">
+              <span className="nw-blink h-1.5 w-1.5 bg-white" />
+              Latest
+            </span>
+
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <div className="nw-marquee flex w-max items-center py-2.5">
+                {[0, 1].map((copy) => (
+                  <div
+                    key={copy}
+                    aria-hidden={copy === 1}
+                    className="flex items-center"
+                  >
+                    {tickerItems.map((item) => (
+                      <Link
+                        key={`${copy}-${item.id}`}
+                        to={`/news/${item.id}`}
+                        tabIndex={copy === 1 ? -1 : 0}
+                        className="flex items-center gap-4 whitespace-nowrap px-5 text-xs font-medium text-zinc-700 transition-colors hover:text-violet-600"
+                      >
+                        <span className="font-mono text-[9px] text-zinc-400">
+                          {shortDate(item.date)}
+                        </span>
+                        {item.title}
+                        <span className="h-1 w-1 bg-violet-600" />
+                      </Link>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <main className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
         {/* LOADING */}
 
         {loading && (
-          <div className="flex min-h-[420px] items-center justify-center">
-            <div className="flex items-center gap-3 text-sm text-zinc-500">
-              <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
+          <div className="py-6 sm:py-8">
+            <div className="mb-3 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+              <Loader2 className="h-4 w-4 animate-spin text-violet-600" />
+              Loading the journal
+            </div>
 
-              <span>Loading the journal...</span>
+            <div className="grid gap-3 lg:grid-cols-[1.7fr_1fr] lg:gap-5">
+              <div className="nw-skeleton h-[300px] bg-zinc-100 sm:h-[420px]" />
+              <div className="grid gap-3">
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="nw-skeleton h-[92px] bg-zinc-100"
+                    style={{ animationDelay: `${i * 0.15}s` }}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -850,7 +1157,7 @@ export function NewsPage() {
         {/* ERROR */}
 
         {!loading && error && (
-          <div className="my-12 border border-red-200 bg-red-50/60 p-6 sm:my-16 sm:p-8">
+          <div className="my-10 border border-red-200 bg-red-50/60 p-6 sm:my-14 sm:p-8">
             <div className="flex items-start gap-4">
               <FileText className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
 
@@ -867,15 +1174,13 @@ export function NewsPage() {
           </div>
         )}
 
-        {/* CONTENT */}
-
         {!loading && !error && (
           <>
             {/* EMPTY */}
 
             {filteredNews.length === 0 && (
-              <section className="py-16 sm:py-28">
-                <div className="border border-zinc-200 bg-zinc-50 px-5 py-16 text-center sm:px-6 sm:py-20">
+              <section className="py-14 sm:py-24">
+                <div className="border border-zinc-200 bg-zinc-50 px-5 py-14 text-center sm:px-6 sm:py-20">
                   <Newspaper className="mx-auto h-8 w-8 text-zinc-300" />
 
                   <p className="mt-5 font-mono text-[9px] uppercase tracking-[0.18em] text-zinc-400 sm:text-[10px]">
@@ -887,171 +1192,228 @@ export function NewsPage() {
                   </h2>
 
                   <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-zinc-500">
-                    There are currently no published stories
-                    in this category. Check back soon for new
-                    updates from 39Production.
+                    There are currently no published stories in this
+                    category. Check back soon for new updates from
+                    39Production.
                   </p>
                 </div>
               </section>
             )}
 
-            {/* FEATURED */}
+            {/* ================= BERITA UTAMA ================= */}
 
-            {featuredNews && (
-              <section className="py-10 sm:py-16">
-                <div className="mb-6 flex items-end justify-between sm:mb-8">
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-[9px] tracking-[0.18em] text-zinc-400 sm:text-[10px]">
-                        01
-                      </span>
-
-                      <span className="h-px w-6 bg-violet-500 sm:w-8" />
-
-                      <p className="font-mono text-[8px] font-semibold uppercase tracking-[0.18em] text-violet-600 sm:text-[9px] sm:tracking-[0.2em]">
-                        Featured story
-                      </p>
-                    </div>
-
-                    <h2 className="mt-2 text-2xl font-semibold tracking-[-0.045em] text-zinc-950 sm:mt-3 sm:text-4xl">
-                      Inside 39Production.
-                    </h2>
-                  </div>
-
-                  <span className="hidden font-mono text-[9px] uppercase tracking-[0.16em] text-zinc-400 sm:block">
-                    Editor's pick
-                  </span>
-                </div>
-
-                <Link
-                  to={`/news/${featuredNews.id}`}
-                  className="group block overflow-hidden border border-zinc-200 bg-white transition hover:border-zinc-300 hover:bg-zinc-50/50"
+            {lead && (
+              <section
+                key={category}
+                className="py-6 sm:py-8"
+              >
+                <div
+                  className={`grid gap-3 lg:gap-5 ${sideStories.length > 0
+                    ? 'lg:grid-cols-[1.7fr_1fr]'
+                    : ''
+                    }`}
                 >
-                  <div className="grid lg:grid-cols-[1.1fr_0.9fr]">
-                    {/* IMAGE */}
-
-                    <div className="relative aspect-[16/10] overflow-hidden bg-zinc-100 lg:aspect-[4/3]">
-                      {featuredNews.image_url ? (
-                        <>
-                          <img
-                            src={featuredNews.image_url}
-                            alt={featuredNews.title}
-                            className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.035]"
-                          />
-
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
-
-                          <div className="absolute bottom-4 left-4 sm:bottom-5 sm:left-5">
-                            <span className="border border-white/25 bg-black/30 px-2.5 py-1.5 font-mono text-[8px] font-medium uppercase tracking-[0.14em] text-white backdrop-blur-md sm:px-3 sm:text-[9px]">
-                              {featuredNews.category}
-                            </span>
-                          </div>
-
-                          <div className="absolute right-4 top-4 font-mono text-[8px] uppercase tracking-[0.18em] text-white/80 sm:right-5 sm:top-5 sm:text-[9px]">
-                            39P / 01
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-violet-50 via-white to-fuchsia-50">
-                          <Newspaper className="h-10 w-10 text-violet-200 sm:h-12 sm:w-12" />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* CONTENT */}
-
-                    <div className="flex flex-col justify-center border-t border-zinc-200 p-5 sm:p-9 lg:border-l lg:border-t-0 lg:p-12 xl:p-14">
-                      {!featuredNews.image_url && (
-                        <span className="w-fit border border-violet-200 bg-violet-50 px-3 py-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-violet-700">
-                          {featuredNews.category}
-                        </span>
-                      )}
-
-                      <h2 className="mt-3 text-2xl font-semibold leading-[1.05] tracking-[-0.045em] text-zinc-950 transition group-hover:text-violet-600 sm:mt-5 sm:text-4xl xl:text-[2.75rem]">
-                        {featuredNews.title}
-                      </h2>
-
-                      <p className="mt-4 line-clamp-3 text-sm leading-6 text-zinc-600 sm:mt-5 sm:line-clamp-none sm:text-base sm:leading-7">
-                        {featuredNews.excerpt}
-                      </p>
-
-                      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-zinc-200 pt-4 sm:mt-7 sm:gap-x-5 sm:pt-5">
-                        <span className="text-[11px] text-zinc-500 sm:text-xs">
-                          By{' '}
-                          <span className="font-medium text-zinc-800">
-                            {featuredNews.author}
-                          </span>
-                        </span>
-
-                        <span className="hidden h-1 w-1 bg-zinc-300 sm:block" />
-
-                        <span className="flex items-center gap-2 text-[11px] text-zinc-500 sm:text-xs">
-                          <Calendar className="h-3.5 w-3.5" />
-                          {formatDate(featuredNews.date)}
-                        </span>
-                      </div>
-
-                      <div className="mt-6 flex items-center gap-3 sm:mt-8">
-                        <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-violet-600 sm:text-[10px]">
-                          Read full story
-                        </span>
-
-                        <span className="flex h-8 w-8 items-center justify-center border border-zinc-200 transition group-hover:translate-x-1 group-hover:border-violet-600 group-hover:bg-violet-600 group-hover:text-white">
-                          <ArrowRight className="h-3.5 w-3.5" />
-                        </span>
-                      </div>
-                    </div>
+                  <div data-reveal className="nw-rv">
+                    <LeadStory item={lead} />
                   </div>
-                </Link>
+
+                  {sideStories.length > 0 && (
+                    <div className="flex flex-col gap-3 lg:gap-4">
+                      {sideStories.map((item, index) => (
+                        <div
+                          key={item.id}
+                          data-reveal
+                          style={delay(index * 100 + 80)}
+                          className="nw-rv flex flex-1 flex-col"
+                        >
+                          <SideStory item={item} index={index + 2} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </section>
             )}
 
-            {/* LATEST STORIES */}
+            {/* ================= DAFTAR + SIDEBAR ================= */}
 
-            {remainingNews.length > 0 && (
-              <section className="border-t border-zinc-200 py-10 sm:py-16">
-                <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end sm:gap-5">
+            {lead && restStories.length > 0 && (
+              <section className="border-t-2 border-zinc-950 py-8 sm:py-12">
+                <div className="grid gap-10 lg:grid-cols-[1fr_320px] lg:gap-12">
                   <div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-[9px] tracking-[0.18em] text-zinc-400 sm:text-[10px]">
-                        02
+                    <div
+                      data-reveal
+                      className="nw-rv flex items-end justify-between border-b border-zinc-200 pb-3"
+                    >
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono text-[10px] font-bold tracking-[0.18em] text-violet-600">
+                            02
+                          </span>
+                          <span className="h-px w-8 bg-violet-600" />
+                          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                            Latest updates
+                          </p>
+                        </div>
+
+                        <h2 className="mt-2 text-2xl font-semibold tracking-[-0.045em] text-zinc-950 sm:text-4xl">
+                          More from the journal.
+                        </h2>
+                      </div>
+
+                      <span className="hidden font-mono text-[9px] uppercase tracking-[0.16em] text-zinc-400 sm:block">
+                        {restStories.length} stories
                       </span>
-
-                      <span className="h-px w-6 bg-zinc-300 sm:w-8" />
-
-                      <p className="font-mono text-[8px] font-semibold uppercase tracking-[0.18em] text-zinc-500 sm:text-[9px] sm:tracking-[0.2em]">
-                        Latest updates
-                      </p>
                     </div>
 
-                    <h2 className="mt-2 text-2xl font-semibold tracking-[-0.045em] text-zinc-950 sm:mt-3 sm:text-4xl">
-                      More from the journal.
-                    </h2>
+                    <div>
+                      {restStories.map((item, index) => (
+                        <div
+                          key={item.id}
+                          data-reveal
+                          style={delay((index % 3) * 70)}
+                          className="nw-rv"
+                        >
+                          <StoryRow item={item} />
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
-                  <p className="hidden max-w-xs text-sm leading-6 text-zinc-500 sm:block sm:text-right">
-                    The latest ideas, projects,
-                    announcements, and creative stories from
-                    the studio.
-                  </p>
-                </div>
+                  {/* SIDEBAR */}
 
-                {/*
-                 * MOBILE:
-                 * Compact horizontal cards.
-                 *
-                 * DESKTOP:
-                 * Editorial row layout.
-                 */}
+                  <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+                    {/* Pilihan editor */}
+                    <div
+                      data-reveal
+                      className="nw-rv border border-zinc-950"
+                    >
+                      <div className="flex items-center justify-between bg-zinc-950 px-4 py-3 text-white">
+                        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em]">
+                          Editor&apos;s picks
+                        </p>
+                        <span className="nw-blink h-1.5 w-1.5 bg-violet-400" />
+                      </div>
 
-                <div className="mt-7 border-t border-zinc-200 sm:mt-10">
-                  {remainingNews.map((item, index) => (
-                    <NewsRow
-                      key={item.id}
-                      item={item}
-                      index={index + 2}
-                    />
-                  ))}
+                      <ol>
+                        {sortedNews.slice(0, 5).map((item, index) => (
+                          <li key={item.id}>
+                            <Link
+                              to={`/news/${item.id}`}
+                              className="group flex gap-4 border-b border-zinc-200 px-4 py-3.5 transition-colors last:border-b-0 hover:bg-violet-50/50"
+                            >
+                              <span className="w-8 shrink-0 font-mono text-2xl font-medium leading-none tracking-[-0.06em] text-zinc-300 transition-colors group-hover:text-violet-600">
+                                {String(index + 1).padStart(2, '0')}
+                              </span>
+
+                              <span className="min-w-0">
+                                <span className="line-clamp-2 text-[13px] font-semibold leading-[1.25] tracking-[-0.02em] text-zinc-950 transition-colors group-hover:text-violet-600">
+                                  {item.title}
+                                </span>
+                                <span className="mt-1.5 block font-mono text-[8px] uppercase tracking-[0.14em] text-zinc-400">
+                                  {item.category} · {shortDate(item.date)}
+                                </span>
+                              </span>
+                            </Link>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    {/* Topik */}
+                    {categories.length > 0 && (
+                      <div
+                        data-reveal
+                        style={delay(80)}
+                        className="nw-rv border border-zinc-200"
+                      >
+                        <div className="border-b border-zinc-200 px-4 py-3">
+                          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                            Browse by topic
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 p-4">
+                          {categories.map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => {
+                                setCategory(item)
+                                window.scrollTo({
+                                  top: 0,
+                                  behavior: reduceMotion ? 'auto' : 'smooth',
+                                })
+                              }}
+                              className="flex items-center gap-2 border border-zinc-200 px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-600 transition-colors hover:border-violet-600 hover:bg-violet-600 hover:text-white"
+                            >
+                              {item}
+                              <span className="text-zinc-400">
+                                {String(countByCategory(item)).padStart(2, '0')}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tentang */}
+                    <div
+                      data-reveal
+                      style={delay(160)}
+                      className="nw-rv relative overflow-hidden bg-zinc-950 p-5 text-white"
+                    >
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute -bottom-6 right-0 text-[8rem] font-black leading-none tracking-[-0.12em] text-white/[0.05]"
+                      >
+                        39
+                      </div>
+
+                      <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute right-5 top-5"
+                        style={{ perspective: '600px' }}
+                      >
+                        <div className="nw-float-slow">
+                          <div className="nw-cube nw-cube-dark">
+                            <i className="nw-f1">39</i>
+                            <i className="nw-f2" />
+                            <i className="nw-f3">N</i>
+                            <i className="nw-f4" />
+                            <i className="nw-f5" />
+                            <i className="nw-f6" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <p className="relative font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-violet-400">
+                        About the journal
+                      </p>
+
+                      <p className="relative mt-3 max-w-[200px] text-lg font-semibold leading-[1.15] tracking-[-0.03em]">
+                        We document the ideas behind the work.
+                      </p>
+
+                      <div className="relative mt-5 flex flex-col gap-2">
+                        <Link
+                          to="/portfolio"
+                          className="group flex items-center justify-between bg-violet-600 px-4 py-3 text-xs font-semibold transition-colors hover:bg-violet-500"
+                        >
+                          Explore our work
+                          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                        </Link>
+
+                        <Link
+                          to="/contact"
+                          className="group flex items-center justify-between border border-white/20 px-4 py-3 text-xs font-semibold text-white/80 transition-colors hover:border-violet-400 hover:text-violet-300"
+                        >
+                          Start a project
+                          <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                        </Link>
+                      </div>
+                    </div>
+                  </aside>
                 </div>
               </section>
             )}
@@ -1059,17 +1421,16 @@ export function NewsPage() {
             {/* FOOTER STATEMENT */}
 
             {filteredNews.length > 0 && (
-              <section className="border-t border-zinc-200 py-12 sm:py-20">
-                <div className="grid gap-6 sm:grid-cols-[120px_1fr] sm:gap-8">
-                  <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-400 sm:text-[10px]">
+              <section className="border-t border-zinc-200 py-10 sm:py-16">
+                <div className="grid gap-5 sm:grid-cols-[120px_1fr] sm:gap-8">
+                  <div className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400 sm:text-[10px]">
                     06.01
                   </div>
 
                   <div className="max-w-3xl">
                     <p className="text-2xl font-medium leading-tight tracking-[-0.03em] text-zinc-900 sm:text-3xl">
-                      We document the ideas, experiments,
-                      and stories that become part of the
-                      work.
+                      We document the ideas, experiments, and stories that
+                      become part of the work.
                     </p>
 
                     <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 sm:mt-7">
@@ -1098,267 +1459,313 @@ export function NewsPage() {
           </>
         )}
       </main>
+
+      <style>{`
+        .nw .nw-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        .nw .nw-scroll::-webkit-scrollbar { display: none; }
+
+        /* ---------- Reveal ---------- */
+        @keyframes nw-in {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .nw .nw-in {
+          opacity: 0;
+          animation: nw-in .85s cubic-bezier(.22,1,.36,1) var(--d, 0ms) forwards;
+        }
+
+        .nw .nw-rv {
+          opacity: 0;
+          transform: translate3d(0, 26px, 0);
+          transition:
+            opacity .8s cubic-bezier(.2,.7,.2,1) var(--d, 0ms),
+            transform .8s cubic-bezier(.2,.7,.2,1) var(--d, 0ms);
+        }
+        .nw .nw-rv.is-visible { opacity: 1; transform: none; }
+
+        @keyframes nw-up {
+          from { transform: translateY(105%); }
+          to   { transform: translateY(0); }
+        }
+        .nw .nw-up {
+          transform: translateY(105%);
+          animation: nw-up .95s cubic-bezier(.22,1,.36,1) var(--d, 0ms) forwards;
+        }
+        @keyframes nw-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+        .nw .nw-grow {
+          transform-origin: left;
+          animation: nw-grow .9s cubic-bezier(.77,0,.18,1) .4s both;
+        }
+
+        /* Judul: garis bawah menyapu saat hover */
+        .nw .nw-ul span {
+          background-image: linear-gradient(currentColor, currentColor);
+          background-repeat: no-repeat;
+          background-position: 0 100%;
+          background-size: 0% 2px;
+          transition: background-size .6s cubic-bezier(.22,1,.36,1);
+          padding-bottom: 2px;
+        }
+        .nw .group:hover .nw-ul span { background-size: 100% 2px; }
+
+        /* ---------- Floating ---------- */
+        @keyframes nw-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        .nw .nw-float { animation: nw-float 6s ease-in-out infinite; }
+        .nw .nw-float-slow { animation: nw-float 9s ease-in-out infinite; }
+
+        @keyframes nw-blink { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+        .nw .nw-blink { animation: nw-blink 1.6s ease-in-out infinite; }
+
+        @keyframes nw-twinkle {
+          0%, 100% { opacity: .15; transform: scale(.6) rotate(45deg); }
+          50% { opacity: 1; transform: scale(1) rotate(45deg); }
+        }
+        .nw .nw-twinkle { animation: nw-twinkle 3s ease-in-out infinite; }
+
+        @keyframes nw-marquee { to { transform: translateX(-50%); } }
+        .nw .nw-marquee { animation: nw-marquee 60s linear infinite; }
+        .nw .nw-marquee:hover { animation-play-state: paused; }
+
+        /* ---------- Stage 3D ---------- */
+        .nw .nw-stage { perspective: 1000px; }
+        .nw .nw-tilt {
+          transform-style: preserve-3d;
+          transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+          transition: transform .35s cubic-bezier(.22,1,.36,1);
+        }
+        .nw .nw-z-a { transform: translateZ(70px); }
+        .nw .nw-z-b { transform: translateZ(50px); }
+        @media (max-width: 1023px) {
+          .nw .nw-z-a, .nw .nw-z-b { transform: translateZ(24px); }
+        }
+
+        /* Tumpukan koran isometrik */
+        .nw .nw-iso {
+          --size: 104px;
+          position: relative;
+          width: var(--size);
+          height: var(--size);
+          transform-style: preserve-3d;
+          transform: rotateX(58deg) rotateZ(-38deg);
+        }
+        @media (min-width: 640px) { .nw .nw-iso { --size: 124px; } }
+        @media (min-width: 1024px) { .nw .nw-iso { --size: 148px; } }
+
+        .nw .nw-sheet {
+          position: absolute;
+          inset: 0;
+          border: 1.5px solid #111;
+          background: #fff;
+          transform: translateZ(calc(var(--i) * 20px));
+          animation: nw-sheet 5.5s ease-in-out infinite alternate;
+          animation-delay: calc(var(--i) * -.7s);
+        }
+        .nw .nw-sheet::before {
+          content: '';
+          position: absolute;
+          left: 8%; right: 8%; top: 8%;
+          height: 14%;
+          background: #111;
+        }
+        .nw .nw-sheet::after {
+          content: '';
+          position: absolute;
+          left: 8%; right: 8%; top: 30%; bottom: 8%;
+          background:
+            repeating-linear-gradient(
+              to bottom,
+              rgba(0,0,0,.18) 0 2px,
+              transparent 2px 7px
+            );
+        }
+        .nw .nw-sheet:nth-of-type(2) { background: #f5f3ff; }
+        .nw .nw-sheet:nth-of-type(3) { background: #fdf2f8; }
+        .nw .nw-sheet:nth-of-type(4) { background: #fff; }
+        .nw .nw-sheet i {
+          position: absolute;
+          left: 8%; top: 30%;
+          width: 46%; height: 34%;
+          background: linear-gradient(135deg, #7C3AED, #E78FBA);
+          z-index: 2;
+        }
+        .nw .nw-sheet strong {
+          position: absolute;
+          right: 10%; top: 28%;
+          z-index: 2;
+          font-size: 40px;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -.08em;
+          color: transparent;
+          -webkit-text-stroke: 1.5px #7C3AED;
+        }
+        @keyframes nw-sheet {
+          from { transform: translateZ(calc(var(--i) * 14px)); }
+          to   { transform: translateZ(calc(var(--i) * 30px)); }
+        }
+        .nw .nw-shadow {
+          position: absolute;
+          inset: 0;
+          background: rgba(124, 58, 237, .2);
+          filter: blur(10px);
+          transform: translateZ(-8px) scale(1.05);
+        }
+
+        /* Kubus */
+        .nw .nw-cube {
+          --s: 34px;
+          position: relative;
+          width: var(--s);
+          height: var(--s);
+          transform-style: preserve-3d;
+          animation: nw-cube 14s linear infinite;
+        }
+        @media (min-width: 640px) { .nw .nw-cube { --s: 42px; } }
+        @media (min-width: 1024px) { .nw .nw-cube { --s: 50px; } }
+        @keyframes nw-cube {
+          from { transform: rotateX(-24deg) rotateY(0deg); }
+          to   { transform: rotateX(-24deg) rotateY(360deg); }
+        }
+        .nw .nw-cube i {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-style: normal;
+          font-weight: 900;
+          font-size: calc(var(--s) * .34);
+          letter-spacing: -.06em;
+          color: #7C3AED;
+          border: 1.5px solid rgba(124, 58, 237, .85);
+          background: rgba(124, 58, 237, .1);
+        }
+        .nw .nw-cube .nw-f1 { transform: translateZ(calc(var(--s) / 2)); background: rgba(255,255,255,.8); }
+        .nw .nw-cube .nw-f2 { transform: rotateY(90deg) translateZ(calc(var(--s) / 2)); background: rgba(231,143,186,.4); }
+        .nw .nw-cube .nw-f3 { transform: rotateY(180deg) translateZ(calc(var(--s) / 2)); background: rgba(255,255,255,.8); }
+        .nw .nw-cube .nw-f4 { transform: rotateY(-90deg) translateZ(calc(var(--s) / 2)); background: rgba(124,58,237,.24); }
+        .nw .nw-cube .nw-f5 { transform: rotateX(90deg) translateZ(calc(var(--s) / 2)); background: rgba(231,143,186,.5); }
+        .nw .nw-cube .nw-f6 { transform: rotateX(-90deg) translateZ(calc(var(--s) / 2)); background: rgba(124,58,237,.32); }
+        .nw .nw-cube-dark { --s: 44px; }
+        .nw .nw-cube-dark i { color: #E78FBA; border-color: rgba(231,143,186,.7); background: rgba(124,58,237,.28); }
+
+        /* Bola */
+        .nw .nw-sphere {
+          width: 22px; height: 22px;
+          border-radius: 9999px;
+          background: radial-gradient(circle at 30% 28%, #fbd5e6 0%, #E78FBA 38%, #7C3AED 100%);
+          box-shadow: 0 10px 16px -6px rgba(124, 58, 237, .55);
+        }
+        @media (min-width: 640px) { .nw .nw-sphere { width: 28px; height: 28px; } }
+        @media (min-width: 1024px) { .nw .nw-sphere { width: 34px; height: 34px; } }
+
+        .nw .nw-plane { transform: rotateY(-14deg) rotateX(6deg); }
+
+        /* ---------- Kartu lead ---------- */
+        .nw .nw-card {
+          transform: perspective(1200px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+          transition: transform .3s cubic-bezier(.22,1,.36,1);
+          will-change: transform;
+        }
+        .nw .nw-glare {
+          background: radial-gradient(
+            320px circle at var(--gx, 50%) var(--gy, 0%),
+            rgba(255, 255, 255, .16),
+            transparent 65%
+          );
+        }
+
+        @keyframes nw-kb {
+          from { transform: scale(1); }
+          to   { transform: scale(1.07); }
+        }
+        .nw .nw-kb { animation: nw-kb 16s ease-in-out infinite alternate; }
+
+        @keyframes nw-shine {
+          0% { left: -50%; opacity: 0; }
+          30% { opacity: 1; }
+          100% { left: 130%; opacity: 0; }
+        }
+        .nw .group:hover .nw-shine { animation: nw-shine .9s ease-out; }
+
+        @keyframes nw-art-drift {
+          from { transform: translate3d(0, 0, 0); }
+          to   { transform: translate3d(8px, -8px, 0); }
+        }
+        .nw .nw-art-a { animation: nw-art-drift 9s ease-in-out infinite alternate; }
+
+        @keyframes nw-art-bar { 0%,100% { transform: scaleY(.55); } 50% { transform: scaleY(1); } }
+        .nw .nw-art-bar {
+          transform-box: fill-box;
+          transform-origin: bottom;
+          animation: nw-art-bar 2.4s ease-in-out infinite;
+        }
+
+        @keyframes nw-skeleton { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+        .nw .nw-skeleton { animation: nw-skeleton 1.4s ease-in-out infinite; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .nw *, .nw *::before, .nw *::after {
+            scroll-behavior: auto !important;
+            transition-duration: 0.01ms !important;
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+          }
+          .nw .nw-in, .nw .nw-rv, .nw .nw-up {
+            opacity: 1 !important;
+            transform: none !important;
+          }
+          .nw .nw-grow { transform: scaleX(1) !important; }
+          .nw .nw-tilt, .nw .nw-card { transform: none !important; }
+        }
+      `}</style>
     </div>
   )
 }
 
 /*
  * ============================================================
- * FILTER BUTTON
+ * NAV TAB (kategori)
  * ============================================================
  */
 
-function FilterButton({
+function NavTab({
   active,
   onClick,
+  count,
   children,
 }: {
   active: boolean
   onClick: () => void
-  children: React.ReactNode
+  count: number
+  children: ReactNode
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`shrink-0 border-r border-zinc-200 px-4 py-2.5 text-[9px] font-semibold uppercase tracking-[0.12em] transition last:border-r-0 sm:text-[10px] ${active
-          ? 'bg-zinc-950 text-white'
-          : 'bg-white text-zinc-500 hover:bg-zinc-50 hover:text-zinc-950'
+      className={`relative flex shrink-0 items-center gap-2 px-4 py-3.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] transition-colors sm:px-5 sm:text-[10px] ${active
+        ? 'text-violet-600'
+        : 'text-zinc-500 hover:text-zinc-950'
         }`}
     >
       {children}
+      <span
+        className={`text-[8px] ${active ? 'text-violet-400' : 'text-zinc-300'
+          }`}
+      >
+        {String(count).padStart(2, '0')}
+      </span>
+
+      <span
+        className={`absolute inset-x-0 bottom-0 h-[3px] origin-left bg-violet-600 transition-transform duration-500 ${active ? 'scale-x-100' : 'scale-x-0'
+          }`}
+      />
     </button>
   )
 }
 
-/*
- * ============================================================
- * NEWS ROW
- * ============================================================
- */
-
-function NewsRow({
-  item,
-  index,
-}: {
-  item: News
-  index: number
-}) {
-  const dateParts = getDateParts(item.date)
-
-  return (
-    <Link
-      to={`/news/${item.id}`}
-      className="
-        group
-        block
-        border-b
-        border-zinc-200
-        py-4
-        transition
-        hover:bg-zinc-50/70
-        sm:py-8
-      "
-    >
-      {/* ======================================================
-          MOBILE — COMPACT SIDE CARD
-          ====================================================== */}
-
-      <div className="flex gap-3 sm:hidden">
-        {/* IMAGE */}
-
-        <div className="relative h-[88px] w-[112px] shrink-0 overflow-hidden bg-zinc-100">
-          {item.image_url ? (
-            <>
-              <img
-                src={item.image_url}
-                alt={item.title}
-                className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
-                loading="lazy"
-              />
-
-              <div className="absolute inset-0 bg-black/5" />
-            </>
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-50 via-white to-violet-50">
-              <FileText className="h-5 w-5 text-violet-200" />
-            </div>
-          )}
-
-          <span className="absolute bottom-2 left-2 bg-white/90 px-1.5 py-1 font-mono text-[7px] font-semibold uppercase tracking-[0.12em] text-violet-600 backdrop-blur-sm">
-            {item.category}
-          </span>
-        </div>
-
-        {/* CONTENT */}
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-[8px] uppercase tracking-[0.14em] text-zinc-400">
-              {dateParts.day} {dateParts.month}{' '}
-              {dateParts.year}
-            </span>
-          </div>
-
-          <h3 className="mt-1.5 line-clamp-2 text-[14px] font-semibold leading-[1.2] tracking-[-0.025em] text-zinc-950 transition group-hover:text-violet-600">
-            {item.title}
-          </h3>
-
-          <p className="mt-1.5 line-clamp-1 text-[11px] leading-5 text-zinc-500">
-            {item.excerpt}
-          </p>
-
-          <div className="mt-2 flex items-center justify-between">
-            <span className="truncate text-[9px] text-zinc-400">
-              By {item.author}
-            </span>
-
-            <span className="ml-2 flex shrink-0 items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.12em] text-violet-600">
-              Read
-              <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ======================================================
-          DESKTOP — EDITORIAL ROW
-          ====================================================== */}
-
-      <div className="hidden gap-6 lg:grid lg:grid-cols-[70px_180px_minmax(0,1fr)_220px] lg:items-center lg:gap-8 sm:grid">
-        {/* INDEX */}
-
-        <div>
-          <span className="font-mono text-[10px] tracking-[0.16em] text-zinc-400">
-            {String(index).padStart(2, '0')}
-          </span>
-        </div>
-
-        {/* IMAGE */}
-
-        <div className="relative aspect-[4/3] overflow-hidden bg-zinc-100">
-          {item.image_url ? (
-            <>
-              <img
-                src={item.image_url}
-                alt={item.title}
-                className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]"
-                loading="lazy"
-              />
-
-              <div className="absolute inset-0 bg-black/5 transition group-hover:bg-transparent" />
-            </>
-          ) : (
-            <div className="flex h-full items-center justify-center bg-gradient-to-br from-zinc-50 via-white to-violet-50">
-              <FileText className="h-7 w-7 text-violet-200" />
-            </div>
-          )}
-        </div>
-
-        {/* ARTICLE */}
-
-        <div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.17em] text-violet-600">
-              {item.category}
-            </span>
-
-            <span className="h-1 w-1 bg-zinc-300" />
-
-            <span className="font-mono text-[9px] uppercase tracking-[0.15em] text-zinc-400">
-              {dateParts.day} {dateParts.month}{' '}
-              {dateParts.year}
-            </span>
-          </div>
-
-          <h3 className="mt-3 max-w-2xl text-xl font-semibold leading-tight tracking-[-0.03em] text-zinc-950 transition group-hover:text-violet-600 sm:text-2xl">
-            {item.title}
-          </h3>
-
-          <p className="mt-3 line-clamp-2 max-w-2xl text-sm leading-6 text-zinc-500">
-            {item.excerpt}
-          </p>
-
-          <div className="mt-4 flex items-center gap-2 text-xs text-zinc-500">
-            <span>By {item.author}</span>
-          </div>
-        </div>
-
-        {/* DATE / ACTION */}
-
-        <div className="flex flex-col items-end justify-between self-stretch">
-          <div className="text-right">
-            <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-zinc-400">
-              Published
-            </p>
-
-            <p className="mt-2 text-xs text-zinc-500">
-              {formatDate(item.date)}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-400 transition group-hover:text-violet-600">
-            Read
-
-            <span className="flex h-7 w-7 items-center justify-center border border-zinc-200 transition group-hover:translate-x-1 group-hover:border-violet-600 group-hover:bg-violet-600 group-hover:text-white">
-              <ArrowRight className="h-3 w-3" />
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* TABLET — COMPACT BUT NOT MOBILE */}
-
-      <div className="hidden sm:flex lg:hidden gap-5">
-        <div className="relative h-28 w-40 shrink-0 overflow-hidden bg-zinc-100">
-          {item.image_url ? (
-            <img
-              src={item.image_url}
-              alt={item.title}
-              className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]"
-              loading="lazy"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center bg-gradient-to-br from-zinc-50 via-white to-violet-50">
-              <FileText className="h-7 w-7 text-violet-200" />
-            </div>
-          )}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.17em] text-violet-600">
-              {item.category}
-            </span>
-
-            <span className="h-1 w-1 bg-zinc-300" />
-
-            <span className="font-mono text-[9px] uppercase tracking-[0.15em] text-zinc-400">
-              {dateParts.day} {dateParts.month}{' '}
-              {dateParts.year}
-            </span>
-          </div>
-
-          <h3 className="mt-2 line-clamp-2 text-xl font-semibold leading-tight tracking-[-0.03em] text-zinc-950 transition group-hover:text-violet-600">
-            {item.title}
-          </h3>
-
-          <p className="mt-2 line-clamp-2 text-sm leading-6 text-zinc-500">
-            {item.excerpt}
-          </p>
-
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-xs text-zinc-500">
-              By {item.author}
-            </span>
-
-            <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-600">
-              Read story
-              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-            </span>
-          </div>
-        </div>
-      </div>
-    </Link>
-  )
-}
+export default NewsPage

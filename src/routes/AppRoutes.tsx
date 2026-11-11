@@ -22,6 +22,7 @@ import { IdolReleasesPage } from '@/pages/public/IdolReleasesPage'
 import { QuotePage } from '@/pages/public/QuotePage'
 import { PlaceholderPage } from '@/pages/public/PlaceholderPage'
 
+
 import { AdminLayout } from '@/layouts/AdminLayout'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
@@ -53,11 +54,13 @@ import { AdminAuditLogPage } from '@/pages/admin/AdminAuditLogPage'
 export function AppRoutes() {
     return (
         <Routes>
+
             {/* =====================================================
                 PUBLIC ROUTES
             ====================================================== */}
 
             <Route element={<PublicLayout />}>
+
                 {/* =================================================
                     HOME
                 ================================================== */}
@@ -212,7 +215,11 @@ export function AppRoutes() {
                         />
                     }
                 />
+
             </Route>
+
+
+
 
             {/* =====================================================
                 LOGIN
@@ -223,15 +230,18 @@ export function AppRoutes() {
                 element={<LoginPage />}
             />
 
+
             {/* =====================================================
                 PROTECTED ADMIN ROUTES
             ====================================================== */}
 
             <Route element={<ProtectedRoute />}>
+
                 <Route
                     path="/admin"
                     element={<AdminLayout />}
                 >
+
                     {/* =================================================
                         DASHBOARD
                     ================================================== */}
@@ -351,8 +361,11 @@ export function AppRoutes() {
                         path="settings"
                         element={<AdminSettingsPage />}
                     />
+
                 </Route>
+
             </Route>
+
         </Routes>
     )
 }
