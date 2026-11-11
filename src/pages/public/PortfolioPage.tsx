@@ -954,8 +954,13 @@ export function PortfolioPage() {
   }, [clients, categories])
 
   /* 5 bingkai untuk cincin 3D di hero (dipadatkan dengan dummy bila perlu) */
+  /* 5 bingkai untuk cincin 3D di hero (dipadatkan dengan dummy bila perlu) */
   const ringFrames = useMemo(() => {
-    const real = portfolio.slice(0, 5).map((item) => ({
+    const real: Array<{
+      key: string
+      title: string
+      src: string | null
+    }> = portfolio.slice(0, 5).map((item) => ({
       key: `p-${item.id}`,
       title: item.title,
       src: getPortfolioImages(item)[0] ?? null,
@@ -971,6 +976,7 @@ export function PortfolioPage() {
 
     while (real.length < 5) {
       const i = real.length
+
       real.push({
         key: `f-${i}`,
         title: fillers[i % fillers.length],
