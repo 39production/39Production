@@ -1,21 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, ArrowUpRight, Check } from 'lucide-react'
 import { Link } from 'react-router-dom'
-
+import heroMain from '../../assets/hero-main.jpg'
+import heroSub from '../../assets/hero-sub.jpg'
+import step1 from '../../assets/step-1-discuss.jpg'
+import step2 from '../../assets/step-2-direction.jpg'
+import step3 from '../../assets/step-3-produce.jpg'
+import step4 from '../../assets/step-4-grow.jpg'
+import principlesImg from '../../assets/principles.jpg'
+import ctaImg from '../../assets/cta.jpg'
 /**
  * FOTO — letakkan file di /public/images/trust/ (atau ganti path di bawah).
  * Rekomendasi: JPG/WebP, rasio sesuai catatan, lebar min. 1200px.
  * Kalau file belum ada, komponen otomatis menampilkan placeholder gradient ungu.
  */
 const IMAGES = {
-    heroMain: '/images/trust/hero-main.jpg', // 4:5 portrait — suasana tim / meeting
-    heroSub: '/images/trust/hero-sub.jpg', // 1:1 — detail kerja (sketsa, layar)
-    step1: '/images/trust/step-1-discuss.jpg', // 4:5 — diskusi / briefing
-    step2: '/images/trust/step-2-direction.jpg', // 4:5 — moodboard / wireframe
-    step3: '/images/trust/step-3-produce.jpg', // 4:5 — produksi / coding / shooting
-    step4: '/images/trust/step-4-grow.jpg', // 4:5 — review / hasil jadi
-    principles: '/images/trust/principles.jpg', // 4:5 — kolaborasi tim
-    cta: '/images/trust/cta.jpg', // 3:4 — foto santai tim
+    heroMain,
+    heroSub,
+    step1,
+    step2,
+    step3,
+    step4,
+    principles: principlesImg,
+    cta: ctaImg,
 }
 
 type StepKey = 'step1' | 'step2' | 'step3' | 'step4'
@@ -487,8 +494,8 @@ export function TrustSection() {
                                         <span
                                             aria-hidden="true"
                                             className={`absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full border bg-white font-mono text-[9px] font-bold tracking-[0.1em] transition-all duration-500 ${activeStep >= i
-                                                    ? 'border-[#7C3AED] bg-[#7C3AED] text-white'
-                                                    : 'border-black/15 text-[#7C3AED]'
+                                                ? 'border-[#7C3AED] bg-[#7C3AED] text-white'
+                                                : 'border-black/15 text-[#7C3AED]'
                                                 }`}
                                         >
                                             {item.number}

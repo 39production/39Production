@@ -4,7 +4,9 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, ArrowUpRight, Play } from 'lucide-react'
 
 import heroBackground from '../../assets/hero-background.mp4'
-
+import digitalPhoto from '../../assets/service-digital.jpg'
+import creativePhoto from '../../assets/service-creative.jpg'
+import entertainmentPhoto from '../../assets/service-entertainment.jpg'
 /* ============================================================
    DATA
    Satu service = satu foto. Foto otomatis berganti mengikuti
@@ -21,7 +23,7 @@ const SERVICES = [
     no: '01',
     title: 'Digital',
     meta: 'Web · App · Game',
-    image: 'https://picsum.photos/seed/39p-digital/1920/820',
+    image: digitalPhoto,
     alt: 'Digital — web, app, dan game',
     className: 'md:border-r md:pr-6 lg:pr-8',
   },
@@ -29,7 +31,7 @@ const SERVICES = [
     no: '02',
     title: 'Creative',
     meta: 'Design · Animation · Visual',
-    image: 'https://picsum.photos/seed/39p-creative/1920/820',
+    image: creativePhoto,
     alt: 'Creative — design, animation, dan visual',
     className: 'md:border-r md:px-6 lg:px-8',
   },
@@ -37,7 +39,7 @@ const SERVICES = [
     no: '03',
     title: 'Entertainment',
     meta: 'Music · Idol · Production',
-    image: 'https://picsum.photos/seed/39p-entertainment/1920/820',
+    image: entertainmentPhoto,
     alt: 'Entertainment — music, idol, dan production',
     className: 'md:pl-6 lg:pl-8',
   },
