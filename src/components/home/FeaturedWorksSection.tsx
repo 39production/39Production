@@ -9,6 +9,9 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import stripDigital from '../../assets/strip-digital.jpg'
+import stripCreative from '../../assets/strip-creative.jpg'
+import stripEntertainment from '../../assets/strip-entertainment.jpg'
 
 const API_BASE_URL = 'https://39production-api.39production.workers.dev'
 
@@ -37,17 +40,17 @@ const FALLBACK_IMAGES = [
 */
 const PHOTO_STRIP = [
   {
-    src: 'https://picsum.photos/seed/39p-strip-1/1000/1250',
+    src: stripDigital,
     alt: 'Digital — proses dan hasil karya',
     label: '01 / Digital',
   },
   {
-    src: 'https://picsum.photos/seed/39p-strip-2/900/1200',
+    src: stripCreative,
     alt: 'Creative — proses dan hasil karya',
     label: '02 / Creative',
   },
   {
-    src: 'https://picsum.photos/seed/39p-strip-3/1000/1250',
+    src: stripEntertainment,
     alt: 'Entertainment — proses dan hasil karya',
     label: '03 / Entertainment',
   },

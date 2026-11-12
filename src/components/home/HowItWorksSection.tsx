@@ -10,6 +10,16 @@ import {
     WalletCards,
 } from 'lucide-react'
 
+import processHero from '../../assets/process-hero.jpg'
+import processStep1 from '../../assets/process-step-1-tell.jpg'
+import processStep2 from '../../assets/process-step-2-request.jpg'
+import processStep3 from '../../assets/process-step-3-quote.jpg'
+import processStep4 from '../../assets/process-step-4-accept.jpg'
+import processStep5 from '../../assets/process-step-5-pay.jpg'
+import processStep6 from '../../assets/process-step-6-build.jpg'
+import processCta from '../../assets/process-cta.jpg'
+
+import logo39 from '../../assets/logo-39production.png'
 /**
  * FOTO & LOGO — letakkan file di /public/images/process/ (atau ganti path di bawah).
  * Rekomendasi: JPG/WebP, lebar min. 1000px.
@@ -17,17 +27,17 @@ import {
  * Kalau file belum ada, otomatis tampil placeholder gradient ungu / logo teks "39".
  */
 const IMAGES = {
-    hero: '/images/process/hero.jpg', // 4:3 — diskusi dengan klien / meeting
-    step1: '/images/process/step-1-tell.jpg', // ide / brainstorming
-    step2: '/images/process/step-2-request.jpg', // mengisi form / laptop
-    step3: '/images/process/step-3-quote.jpg', // dokumen quotation
-    step4: '/images/process/step-4-accept.jpg', // jabat tangan / deal
-    step5: '/images/process/step-5-pay.jpg', // pembayaran
-    step6: '/images/process/step-6-build.jpg', // tim sedang bekerja
-    cta: '/images/process/cta.jpg', // 4:3 — tim / kolaborasi
+    hero: processHero, // 4:3
+    step1: processStep1,
+    step2: processStep2,
+    step3: processStep3,
+    step4: processStep4,
+    step5: processStep5,
+    step6: processStep6,
+    cta: processCta, // 4:3
 }
 
-const LOGO = '/images/logo-39.svg'
+const LOGO = logo39
 
 const steps = [
     {
