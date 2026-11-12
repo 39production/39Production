@@ -13,22 +13,32 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
+import servicesIntro from '../../assets/services-intro.jpg'
+import servicesWeb from '../../assets/services-web.jpg'
+import servicesUiux from '../../assets/services-uiux.jpg'
+import servicesGraphic from '../../assets/services-graphic.jpg'
+import servicesIllustration from '../../assets/services-illustration.jpg'
+import servicesAnimation from '../../assets/services-animation.jpg'
+import servicesGame from '../../assets/services-game.jpg'
+import servicesProduction from '../../assets/services-production.jpg'
+import servicesCta from '../../assets/services-cta.jpg'
 /**
  * FOTO — letakkan file di /public/images/services/ (atau ganti path di bawah).
  * Rekomendasi: JPG/WebP, lebar min. 1200px, subjek jelas (teks ditaruh di atas
  * overlay gelap, jadi foto terang pun aman).
  * Kalau file belum ada, otomatis tampil placeholder gradient ungu.
  */
+
 const IMAGES = {
-  intro: '', // KOSONG = pakai foto dummy studio. Isi '/images/services/intro.jpg' bila foto asli sudah ada
-  web: '/images/services/web.jpg', // layar coding / laptop
-  uiux: '/images/services/uiux.jpg', // wireframe / figma
-  graphic: '/images/services/graphic.jpg', // poster / branding
-  illustration: '/images/services/illustration.jpg', // gambar / tablet
-  animation: '/images/services/animation.jpg', // storyboard / timeline
-  game: '/images/services/game.jpg', // game / controller
-  production: '/images/services/production.jpg', // shooting / produksi
-  cta: '/images/services/cta.jpg', // 16:10 — tim / kolaborasi
+  intro: servicesIntro, // 21:8 (desktop) / 16:8 (mobile)
+  web: servicesWeb,
+  uiux: servicesUiux,
+  graphic: servicesGraphic,
+  illustration: servicesIllustration,
+  animation: servicesAnimation,
+  game: servicesGame,
+  production: servicesProduction,
+  cta: servicesCta, // 16:9 (mobile) / 5 kolom (desktop)
 }
 
 const services = [

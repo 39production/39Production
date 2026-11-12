@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import {
   ArrowRight,
   ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Loader2,
   MoveUpRight,
@@ -17,6 +19,12 @@ const API_BASE_URL = 'https://39production-api.39production.workers.dev'
 
 /* Jeda antar foto pada slider (ms) */
 const SLIDE_INTERVAL = 5500
+
+/* Jumlah project di Spotlight */
+const SPOTLIGHT_LIMIT = 6
+
+/* Jumlah maksimal kartu di daftar geser */
+const LIST_LIMIT = 12
 
 /*
   Foto cadangan: dipakai kalau sebuah project belum punya `image_url`
@@ -416,116 +424,187 @@ function SpotlightSlider({ works }: { works: Portfolio[] }) {
 }
 
 /* ============================================================
-   WORK ROW (baris project, kiri-kanan bergantian)
+   WORK CARD (kartu kecil untuk daftar geser samping)
 ============================================================ */
 
-function WorkRow({ portfolio, index }: { portfolio: Portfolio; index: number }) {
-  const [ref, inView] = useInView<HTMLElement>(0.18)
-  const flip = index % 2 === 1
+function WorkCard({ portfolio, index }: { portfolio: Portfolio; index: number }) {
+  const [ref, inView] = useInView<HTMLElement>(0.12)
   const number = pad(index + 1)
 
   return (
-    <article ref={ref} data-in={inView} className="group relative">
-      <Rule />
-
+    <article
+      ref={ref}
+      data-in={inView}
+      data-card
+      className="group relative w-[72%] shrink-0 snap-start sm:w-[300px] lg:w-[320px]"
+    >
+      {/* Image */}
       <div
-        className={`grid gap-6 py-7 md:items-center md:gap-8 lg:py-8 ${flip
-          ? 'md:grid-cols-[56px_1.1fr_0.9fr]'
-          : 'md:grid-cols-[56px_0.9fr_1.1fr]'
-          }`}
+        className="fw-clip relative overflow-hidden bg-neutral-100"
+        style={delay(0)}
       >
-        {/* Number */}
-        <div className="fw-up flex items-center gap-3" style={delay(0)}>
+        <div className="fw-clip-inner aspect-[4/3]" style={delay(0)}>
+          <Photo
+            src={getImage(portfolio, index)}
+            alt={portfolio.title}
+            className="transition-transform duration-700 ease-out group-hover:scale-[1.05]"
+          />
+        </div>
+
+        {/* Category */}
+        <div className="absolute left-2.5 top-2.5">
+          <span className="inline-flex items-center border border-white/20 bg-black/60 px-2 py-1 text-[8px] font-bold uppercase tracking-[0.16em] text-white backdrop-blur-sm">
+            {portfolio.category}
+          </span>
+        </div>
+
+        {/* Year */}
+        <div className="absolute right-2.5 top-2.5">
+          <span className="inline-flex border border-black/10 bg-white/90 px-2 py-1 text-[9px] font-semibold text-black backdrop-blur-sm">
+            {portfolio.year}
+          </span>
+        </div>
+
+        {/* Hover indicator */}
+        <div className="absolute bottom-2.5 right-2.5 flex h-8 w-8 translate-y-2 items-center justify-center rounded-full bg-white text-black opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+          <ExternalLink size={13} />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="pt-4">
+        <div className="fw-up flex items-center gap-3" style={delay(200)}>
           <span className="font-mono text-[9px] font-bold tracking-[0.15em] text-[#7C3AED]">
             {number}
           </span>
 
-          <span className="h-px w-5 bg-black/10 md:hidden" />
+          <span className="h-px w-5 bg-black/10 transition-all duration-300 group-hover:w-8 group-hover:bg-[#7C3AED]" />
+
+          <span className="truncate text-[8px] font-bold uppercase tracking-[0.18em] text-neutral-400">
+            {portfolio.client}
+          </span>
         </div>
 
-        {/* Image */}
-        <div
-          className={`fw-clip relative overflow-hidden bg-neutral-100 ${flip ? 'md:order-3' : ''
-            }`}
-          style={delay(120)}
+        <h3
+          className="fw-up mt-2.5 line-clamp-2 text-lg font-black leading-[1.05] tracking-[-0.04em] text-black transition-transform duration-300 group-hover:translate-x-1 sm:text-xl"
+          style={delay(280)}
         >
-          <div className="fw-clip-inner aspect-[16/9]" style={delay(120)}>
-            <Photo
-              src={getImage(portfolio, index)}
-              alt={portfolio.title}
-              className="transition-transform duration-700 ease-out group-hover:scale-[1.04]"
-            />
-          </div>
+          {portfolio.title}
+        </h3>
 
-          {/* Category */}
-          <div className="absolute left-3 top-3">
-            <span className="inline-flex items-center border border-white/20 bg-black/60 px-2.5 py-1 text-[8px] font-bold uppercase tracking-[0.16em] text-white backdrop-blur-sm">
-              {portfolio.category}
-            </span>
-          </div>
-
-          {/* Year */}
-          <div className="absolute right-3 top-3">
-            <span className="inline-flex border border-black/10 bg-white/90 px-2.5 py-1 text-[9px] font-semibold text-black backdrop-blur-sm">
-              {portfolio.year}
-            </span>
-          </div>
-
-          {/* Hover indicator */}
-          <div className="absolute bottom-3 right-3 flex h-8 w-8 translate-y-2 items-center justify-center rounded-full bg-white text-black opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-            <ExternalLink size={13} />
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className={`relative ${flip ? 'md:order-2' : ''}`}>
-          <div className="flex items-start justify-between gap-5">
-            <div>
-              <p
-                className="fw-up mb-2 text-[8px] font-bold uppercase tracking-[0.18em] text-[#7C3AED]"
-                style={delay(220)}
-              >
-                {portfolio.client}
-              </p>
-
-              <h3
-                className="fw-up max-w-xl text-2xl font-black leading-[1] tracking-[-0.045em] text-black transition-transform duration-300 group-hover:translate-x-1 sm:text-3xl"
-                style={delay(300)}
-              >
-                {portfolio.title}
-              </h3>
-            </div>
-
-            <span className="hidden font-mono text-[9px] font-bold tracking-[0.16em] text-neutral-300 sm:block">
-              {number}
-            </span>
-          </div>
-
-          <p
-            className="fw-up mt-4 max-w-xl text-sm font-medium leading-6 text-neutral-500"
-            style={delay(380)}
-          >
-            {portfolio.description}
-          </p>
-
-          <div
-            className="fw-up mt-6 flex items-center gap-3"
-            style={delay(460)}
-          >
-            <span className="h-px w-8 bg-black/10 transition-all duration-300 group-hover:w-12 group-hover:bg-[#7C3AED]" />
-
-            <span className="text-[8px] font-bold uppercase tracking-[0.18em] text-neutral-400">
-              Featured Project
-            </span>
-
-            <ArrowUpRight
-              size={13}
-              className="text-neutral-300 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#7C3AED]"
-            />
-          </div>
-        </div>
+        <p
+          className="fw-up mt-2 line-clamp-2 text-xs font-medium leading-5 text-neutral-500"
+          style={delay(360)}
+        >
+          {portfolio.description}
+        </p>
       </div>
     </article>
+  )
+}
+
+/* ============================================================
+   WORK SCROLLER (daftar project, geser ke samping)
+============================================================ */
+
+function WorkScroller({ works }: { works: Portfolio[] }) {
+  const scrollerRef = useRef<HTMLDivElement | null>(null)
+  const [canPrev, setCanPrev] = useState(false)
+  const [canNext, setCanNext] = useState(false)
+
+  const updateEdges = useCallback(() => {
+    const el = scrollerRef.current
+    if (!el) return
+
+    setCanPrev(el.scrollLeft > 4)
+    setCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
+  }, [])
+
+  useEffect(() => {
+    updateEdges()
+
+    const el = scrollerRef.current
+    if (!el) return
+
+    el.addEventListener('scroll', updateEdges, { passive: true })
+    window.addEventListener('resize', updateEdges)
+
+    return () => {
+      el.removeEventListener('scroll', updateEdges)
+      window.removeEventListener('resize', updateEdges)
+    }
+  }, [updateEdges, works.length])
+
+  const scrollByCard = (direction: 1 | -1) => {
+    const el = scrollerRef.current
+    if (!el) return
+
+    const card = el.querySelector<HTMLElement>('[data-card]')
+    const step = card ? card.offsetWidth + 20 : el.clientWidth * 0.8
+
+    el.scrollBy({ left: step * direction, behavior: 'smooth' })
+  }
+
+  return (
+    <div>
+      {/* Label + tombol panah */}
+      <div className="mb-5 flex items-center justify-between">
+        <span className="font-mono text-[9px] font-medium tracking-[0.16em] text-neutral-400 sm:text-[10px]">
+          {pad(works.length)}
+          <span className="text-neutral-300"> Projects</span>
+        </span>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => scrollByCard(-1)}
+            disabled={!canPrev}
+            aria-label="Geser ke kiri"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black transition-all duration-300 hover:border-[#7C3AED] hover:text-[#7C3AED] disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronLeft size={15} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => scrollByCard(1)}
+            disabled={!canNext}
+            aria-label="Geser ke kanan"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black transition-all duration-300 hover:border-[#7C3AED] hover:text-[#7C3AED] disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronRight size={15} />
+          </button>
+        </div>
+      </div>
+
+      {/* Baris kartu yang bisa digeser */}
+      <div
+        ref={scrollerRef}
+        className="fw-scroller -mx-6 flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth px-6 pb-2 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12 xl:-mx-16 xl:px-16"
+        style={{ scrollPaddingLeft: 'inherit' }}
+      >
+        {works.map((portfolio, index) => (
+          <WorkCard key={portfolio.id} portfolio={portfolio} index={index} />
+        ))}
+
+        {/* Kartu akhir: ajakan lihat semua */}
+        <Link
+          to="/portfolio"
+          className="group flex w-[48%] shrink-0 snap-start flex-col items-center justify-center gap-3 border border-dashed border-black/15 text-center transition-colors duration-300 hover:border-[#7C3AED] sm:w-[200px]"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black text-white transition-colors duration-300 group-hover:bg-[#7C3AED]">
+            <ArrowRight
+              size={15}
+              className="transition-transform duration-300 group-hover:translate-x-0.5"
+            />
+          </span>
+
+          <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-black">
+            View All Works
+          </span>
+        </Link>
+      </div>
+    </div>
   )
 }
 
@@ -585,11 +664,21 @@ export function FeaturedWorksSection() {
     }
   }, [])
 
-  const featuredWorks = useMemo(() => {
-    return portfolios
-      .filter((portfolio) => portfolio.status === 'Published')
-      .slice(0, 6)
+  const publishedWorks = useMemo(() => {
+    return portfolios.filter((portfolio) => portfolio.status === 'Published')
   }, [portfolios])
+
+  // Spotlight tetap maksimal 6 project
+  const featuredWorks = useMemo(
+    () => publishedWorks.slice(0, SPOTLIGHT_LIMIT),
+    [publishedWorks],
+  )
+
+  // Daftar geser: lebih banyak, tapi tetap dibatasi
+  const listWorks = useMemo(
+    () => publishedWorks.slice(0, LIST_LIMIT),
+    [publishedWorks],
+  )
 
   const hasWorks = !loading && !error && featuredWorks.length > 0
 
@@ -832,7 +921,7 @@ export function FeaturedWorksSection() {
         )}
 
         {/* =======================================================
-            SPOTLIGHT SLIDER
+            SPOTLIGHT SLIDER (tidak diubah)
         ======================================================== */}
 
         {hasWorks && (
@@ -842,18 +931,16 @@ export function FeaturedWorksSection() {
         )}
 
         {/* =======================================================
-            PROJECT LIST
+            PROJECT LIST (kartu kecil, geser ke samping)
         ======================================================== */}
 
         {hasWorks && (
           <div className="mt-14 sm:mt-16">
-            {featuredWorks.map((portfolio, index) => (
-              <WorkRow
-                key={portfolio.id}
-                portfolio={portfolio}
-                index={index}
-              />
-            ))}
+            <Rule />
+
+            <div className="pt-7">
+              <WorkScroller works={listWorks} />
+            </div>
           </div>
         )}
 
@@ -989,6 +1076,18 @@ export function FeaturedWorksSection() {
           transform: scale(1);
         }
 
+        /* ---------- Daftar geser samping ---------- */
+        .fw-scroller {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior-x: contain;
+        }
+
+        .fw-scroller::-webkit-scrollbar {
+          display: none;
+        }
+
         /* ---------- Slider ---------- */
         @keyframes fwSlideIn {
           from { clip-path: inset(0 0 0 100%); }
@@ -1058,6 +1157,10 @@ export function FeaturedWorksSection() {
           .fw-ken,
           .fw-float {
             animation: none !important;
+          }
+
+          .fw-scroller {
+            scroll-behavior: auto !important;
           }
         }
       `}</style>
